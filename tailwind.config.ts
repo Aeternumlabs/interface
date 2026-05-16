@@ -5,7 +5,7 @@ const config: Config = {
   // --- Dark mode ---
   // We always apply the "dark" class on <html> in app/layout.tsx.
   // This is an always-dark app — no light mode toggle.
-  darkMode: ['class'],
+    darkMode: 'class',
 
   // --- Content paths ---
   content: [
