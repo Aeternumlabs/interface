@@ -1,3 +1,16 @@
+/**
+ * lib/abi.ts
+ *
+ * AeternumVault contract ABI — typed as const for full viem/wagmi inference.
+ * Generated from forge build output (out/AeternumVault.sol/AeternumVault.json).
+ *
+ * Do not edit manually. If the contract changes, re-export the ABI
+ * from the Foundry build output and replace this file entirely.
+ *
+ * Imported exclusively through lib/contracts.ts — never import this directly
+ * in hooks or components.
+ */
+
 export const AETERNUM_VAULT_ABI = [
   {
     "type": "constructor",
