@@ -141,7 +141,7 @@ export function useRegister(): UseRegisterReturn {
     }
   }, [isConfirmed, queryClient])
 
-    // --- register() function exposed to the form ---
+  // --- register() function exposed to the form ---
   const register = ({
     backupAddress,
     inactivityPeriodSeconds,
