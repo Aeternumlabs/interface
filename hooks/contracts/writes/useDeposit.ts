@@ -81,7 +81,7 @@ export function useDeposit(): UseDepositReturn {
   const contract    = getVaultContract(chainId)
   const queryClient = useQueryClient()
 
-  // --- Step 1: submit the transaction ---
+  // --- Step 1: submit the transaction
   const {
     writeContract,
     data:    txHash,
@@ -91,7 +91,7 @@ export function useDeposit(): UseDepositReturn {
     reset,
   } = useWriteContract()
 
-  // --- Step 2: wait for the receipt ---
+  // --- Step 2: wait for the receipt
   const {
     isLoading: isConfirming,
     isSuccess: isConfirmed,
@@ -104,7 +104,7 @@ export function useDeposit(): UseDepositReturn {
     },
   })
 
-  // --- Step 3: invalidate reads after confirmation ---
+  // --- Step 3: invalidate reads after confirmation
   //
   // Triggers useVaultConfig to refetch so BalanceCard shows the updated
   // balance without a page reload. Also resets useTimeUntilRecovery since

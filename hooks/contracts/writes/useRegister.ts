@@ -103,7 +103,7 @@ export function useRegister(): UseRegisterReturn {
   const contract    = getVaultContract(chainId)
   const queryClient = useQueryClient()
 
-  // --- Step 1: submit the transaction ---
+  // --- Step 1: submit the transaction
   const {
     writeContract,
     data:    txHash,
@@ -113,7 +113,7 @@ export function useRegister(): UseRegisterReturn {
     reset,
   } = useWriteContract()
 
-  // --- Step 2: wait for the receipt ---
+  // --- Step 2: wait for the receipt
   const {
     isLoading: isConfirming,
     isSuccess: isConfirmed,
@@ -127,7 +127,7 @@ export function useRegister(): UseRegisterReturn {
     },
   })
 
-  // --- Step 3: invalidate reads after confirmation ---
+  // --- Step 3: invalidate reads after confirmation
   //
   // Invalidating all queries causes useVaultConfig, useIsRegistered, and
   // useTimeUntilRecovery to refetch in the background. The dashboard will
@@ -141,7 +141,7 @@ export function useRegister(): UseRegisterReturn {
     }
   }, [isConfirmed, queryClient])
 
-  // --- register() function exposed to the form ---
+  // --- register() function exposed to the form
   const register = ({
     backupAddress,
     inactivityPeriodSeconds,
