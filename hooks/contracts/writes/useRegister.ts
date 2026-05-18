@@ -141,20 +141,22 @@ export function useRegister(): UseRegisterReturn {
     }
   }, [isConfirmed, queryClient])
 
-  // --- register() function exposed to the form ---
+    // --- register() function exposed to the form ---
   const register = ({
     backupAddress,
     inactivityPeriodSeconds,
     depositWei,
   }: RegisterArgs) => {
-    if (!contract.address) return
+    if (!contract.address) {
+      console.error("Contract address is not deployed on this network channel.")
+      return
+    }
 
     writeContract({
-      ...contract,
+      abi: contract.abi,
+      address: contract.address as `0x${string}`,
       functionName: 'register',
       args:  [backupAddress, inactivityPeriodSeconds],
-      // value is msg.value — the ETH deposited into the vault at registration.
-      // Passing 0n is valid and results in a zero-balance vault.
       value: depositWei,
     })
   }
