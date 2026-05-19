@@ -117,7 +117,7 @@ export function useUpdateBackupAddress(): UseUpdateBackupAddressReturn {
     }
   }, [isConfirmed, queryClient])
 
-  // --- updateBackupAddress() function exposed to UpdateConfigModal ---
+  // --- updateBackupAddress() function exposed to UpdateConfigModal
   const updateBackupAddress = (newBackupAddress: `0x${string}`) => {
     if (!contract.address) return
 

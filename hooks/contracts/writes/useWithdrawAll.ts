@@ -116,7 +116,7 @@ export function useWithdrawAll(): UseWithdrawAllReturn {
     }
   }, [isConfirmed, queryClient])
 
-  // --- withdrawAll() function exposed to WithdrawModal ---
+  // --- withdrawAll() function exposed to WithdrawModal
   const withdrawAll = () => {
     if (!contract.address) return
 

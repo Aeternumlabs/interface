@@ -115,7 +115,7 @@ export function useDeposit(): UseDepositReturn {
     }
   }, [isConfirmed, queryClient])
 
-  // --- deposit() function exposed to DepositModal ---
+  // --- deposit() function exposed to DepositModal
   const deposit = (amountWei: bigint) => {
     if (!contract.address) return
 

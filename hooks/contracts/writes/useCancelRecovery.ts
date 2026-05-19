@@ -132,7 +132,7 @@ export function useCancelRecovery(): UseCancelRecoveryReturn {
     }
   }, [isConfirmed, queryClient])
 
-  // --- cancelRecovery() function exposed to CancelRecoveryModal ---
+  // --- cancelRecovery() function exposed to CancelRecoveryModal
   const cancelRecovery = () => {
     if (!contract.address) return
 

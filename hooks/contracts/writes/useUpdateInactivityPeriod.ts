@@ -124,7 +124,7 @@ export function useUpdateInactivityPeriod(): UseUpdateInactivityPeriodReturn {
     }
   }, [isConfirmed, queryClient])
 
-  // --- updateInactivityPeriod() function exposed to UpdateConfigModal ---
+  // --- updateInactivityPeriod() function exposed to UpdateConfigModal
   const updateInactivityPeriod = (newPeriodSeconds: bigint) => {
     if (!contract.address) return
 

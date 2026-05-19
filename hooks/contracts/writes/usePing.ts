@@ -129,7 +129,7 @@ export function usePing(): UsePingReturn {
     }
   }, [isConfirmed, queryClient])
 
-  // --- ping() function exposed to PingButton ---
+  // --- ping() function exposed to PingButton
   const ping = () => {
     if (!contract.address) return
 
