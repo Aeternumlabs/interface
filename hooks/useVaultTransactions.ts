@@ -119,9 +119,11 @@ export function useVaultTransactions(): UseVaultTransactionsReturn {
         publicClient.getLogs({ ...baseParams, event: EV_ABANDONED,      args: walletFilter }),
       ])
 
-      // --- Tag each log with its TransactionType
+      // --- Tag each log with type TransactionType
+      // This tells TypeScript that the collection contains valid viem logs,
+      // regardless of their individual event definitions.
       type TaggedLog = {
-        log:  (typeof registeredLogs)[number]
+        log: any
         type: TransactionType
       }
 
