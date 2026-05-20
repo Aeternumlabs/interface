@@ -28,8 +28,7 @@ aeternum-app/
 │   │   ├── label.tsx
 │   │   ├── separator.tsx
 │   │   ├── skeleton.tsx
-│   │   ├── toast.tsx
-│   │   ├── toaster.tsx
+│   │   ├── sonner.tsx
 │   │   └── tooltip.tsx
 │   │
 │   │
