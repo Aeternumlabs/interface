@@ -38,23 +38,61 @@
 
 import { useMemo }         from 'react'
 import { useQuery }        from '@tanstack/react-query'
-import { parseAbiItem }    from 'viem'
 import { usePublicClient, useAccount, useChainId } from 'wagmi'
 import { getVaultAddress } from '@/lib/contracts'
+import {
+  fetchVaultEventLogs,
+  eventMatchesWallet,
+  type ParsedVaultEvent,
+} from '@/lib/eventLogs'
 import { useEthPrice }     from './useEthPrice'
 import { weiToEthNumber }  from '@/lib/utils'
 import { EVENTS_POLL_INTERVAL_MS } from '@/lib/constants'
 import type { ChartDataPoint, TimeRange } from '@/types'
 
-// --- Event ABI definitions ---
-//
-// Module-level so they are parsed once, not on every render.
+const BALANCE_EVENT_NAMES = new Set([
+  'Deposited',
+  'Sent',
+  'Withdrawn',
+  'RecoveryExecuted',
+  'RecoveryCancelled',
+])
 
-const EV_DEPOSITED  = parseAbiItem('event Deposited(address indexed wallet, uint256 amount)')
-const EV_SENT       = parseAbiItem('event Sent(address indexed wallet, address indexed to, uint256 amount)')
-const EV_WITHDRAWN  = parseAbiItem('event Withdrawn(address indexed wallet, uint256 amount)')
-const EV_EXECUTED   = parseAbiItem('event RecoveryExecuted(address indexed wallet, address indexed backupAddress, uint256 amount)')
-const EV_CANCELLED  = parseAbiItem('event RecoveryCancelled(address indexed wallet, uint256 refundAmount)')
+type BalanceDelta = {
+  blockNumber: bigint
+  logIndex:    number
+  delta:       bigint
+  zeroes:      boolean
+}
+
+function eventToBalanceDelta(event: ParsedVaultEvent): BalanceDelta | null {
+  const blockNumber = event.blockNumber ?? 0n
+  const logIndex = event.logIndex ?? 0
+  const args = event.args as Record<string, unknown>
+
+  switch (event.eventName) {
+    case 'Deposited':
+      return {
+        blockNumber,
+        logIndex,
+        delta: typeof args.amount === 'bigint' ? args.amount : 0n,
+        zeroes: false,
+      }
+    case 'Sent':
+      return {
+        blockNumber,
+        logIndex,
+        delta: typeof args.amount === 'bigint' ? -args.amount : 0n,
+        zeroes: false,
+      }
+    case 'Withdrawn':
+    case 'RecoveryExecuted':
+    case 'RecoveryCancelled':
+      return { blockNumber, logIndex, delta: 0n, zeroes: true }
+    default:
+      return null
+  }
+}
 
 // --- Time range → cutoff seconds ---
 //
@@ -126,89 +164,28 @@ export function useBalanceHistory(timeRange: TimeRange): UseBalanceHistoryReturn
     queryFn: async (): Promise<RawBalancePoint[]> => {
       if (!address || !publicClient || !contractAddress) return []
 
-      const baseParams = {
-        address: contractAddress,
-        // fromBlock 0n covers the full contract history.
-        // For mainnet, set this to the actual contract deployment block
-        // (e.g. 22_100_000n) to skip empty pre-deployment blocks.
-        fromBlock: 0n,
-        toBlock:   'latest' as const,
-      }
+      const decoded = await fetchVaultEventLogs(
+        publicClient,
+        contractAddress,
+        chainId,
+      )
 
-      const walletFilter = { wallet: address }
-
-      // --- Fetch all five balance-affecting event types in parallel
-      const [
-        depositedLogs,
-        sentLogs,
-        withdrawnLogs,
-        executedLogs,
-        cancelledLogs,
-      ] = await Promise.all([
-        publicClient.getLogs({ ...baseParams, event: EV_DEPOSITED, args: walletFilter }),
-        publicClient.getLogs({ ...baseParams, event: EV_SENT,      args: walletFilter }),
-        publicClient.getLogs({ ...baseParams, event: EV_WITHDRAWN, args: walletFilter }),
-        publicClient.getLogs({ ...baseParams, event: EV_EXECUTED,  args: walletFilter }),
-        publicClient.getLogs({ ...baseParams, event: EV_CANCELLED, args: walletFilter }),
-      ])
-
-      // --- Tag each log so we know how it affects the running balance
-
-      type BalanceDelta = {
-        blockNumber: bigint
-        txHash:      string
-        // Positive for inflows, negative for outflows.
-        // 0n when this event zeroes the balance entirely.
-        delta:       bigint
-        zeroes:      boolean
-      }
-
-      const allDeltas: BalanceDelta[] = [
-        // Deposits increase balance
-        ...depositedLogs.map(l => ({
-          blockNumber: l.blockNumber ?? 0n,
-          txHash:      l.transactionHash ?? '0x',
-          delta:       (l.args as { wallet: `0x${string}`; amount: bigint }).amount,
-          zeroes:      false,
-        })),
-
-        // Sent decreases balance
-        ...sentLogs.map(l => ({
-          blockNumber: l.blockNumber ?? 0n,
-          txHash:      l.transactionHash ?? '0x',
-          // Store as negative bigint so the running sum works uniformly
-          delta:       -(l.args as { wallet: `0x${string}`; to: `0x${string}`; amount: bigint }).amount,
-          zeroes:      false,
-        })),
-
-        // These three events zero the balance atomically
-        ...withdrawnLogs.map(l => ({
-          blockNumber: l.blockNumber ?? 0n,
-          txHash:      l.transactionHash ?? '0x',
-          delta:       0n,
-          zeroes:      true,
-        })),
-        ...executedLogs.map(l => ({
-          blockNumber: l.blockNumber ?? 0n,
-          txHash:      l.transactionHash ?? '0x',
-          delta:       0n,
-          zeroes:      true,
-        })),
-        ...cancelledLogs.map(l => ({
-          blockNumber: l.blockNumber ?? 0n,
-          txHash:      l.transactionHash ?? '0x',
-          delta:       0n,
-          zeroes:      true,
-        })),
-      ]
+      const allDeltas = decoded
+        .filter(
+          (event) =>
+            BALANCE_EVENT_NAMES.has(event.eventName) &&
+            eventMatchesWallet(event, address),
+        )
+        .map(eventToBalanceDelta)
+        .filter((d): d is BalanceDelta => d !== null)
 
       if (allDeltas.length === 0) return []
 
-      // Sort ascending by block number — we need chronological order
-      // to correctly reconstruct the running balance.
       allDeltas.sort((a, b) => {
-        const diff = a.blockNumber - b.blockNumber
-        return diff > 0n ? 1 : diff < 0n ? -1 : 0
+        const blockDiff = a.blockNumber - b.blockNumber
+        if (blockDiff > 0n) return 1
+        if (blockDiff < 0n) return -1
+        return a.logIndex - b.logIndex
       })
 
       // --- Fetch timestamps for unique block numbers
@@ -282,6 +259,8 @@ export function useBalanceHistory(timeRange: TimeRange): UseBalanceHistoryReturn
     // Poll less frequently than vault state — balance history only
     // changes when a new transaction is mined.
     refetchInterval: EVENTS_POLL_INTERVAL_MS,
+    retry: 2,
+    retryDelay: 2_000,
 
     // Hold the previous result while a background refetch runs so the
     // chart does not flash to empty on every 30-second refresh.

@@ -28,7 +28,7 @@ interface TransactionListProps {
 // --- Component ---
 
 export function TransactionList({ className }: TransactionListProps) {
-  const { transactions, isLoading, isError } = useVaultTransactions()
+  const { transactions, isLoading, isError, refetch } = useVaultTransactions()
 
   // --- Loading
   if (isLoading) {
@@ -47,8 +47,19 @@ export function TransactionList({ className }: TransactionListProps) {
           Unable to load transaction history.
         </p>
         <p className="text-xs text-muted-foreground/50 mt-1 text-center">
-          Check your RPC connection and try refreshing.
+          Check your RPC connection and try again.
         </p>
+        <button
+          type="button"
+          onClick={() => refetch()}
+          className={cn(
+            'mt-4 rounded-full border border-border/60 bg-secondary',
+            'px-4 py-1.5 text-xs font-medium text-foreground',
+            'hover:bg-accent transition-colors',
+          )}
+        >
+          Retry
+        </button>
       </div>
     )
   }

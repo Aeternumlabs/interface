@@ -8,7 +8,7 @@
  *           [secondary address ]  [timestamp ]
  *
  * Supports all TransactionType values from types/vault.ts.
- * Amount colour: green for inflows (deposited), neutral for outflows.
+ * Amount colour: green for inflows (deposited), red for outflows (sent).
  * Timestamp: relative for recent events, date string for older ones.
  */
 
@@ -40,7 +40,7 @@ interface TypeConfig {
 const TYPE_CONFIG: Record<TransactionType, TypeConfig> = {
   registered:        { icon: ShieldPlus,    iconBg: 'bg-blue-950/60',    iconColor: 'text-blue-400',    amountSign: '+', amountColor: 'text-emerald-400' },
   deposited:         { icon: ArrowDownLeft, iconBg: 'bg-emerald-950/60', iconColor: 'text-emerald-400', amountSign: '+', amountColor: 'text-emerald-400' },
-  sent:              { icon: ArrowUpRight,  iconBg: 'bg-muted/60',       iconColor: 'text-foreground/70', amountSign: '-', amountColor: 'text-foreground/80' },
+  sent:              { icon: ArrowUpRight,  iconBg: 'bg-red-950/60',     iconColor: 'text-red-400',     amountSign: '-', amountColor: 'text-red-400' },
   withdrawn:         { icon: Wallet,        iconBg: 'bg-muted/60',       iconColor: 'text-foreground/70', amountSign: '-', amountColor: 'text-foreground/80' },
   pinged:            { icon: RefreshCw,     iconBg: 'bg-muted/60',       iconColor: 'text-muted-foreground', amountSign: '', amountColor: '' },
   backupUpdated:     { icon: UserCog,       iconBg: 'bg-blue-950/60',    iconColor: 'text-blue-400',    amountSign: '', amountColor: '' },

@@ -2,18 +2,8 @@
  * components/vault/cards/TransactionHistoryCard.tsx
  *
  * The bottom card in the vault dashboard.
- * Matches the "Transaction history" section in the Figma design.
- *
- * This card is intentionally thin — it owns no data hooks of its own.
- * All data fetching lives inside TransactionList → useVaultTransactions().
- * The card provides only the shell: heading, card background, padding.
- *
- * Empty state: TransactionList renders EmptyTransactionState when
- * no events exist yet ("No transactions yet" with a clock icon).
- *
- * Loading state: TransactionList renders skeleton rows while getLogs
- * is in flight. The card does not flicker because TransactionList holds
- * the previous data as a placeholder during background refetches.
+ * Fills all remaining centre-column height; the transaction list scrolls
+ * inside this card so the rest of the app stays viewport-locked.
  */
 
 import { TransactionList } from '@/components/vault/transactions/TransactionList'
@@ -31,29 +21,23 @@ export function TransactionHistoryCard({ className }: TransactionHistoryCardProp
   return (
     <div
       className={cn(
+        'flex flex-col min-h-0',
         'rounded-xl bg-card',
         'border border-border/30',
         'px-5 py-5',
-        // Minimum height keeps the card visually substantial even when
-        // the empty state is shown — prevents layout collapse.
-        'min-h-[180px]',
         className,
       )}
     >
-      {/* Heading */}
-      <h2 className="text-sm font-medium text-foreground mb-4 select-none">
+      <h2 className="shrink-0 text-sm font-medium text-foreground mb-4 select-none">
         Transaction history
       </h2>
 
-      {/* Transaction list */}
-      {/*
-        TransactionList handles all internal states:
-          • isLoading   → skeleton rows via LoadingSkeleton variant="tx-row"
-          • isEmpty     → EmptyTransactionState ("No transactions yet")
-          • isError     → inline RPC error message
-          • populated   → list of TransactionRow, newest first
-      */}
-      <TransactionList />
+      {/* Scrollable list — only this region moves when history is long */}
+      <div
+        className="flex-1 min-h-0 overflow-y-auto overscroll-contain"
+      >
+        <TransactionList />
+      </div>
     </div>
   )
 }

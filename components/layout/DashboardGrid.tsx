@@ -13,7 +13,8 @@
  *
  * Mobile layout (below lg):
  *   ┌────────────────────────────────────────┐
- *   │ main content — full width, scrollable  │
+ *   │ main content — full width, no page     │
+ *   │ scroll; transaction card scrolls inside│
  *   └────────────────────────────────────────┘
  *   Sidebar hidden → replaced by MobileDrawer (rendered inside Header).
  *   Chart panel hidden — not shown on mobile per design decision.
@@ -65,17 +66,12 @@ export function DashboardGrid({
       {sidebar}
 
       {/* Centre column: Main content */}
-      {/* flex-1 fills all remaining space between the two fixed columns. */}
-      {/* overflow-y-auto enables independent scrolling of the content area */}
-      {/* without the sidebar or chart panel scrolling along with it.      */}
+      {/* flex-1 fills remaining height; overflow-hidden keeps the app viewport- */}
+      {/* locked. TransactionHistoryCard scrolls internally (see VaultDashboard). */}
       <main
         className={cn(
-          'flex-1',
-          'overflow-y-auto',
-          // Padding inside the scrollable content area
+          'flex flex-1 flex-col min-h-0 min-w-0 overflow-hidden',
           'px-4 py-5 lg:px-6 lg:py-6',
-          // Ensures content never gets hidden behind the chart panel
-          'min-w-0',
         )}
       >
         {children}
