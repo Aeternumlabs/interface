@@ -62,7 +62,7 @@ export function AeternumLogo({
         className,
       )}
     >
-      {/* Logo mark from public/logo.png */}
+      {/* Logo mark from public/assets/logo.png */}
       <Image
         src="/logo.png"
         alt="Aeternum"
