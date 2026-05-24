@@ -1,51 +1,76 @@
-import type { Metadata } from "next";
-import { Geist, Geist_Mono, Inter } from "next/font/google";
-import "./globals.css";
-import { cn } from "@/lib/utils";
-import { Providers } from "./providers";
-import { Toaster } from "@/components/ui/sonner";
+/**
+ * app/layout.tsx
+ *
+ * Root layout for the entire app.
+ *   - Fonts + always-dark class on <html>
+ *   - Providers (wagmi, RainbowKit, TanStack Query, next-themes)
+ *   - Full-viewport flex shell for the vault dashboard
+ *   - Sonner toasts (must sit inside ThemeProvider from Providers)
+ */
 
-const inter = Inter({subsets:['latin'],variable:'--font-sans'});
+import type { Metadata, Viewport } from 'next'
+import { Inter, Geist_Mono } from 'next/font/google'
+import './globals.css'
+import { cn } from '@/lib/utils'
+import { Providers } from './providers'
+import { Toaster } from '@/components/ui/sonner'
+import { siteConfig } from '@/config/site'
 
-const geistSans = Geist({
-  variable: "--font-geist-sans",
-  subsets: ["latin"],
-});
+const inter = Inter({
+  subsets: ['latin'],
+  variable: '--font-sans',
+})
 
 const geistMono = Geist_Mono({
-  variable: "--font-geist-mono",
-  subsets: ["latin"],
-});
+  subsets: ['latin'],
+  variable: '--font-geist-mono',
+})
 
 export const metadata: Metadata = {
-  title: "Aeternum",
-  description: "Smart wallet vault",
-};
+  title: {
+    default: siteConfig.name,
+    template: `%s · ${siteConfig.name}`,
+  },
+  description: siteConfig.description,
+  metadataBase: new URL(siteConfig.url),
+  openGraph: {
+    title: siteConfig.name,
+    description: siteConfig.description,
+    url: siteConfig.url,
+    siteName: siteConfig.name,
+    images: [{ url: siteConfig.ogImage }],
+    type: 'website',
+  },
+}
+
+export const viewport: Viewport = {
+  themeColor: '#050505',
+  colorScheme: 'dark',
+}
 
 export default function RootLayout({
   children,
 }: Readonly<{
-  children: React.ReactNode;
+  children: React.ReactNode
 }>) {
   return (
     <html
       lang="en"
       suppressHydrationWarning
-      className={cn(
-        "dark h-full",
-        "antialiased",
-        geistSans.variable,
-        geistMono.variable,
-        "font-sans",
-        inter.variable,
-      )}
+      className={cn('dark h-full', inter.variable, geistMono.variable)}
     >
-      <body className="min-h-full flex flex-col bg-background text-foreground">
+      <body
+        className={cn(
+          'flex min-h-dvh flex-col overflow-hidden',
+          'bg-background text-foreground antialiased',
+        )}
+      >
         <Providers>
-          {children}
+          {/* flex-1 chain lets app/vault/layout fill the viewport below the header */}
+          <div className="flex min-h-0 flex-1 flex-col">{children}</div>
           <Toaster />
         </Providers>
       </body>
     </html>
-  );
+  )
 }
