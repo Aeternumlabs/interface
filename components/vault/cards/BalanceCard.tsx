@@ -17,6 +17,7 @@
 import { useVaultConfig }        from '@/hooks/contracts/reads/useVaultConfig'
 import { useTimeUntilRecovery }  from '@/hooks/contracts/reads/useTimeUntilRecovery'
 import { useEthPrice }           from '@/hooks/useEthPrice'
+import { useMounted }            from '@/hooks/useMounted'
 import { BalanceDisplay }        from '@/components/vault/balance/BalanceDisplay'
 import { CountdownDisplay }      from '@/components/vault/countdown/CountdownDisplay'
 import { ActionButtonRow }       from '@/components/vault/actions/ActionButtonRow'
@@ -31,13 +32,14 @@ interface BalanceCardProps {
 // --- Component ---
 
 export function BalanceCard({ className }: BalanceCardProps) {
+  const mounted = useMounted()
   const { config, isLoading: configLoading }    = useVaultConfig()
   const { deadlineUnix, isLoading: timeLoading } = useTimeUntilRecovery()
   const { usdPrice, isLoading: priceLoading }    = useEthPrice()
 
-  // Show skeleton until vault config and price are both ready.
-  // The countdown can seed from 0 while loading — it shows zeroed boxes.
-  const isLoading = configLoading || priceLoading
+  // Defer wallet-dependent UI until after hydration so SSR matches the client.
+  const balanceLoading = !mounted || configLoading || priceLoading
+  const countdownLoading = !mounted || timeLoading
 
   return (
     <div
@@ -56,13 +58,13 @@ export function BalanceCard({ className }: BalanceCardProps) {
         <BalanceDisplay
           wei={config?.balance ?? 0n}
           usdPrice={usdPrice}
-          isLoading={isLoading}
+          isLoading={balanceLoading}
         />
 
         {/* Right: Time until recovery */}
         <CountdownDisplay
           deadlineUnix={deadlineUnix}
-          isLoading={timeLoading}
+          isLoading={countdownLoading}
           className="items-end text-right"
         />
       </div>

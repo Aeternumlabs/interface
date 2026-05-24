@@ -3,9 +3,9 @@
  *
  * Root layout for the entire app.
  *   - Fonts + always-dark class on <html>
- *   - Providers (wagmi, RainbowKit, TanStack Query, next-themes)
+ *   - Providers (wagmi, RainbowKit, TanStack Query)
  *   - Full-viewport flex shell for the vault dashboard
- *   - Sonner toasts (must sit inside ThemeProvider from Providers)
+ *   - Sonner toasts (fixed dark theme)
  */
 
 import type { Metadata, Viewport } from 'next'

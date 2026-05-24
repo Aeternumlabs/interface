@@ -3,7 +3,6 @@
  *
  * Client-side provider tree — mounted once from app/layout.tsx.
  *
- *   ThemeProvider        — next-themes, forced dark (Sonner + shadcn)
  *   WagmiProvider        — wallet + chain state (lib/wagmi.ts)
  *   QueryClientProvider  — TanStack Query (wagmi reads + useEthPrice, etc.)
  *   RainbowKitProvider   — connect / account modals
@@ -14,8 +13,8 @@
  *   accentColor below matches the pill buttons — not the chart purple.
  *   Chart accent: set via --chart-1 in globals.css (hsl 263 65% 62%).
  *
- * Toaster (Sonner) lives in app/layout.tsx — it must render inside ThemeProvider
- * but outside RainbowKit so toasts are not trapped in the modal z-index stack.
+ * Toaster (Sonner) lives in app/layout.tsx outside RainbowKit so toasts are
+ * not trapped in the modal z-index stack. Theme is fixed to dark via layout.
  */
 
 'use client'
@@ -24,7 +23,6 @@ import { useState, type ReactNode } from 'react'
 import { WagmiProvider } from 'wagmi'
 import { RainbowKitProvider, darkTheme } from '@rainbow-me/rainbowkit'
 import { QueryClientProvider } from '@tanstack/react-query'
-import { ThemeProvider } from 'next-themes'
 import { wagmiConfig, queryClient } from '@/lib/wagmi'
 
 import '@rainbow-me/rainbowkit/styles.css'
@@ -58,27 +56,19 @@ export function Providers({ children }: ProvidersProps) {
   const [client] = useState(() => queryClient)
 
   return (
-    <ThemeProvider
-      attribute="class"
-      defaultTheme="dark"
-      forcedTheme="dark"
-      enableSystem={false}
-      disableTransitionOnChange
-    >
-      <WagmiProvider config={wagmiConfig}>
-        <QueryClientProvider client={client}>
-          <RainbowKitProvider
-            theme={aeternumTheme}
-            modalSize="compact"
-            appInfo={{
-              appName: 'Aeternum',
-              learnMoreUrl: 'https://aeternum.xyz',
-            }}
-          >
-            {children}
-          </RainbowKitProvider>
-        </QueryClientProvider>
-      </WagmiProvider>
-    </ThemeProvider>
+    <WagmiProvider config={wagmiConfig}>
+      <QueryClientProvider client={client}>
+        <RainbowKitProvider
+          theme={aeternumTheme}
+          modalSize="compact"
+          appInfo={{
+            appName: 'Aeternum',
+            learnMoreUrl: 'https://aeternum.xyz',
+          }}
+        >
+          {children}
+        </RainbowKitProvider>
+      </QueryClientProvider>
+    </WagmiProvider>
   )
 }
