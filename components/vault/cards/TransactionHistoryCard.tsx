@@ -9,33 +9,34 @@
 import { TransactionList } from '@/components/vault/transactions/TransactionList'
 import { cn }              from '@/lib/utils'
 
-// --- Types ---
-
 interface TransactionHistoryCardProps {
   className?: string
 }
-
-// --- Component ---
 
 export function TransactionHistoryCard({ className }: TransactionHistoryCardProps) {
   return (
     <div
       className={cn(
+        // flex-col + min-h-0 + flex-1 (from VaultDashboard) = bounded height
         'flex flex-col min-h-0',
         'rounded-xl bg-card',
         'border border-border/30',
-        'px-5 py-5',
+        'px-5 py-4',             // ← was py-5, saves 8px
         className,
       )}
     >
-      <h2 className="shrink-0 text-sm font-medium text-foreground mb-4 select-none">
+      <h2 className="shrink-0 text-sm font-medium text-foreground mb-2 select-none">
+        {/* ↑ was mb-4, saves 8px */}
         Transaction history
       </h2>
 
-      {/* Scrollable list — only this region moves when history is long */}
-      <div
-        className="flex-1 min-h-0 overflow-y-auto overscroll-contain"
-      >
+      {/*
+        flex-1 min-h-0: fills remaining card height after the heading.
+        overflow-y-auto: scrolls when transaction rows exceed that height.
+        The scroll works because the parent card has a bounded height
+        (flex-1 min-h-0 in VaultDashboard's flex column).
+      */}
+      <div className="flex-1 min-h-0 overflow-y-auto overscroll-contain">
         <TransactionList />
       </div>
     </div>
