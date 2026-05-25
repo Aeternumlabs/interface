@@ -5,27 +5,14 @@
  *   "Total balance"     ← small muted label
  *   "$22.16"            ← large prominent USD value
  *
- * The USD value is computed by multiplying the vault's wei balance by the
- * current ETH/USD price from useEthPrice(). Both values are received as props
- * so this component stays purely presentational with no hooks of its own.
- *
- * States handled:
- *   isLoading  → LoadingSkeleton variant="balance"
- *   wei = 0n   → "$0.00" (unregistered vault — State 2 shell, correct by design)
- *   normal     → formatted USD string e.g. "$22.16"
- *
- * Props:
- *   wei        — vault balance in wei from useVaultConfig()
- *   usdPrice   — current ETH/USD price from useEthPrice()
- *   isLoading  — show skeleton while vault config or price is loading
- *   className  — forwarded to root element
+ * FONT FIX: text-balance-lg (custom Tailwind config token) does not
+ * resolve in Tailwind v4's @theme inline system. Replaced with the
+ * arbitrary value text-[2.5rem] which always compiles correctly.
  */
 
 import { LoadingSkeleton } from '@/components/common/LoadingSkeleton'
 import { formatWeiToUSD }  from '@/lib/formatters'
 import { cn }              from '@/lib/utils'
-
-// --- Types ---
 
 interface BalanceDisplayProps {
   wei:        bigint
@@ -34,8 +21,6 @@ interface BalanceDisplayProps {
   className?: string
 }
 
-// --- Component ---
-
 export function BalanceDisplay({
   wei,
   usdPrice,
@@ -43,7 +28,6 @@ export function BalanceDisplay({
   className,
 }: BalanceDisplayProps) {
 
-  // --- Loading state
   if (isLoading) {
     return (
       <div className={cn('flex flex-col gap-2', className)}>
@@ -52,7 +36,6 @@ export function BalanceDisplay({
     )
   }
 
-  // --- Computed USD value
   const usdDisplay = formatWeiToUSD(wei, usdPrice)
 
   return (
@@ -66,15 +49,14 @@ export function BalanceDisplay({
         Total balance
       </p>
 
-      {/* USD value */}
-      {/* text-balance-lg is a custom font size from tailwind.config.ts:  */}
-      {/* 2.25rem / line-height 1 / font-weight 700                       */}
+      {/* USD value — arbitrary value avoids Tailwind v4 custom-token issues */}
       <p
         className={cn(
-          'text-balance-lg',    // 2.25rem, lh:1, fw:700 — from tailwind config
-          'text-foreground',
-          'tabular-nums',
+          'text-[1.75rem]',
+          'font-bold',
           'leading-none',
+          'tabular-nums',
+          'text-foreground',
         )}
         aria-live="polite"
         aria-atomic="true"
