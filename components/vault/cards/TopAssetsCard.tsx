@@ -20,9 +20,13 @@ import { useEthPrice }    from '@/hooks/useEthPrice'
 import { AssetRow }       from '@/components/vault/balance/AssetRow'
 import { cn }             from '@/lib/utils'
 
+// --- Types ---
+
 interface TopAssetsCardProps {
   className?: string
 }
+
+// --- Component ---
 
 export function TopAssetsCard({ className }: TopAssetsCardProps) {
   const { config, isLoading: configLoading } = useVaultConfig()
@@ -35,18 +39,25 @@ export function TopAssetsCard({ className }: TopAssetsCardProps) {
       className={cn(
         'rounded-xl bg-card',
         'border border-border/30',
-        'px-5 py-3',          // ← was py-5, saves 16px
-        'shrink-0',
+        'px-5 py-5',
         className,
       )}
     >
-      <h2 className="text-sm font-medium text-foreground mb-1.5 select-none">
-        {/* ↑ was mb-3, saves 6px */}
+      {/* Heading */}
+      <h2 className="text-sm font-medium text-foreground mb-3 select-none">
         Top assets
       </h2>
 
+      {/* Asset rows */}
+      {/*
+        MVP: single ETH row.
+        Phase 2: map over config.tokens[] once ERC-20 support is added.
+        Each token row should receive its own symbol, name, wei balance,
+        USD price, and 24h change. The AssetRow component is already
+        designed to handle arbitrary tokens — only the data source changes.
+      */}
       <AssetRow
-        name="Sepolia Ether"
+        name={config?.isActive ? 'Sepolia Ether' : 'Sepolia Ether'}
         symbol="ETH"
         wei={config?.balance ?? 0n}
         usdPrice={usdPrice}
