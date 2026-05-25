@@ -18,16 +18,12 @@
 
 import { cn } from '@/lib/utils'
 
-// --- Types ---
-
 interface CountdownBoxProps {
   value:      number
   label:      string
   highlight?: boolean
   className?: string
 }
-
-// --- Component ---
 
 export function CountdownBox({
   value,
@@ -39,21 +35,16 @@ export function CountdownBox({
     <div
       className={cn(
         'flex flex-col items-center',
-        // Minimum width keeps boxes stable as 1→2→3 digit values change
-        'min-w-[2rem]',
+        'min-w-[1.75rem]',
         className,
       )}
     >
-      {/* Number */}
+      {/* Number — smaller so balance stays the visual hero */}
       <span
         className={cn(
-          // Monospace + tabular-nums prevents layout shift as digits tick
           'font-mono tabular-nums',
-          // Size — matches the Figma countdown numbers
-          'text-[1.6rem] leading-none font-semibold',
-          // Colour
+          'text-[1.1rem] leading-none font-semibold',
           highlight ? 'text-foreground' : 'text-foreground/90',
-          // Smooth colour transition when highlight fires
           'transition-colors duration-150',
         )}
       >
@@ -63,8 +54,8 @@ export function CountdownBox({
       {/* Label */}
       <span
         className={cn(
-          'mt-1',
-          'text-[9px] uppercase tracking-widest leading-none',
+          'mt-0.5',
+          'text-[8px] uppercase tracking-widest leading-none',
           'text-muted-foreground/70',
           'select-none',
         )}

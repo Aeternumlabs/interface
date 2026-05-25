@@ -63,7 +63,7 @@ export function BalanceDisplay({
       {/* USD value — arbitrary value avoids Tailwind v4 custom-token issues */}
       <p
         className={cn(
-          'text-[1.75rem]',
+          'text-[1.5rem]',
           'font-bold',
           'leading-none',
           'tabular-nums',
