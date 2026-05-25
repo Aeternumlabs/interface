@@ -5,9 +5,20 @@
  *   "Total balance"     ← small muted label
  *   "$22.16"            ← large prominent USD value
  *
- * FONT FIX: text-balance-lg (custom Tailwind config token) does not
- * resolve in Tailwind v4's @theme inline system. Replaced with the
- * arbitrary value text-[2.5rem] which always compiles correctly.
+ * The USD value is computed by multiplying the vault's wei balance by the
+ * current ETH/USD price from useEthPrice(). Both values are received as props
+ * so this component stays purely presentational with no hooks of its own.
+ *
+ * States handled:
+ *   isLoading  → LoadingSkeleton variant="balance"
+ *   wei = 0n   → "$0.00" (unregistered vault — State 2 shell, correct by design)
+ *   normal     → formatted USD string e.g. "$22.16"
+ *
+ * Props:
+ *   wei        — vault balance in wei from useVaultConfig()
+ *   usdPrice   — current ETH/USD price from useEthPrice()
+ *   isLoading  — show skeleton while vault config or price is loading
+ *   className  — forwarded to root element
  */
 
 import { LoadingSkeleton } from '@/components/common/LoadingSkeleton'
