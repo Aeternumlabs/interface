@@ -72,7 +72,7 @@ export function DashboardGrid({
           className={cn(
             'hidden lg:flex',
             'flex-col',
-            'w-[340px] shrink-0',
+            'w-85 shrink-0',
             'border-l border-border/50',
           )}
           aria-label="Balance chart"
