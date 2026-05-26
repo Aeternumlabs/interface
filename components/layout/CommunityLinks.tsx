@@ -1,5 +1,22 @@
 'use client'
 
+/**
+ * components/layout/CommunityLinks.tsx
+ *
+ * Inline social media links rendered at the bottom of the desktop sidebar.
+ * Displays X, GitHub, and Discord icons horizontally.
+ *
+ * Layout & Architecture:
+ * - Matches the exact group label typography used in SidebarNavGroup
+ * ("COMMUNITY" — 10px, uppercase, tracking-widest, muted text).
+ * - Uses a custom inline layout (flex-row) rather than the standard 
+ * full-width SidebarNavItem layout.
+ * - Rendered statically at the bottom of Sidebar.tsx to keep the primary
+ * config/site.ts routing clean and strictly for in-app navigation.
+ * * Interactive States:
+ * - Icons use shared hover and focus-visible classes to match the 
+ * fade-in behaviour of standard sidebar navigation items.
+ */
 
 export function CommunityLinks() {
   // Shared hover and focus states for the social icons
