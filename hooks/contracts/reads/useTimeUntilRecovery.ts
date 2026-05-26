@@ -28,6 +28,8 @@
  * refetch          — manually re-read (e.g. after a ping transaction confirms)
  */
 
+// hooks/contracts/reads/useTimeUntilRecovery.ts
+
 import { useReadContract, useAccount, useChainId } from 'wagmi'
 import { getVaultContract } from '@/lib/contracts'
 import { VAULT_POLL_INTERVAL_MS } from '@/lib/constants'
