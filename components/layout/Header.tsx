@@ -58,7 +58,7 @@ export function Header({ activeModal, onOpenModal, className }: HeaderProps) {
         )}
       >
         {/* Left: Logo */}
-        <AeternumLogo size="md" />
+        <AeternumLogo size="lg" />
 
         {/* Right: Wallet button + mobile hamburger */}
         <div className="flex items-center gap-2">
