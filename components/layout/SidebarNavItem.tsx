@@ -25,7 +25,7 @@
 import Link             from 'next/link'
 import { usePathname }  from 'next/navigation'
 import {
-  Home, Activity, Settings2,
+  Home, Activity, Settings,
   ArrowUpFromLine, X, Globe, FileText,
   type LucideIcon,
 }                       from 'lucide-react'
@@ -41,7 +41,7 @@ import type { ActiveModal } from '@/types'
 const ICON_MAP: Record<string, LucideIcon> = {
   vault:            Home,
   activity:         Activity,
-  settings:         Settings2,
+  settings:         Settings,
   arrowUpFromLine:  ArrowUpFromLine,
   x:               X,
   globe:            Globe,
