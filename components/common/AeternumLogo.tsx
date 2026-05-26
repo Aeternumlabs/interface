@@ -39,9 +39,9 @@ interface AeternumLogoProps {
 // --- Size map ---
 
 const SIZE: Record<LogoSize, { icon: number; text: string; gap: string }> = {
-  sm: { icon: 20, text: 'text-sm',   gap: 'gap-2'   },
-  md: { icon: 26, text: 'text-base', gap: 'gap-2.5' },
-  lg: { icon: 32, text: 'text-lg',   gap: 'gap-3'   },
+  sm: { icon: 20, text: 'text-sm',   gap: 'gap-1'   },
+  md: { icon: 26, text: 'text-base', gap: 'gap-1' },
+  lg: { icon: 32, text: 'text-lg',   gap: 'gap-1'   },
 }
 
 // --- Component ---
