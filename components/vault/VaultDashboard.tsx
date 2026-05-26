@@ -97,14 +97,14 @@ export function VaultDashboard({
   }
 
   return (
-    <div className={cn('flex flex-1 flex-col gap-4 min-h-0', className)}>
+    <div className={cn('flex flex-1 flex-col gap-4 overflow-y-auto pb-4 md:pr-4', className)}>
 
       {/* Top cards — fixed height; do not shrink */}
       <BalanceCard className="shrink-0" />
       <TopAssetsCard className="shrink-0" />
 
       {/* Fills remaining column height; list scrolls inside the card */}
-      <TransactionHistoryCard className="min-h-0 flex-1" />
+      <TransactionHistoryCard className="shrink-0" />
 
       {/* Sidebar-triggered modals */}
       {/*
