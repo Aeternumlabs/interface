@@ -6,34 +6,34 @@
  * selected time range for the BalanceChart in ChartPanel.
  *
  * Events that change vault balance (fetched in this hook):
- *   Deposited(wallet, amount)                   → balance += amount
- *   Sent(wallet, to, amount)                    → balance -= amount
- *   Withdrawn(wallet, amount)                   → balance = 0
- *   RecoveryExecuted(wallet, backupAddress, amount) → balance = 0
- *   RecoveryCancelled(wallet, refundAmount)     → balance = 0
+ * Deposited(wallet, amount)                   → balance += amount
+ * Sent(wallet, to, amount)                    → balance -= amount
+ * Withdrawn(wallet, amount)                   → balance = 0
+ * RecoveryExecuted(wallet, backupAddress, amount) → balance = 0
+ * RecoveryCancelled(wallet, refundAmount)     → balance = 0
  *
  * Architecture — two-layer design:
- *   Layer 1 (useQuery):
- *     Fetches all balance-affecting events from contract genesis,
- *     reconstructs the full balance history as RawBalancePoint[],
- *     and caches the result. Time range does NOT affect this layer —
- *     the full history is fetched once and reused across range changes.
+ * Layer 1 (useQuery):
+ * Fetches all balance-affecting events from contract genesis,
+ * reconstructs the full balance history as RawBalancePoint[],
+ * and caches the result. Time range does NOT affect this layer —
+ * the full history is fetched once and reused across range changes.
  *
- *   Layer 2 (useMemo):
- *     Filters the cached raw points to the selected time range and
- *     attaches the current ETH/USD price to each point for chart tooltips.
- *     Re-runs instantly on time range change without a new RPC call.
+ * Layer 2 (useMemo):
+ * Filters the cached raw points to the selected time range and
+ * attaches the current ETH/USD price to each point for chart tooltips.
+ * Re-runs instantly on time range change without a new RPC call.
  *
  * USD note:
- *   Historical ETH/USD prices are not fetched (requires a paid API).
- *   All data points use the current ETH price from useEthPrice().
- *   The USD values shown in chart tooltips reflect today's price applied
- *   to historical ETH balances — acceptable for an MVP.
+ * Historical ETH/USD prices are not fetched (requires a paid API).
+ * All data points use the current ETH price from useEthPrice().
+ * The USD values shown in chart tooltips reflect today's price applied
+ * to historical ETH balances — acceptable for an MVP.
  *
  * Returns:
- *   dataPoints — ChartDataPoint[] filtered to the selected time range
- *   isLoading  — true on the first event fetch
- *   isError    — true if the getLogs calls failed
+ * dataPoints — ChartDataPoint[] filtered to the selected time range
+ * isLoading  — true on the first event fetch
+ * isError    — true if the getLogs calls failed
  */
 
 import { useMemo }         from 'react'
@@ -139,8 +139,8 @@ export interface UseBalanceHistoryReturn {
 
 /**
  * @param timeRange  Selected time range from TimeRangeSelector.
- *                   Changing this filters existing cached data instantly —
- *                   no new RPC call is made on range change.
+ * Changing this filters existing cached data instantly —
+ * no new RPC call is made on range change.
  */
 export function useBalanceHistory(timeRange: TimeRange): UseBalanceHistoryReturn {
   const { address, isConnected } = useAccount()
@@ -158,7 +158,8 @@ export function useBalanceHistory(timeRange: TimeRange): UseBalanceHistoryReturn
   // queryKey excludes timeRange deliberately — the full event history is
   // fetched once and reused when the user switches between 1D, 1W, etc.
 
-  const { data: rawPoints, isLoading, isError } = useQuery<RawBalancePoint[]>({
+  // 1. Destructure dataUpdatedAt here
+  const { data: rawPoints, dataUpdatedAt, isLoading, isError } = useQuery<RawBalancePoint[]>({
     queryKey: ['balanceHistory', address, chainId],
 
     queryFn: async (): Promise<RawBalancePoint[]> => {
@@ -189,11 +190,6 @@ export function useBalanceHistory(timeRange: TimeRange): UseBalanceHistoryReturn
       })
 
       // --- Fetch timestamps for unique block numbers
-      //
-      // Multiple events in the same block share a timestamp.
-      // Fetching each unique block once rather than once per event
-      // minimises RPC calls when transactions cluster in few blocks.
-
       const uniqueBlocks = [
         ...new Set(
           allDeltas
@@ -210,16 +206,12 @@ export function useBalanceHistory(timeRange: TimeRange): UseBalanceHistoryReturn
             const block = await publicClient.getBlock({ blockNumber })
             blockTimestamps.set(blockNumber, Number(block.timestamp))
           } catch {
-            // If a block fetch fails, fall back to 0.
-            // The point still appears in the chart — just without an
-            // accurate timestamp. Acceptable for MVP.
             blockTimestamps.set(blockNumber, 0)
           }
         })
       )
 
       // --- Walk events and compute running balance
-
       let runningBalance = 0n
       const points: RawBalancePoint[] = []
 
@@ -228,8 +220,6 @@ export function useBalanceHistory(timeRange: TimeRange): UseBalanceHistoryReturn
           runningBalance = 0n
         } else {
           runningBalance += delta.delta
-          // Guard against underflow — should never happen if contract is correct,
-          // but prevents negative balances from appearing in the chart.
           if (runningBalance < 0n) runningBalance = 0n
         }
 
@@ -241,9 +231,9 @@ export function useBalanceHistory(timeRange: TimeRange): UseBalanceHistoryReturn
         })
       }
 
-      // Add a "now" data point using the last known balance.
-      // This extends the chart line to the right edge of the viewport
-      // so it does not appear to stop in the middle of the time axis.
+      // Add a "now" data point.
+      // (Using Date.now() inside queryFn is safe from linter errors because
+      // queryFn runs in a background async worker, not during the React render cycle!)
       if (points.length > 0) {
         points.push({
           timestamp:  Math.floor(Date.now() / 1000),
@@ -255,25 +245,16 @@ export function useBalanceHistory(timeRange: TimeRange): UseBalanceHistoryReturn
     },
 
     enabled: isConnected && !!address && !!contractAddress && !!publicClient,
-
-    // Poll less frequently than vault state — balance history only
-    // changes when a new transaction is mined.
     refetchInterval: EVENTS_POLL_INTERVAL_MS,
     retry: 2,
     retryDelay: 2_000,
-
-    // Hold the previous result while a background refetch runs so the
-    // chart does not flash to empty on every 30-second refresh.
     placeholderData: (prev: RawBalancePoint[] | undefined) => prev,
   })
 
   // --- Layer 2: filter by time range + attach USD price
-  //
-  // Runs instantly on range change — no RPC call.
-  // Also re-runs when usdPrice updates so tooltip USD values stay accurate.
-
   const dataPoints = useMemo((): ChartDataPoint[] => {
-    if (!rawPoints || rawPoints.length === 0) return []
+    // 2. Ensure dataUpdatedAt exists before computing
+    if (!rawPoints || rawPoints.length === 0 || !dataUpdatedAt) return []
 
     const rangeSeconds = TIME_RANGE_SECONDS[timeRange]
     let filtered: RawBalancePoint[]
@@ -282,24 +263,23 @@ export function useBalanceHistory(timeRange: TimeRange): UseBalanceHistoryReturn
       // ALL — no time cutoff
       filtered = rawPoints
     } else {
-      const cutoff = Math.floor(Date.now() / 1000) - rangeSeconds
+      // 3. Replaced Date.now() with dataUpdatedAt to guarantee render purity!
+      const cutoff = Math.floor(dataUpdatedAt / 1000) - rangeSeconds
       filtered = rawPoints.filter(p => p.timestamp >= cutoff)
 
-      // If the selected range predates all recorded events, fall back to
-      // showing the most recent known balance as a single starting point
-      // rather than leaving the chart completely empty.
+      // If the selected range predates all recorded events, fall back
       if (filtered.length === 0 && rawPoints.length > 0) {
         filtered = [rawPoints[rawPoints.length - 1]]
       }
     }
 
-    // Attach current ETH/USD price to each point for chart tooltips.
+    // Attach current ETH/USD price
     return filtered.map(p => ({
       timestamp:  p.timestamp,
       balanceEth: p.balanceEth,
       balanceUsd: p.balanceEth * usdPrice,
     }))
-  }, [rawPoints, timeRange, usdPrice])
+  }, [rawPoints, timeRange, usdPrice, dataUpdatedAt]) // 4. Add dataUpdatedAt to dependencies
 
   return { dataPoints, isLoading, isError }
 }
