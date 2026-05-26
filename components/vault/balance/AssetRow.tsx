@@ -1,3 +1,5 @@
+'use client'
+
 /**
  * components/vault/balance/AssetRow.tsx
  *
@@ -5,64 +7,29 @@
  * Displays the token icon, name, ETH balance, USD value, and 24h price change.
  *
  * Figma layout:
- *   [ETH icon]  [Sepolia Ether    ]  [$22       ]
- *               [0.01ETH          ]  [▼ 2.39%   ]
+ * [ETH icon]  [Sepolia Ether    ]  [$22       ]
+ * [0.01ETH          ]  [▼ 2.39%   ]
  *
  * MVP: only one row is ever rendered — Sepolia Ether (native ETH).
  * Designed for extension in Phase 2 when ERC-20 tokens are added —
  * the AssetEntry type in types/vault.ts already covers multi-token.
  *
  * Props:
- *   name       — token display name  (e.g. "Sepolia Ether")
- *   symbol     — token ticker        (e.g. "ETH")
- *   wei        — balance in wei from useVaultConfig()
- *   usdPrice   — current price from useEthPrice()
- *   change24h  — 24h percentage change from useEthPrice()
- *   isLoading  — show skeleton while price data loads
- *   className  — forwarded to root element
+ * name       — token display name  (e.g. "Sepolia Ether")
+ * symbol     — token ticker        (e.g. "ETH")
+ * wei        — balance in wei from useVaultConfig()
+ * usdPrice   — current price from useEthPrice()
+ * change24h  — 24h percentage change from useEthPrice()
+ * isLoading  — show skeleton while price data loads
+ * className  — forwarded to root element
  */
 
+import Image               from 'next/image' // <-- Imported for high-res Figma PNG handling
 import { USDAmount }       from '@/components/common/USDAmount'
 import { ETHAmount }       from '@/components/common/ETHAmount'
 import { PriceChange }     from '@/components/common/PriceChange'
 import { LoadingSkeleton } from '@/components/common/LoadingSkeleton'
 import { cn }              from '@/lib/utils'
-
-// --- ETH icon ---
-// Inline SVG approximating the Ethereum diamond mark.
-// Used instead of an image to avoid an extra network request and to ensure
-// it inherits the dark-mode colour context cleanly.
-
-function EthIcon({ size = 32 }: { size?: number }) {
-  return (
-    <svg
-      width={size}
-      height={size}
-      viewBox="0 0 32 32"
-      fill="none"
-      aria-hidden
-    >
-      {/* Upper diamond — brightest section */}
-      <path
-        d="M16 3L7 16.5L16 13L25 16.5L16 3Z"
-        fill="currentColor"
-        opacity="0.95"
-      />
-      {/* Lower diamond — slightly muted */}
-      <path
-        d="M16 20L7 16.5L16 29L25 16.5L16 20Z"
-        fill="currentColor"
-        opacity="0.70"
-      />
-      {/* Middle band — darkest highlight, gives 3D effect */}
-      <path
-        d="M7 16.5L16 13L25 16.5L16 20L7 16.5Z"
-        fill="currentColor"
-        opacity="0.40"
-      />
-    </svg>
-  )
-}
 
 // --- Types ---
 
@@ -107,17 +74,24 @@ export function AssetRow({
       {/* Left: icon + name + ETH amount */}
       <div className="flex items-center gap-3 min-w-0">
 
-        {/* Token icon */}
+        {/* Token icon wrapper container */}
         <div
           className={cn(
             'flex items-center justify-center',
             'size-9 rounded-full shrink-0',
-            'bg-muted/60',
-            'text-foreground/90',
+            'bg-muted/60 overflow-hidden', // Added overflow-hidden to keep image clip uniform
           )}
           aria-hidden
         >
-          <EthIcon size={20} />
+          {/* Render your high-res Figma asset directly */}
+          <Image
+            src="/assets/ethereum.png"
+            alt={`${name} logo`}
+            width={22} // Scaled slightly up from 20px to show off your Figma facets beautifully
+            height={22}
+            className="object-contain select-none"
+            priority // Bypasses lazy-loading limits for immediate card rendering
+          />
         </div>
 
         {/* Token name + balance */}
@@ -133,8 +107,6 @@ export function AssetRow({
             showSymbol={false}
             className="text-xs text-muted-foreground"
           />
-          {/* Show symbol inline for legibility: "0.0100 ETH" */}
-          {/* ETHAmount renders the number, the line below appends symbol */}
         </div>
       </div>
 
