@@ -22,6 +22,7 @@
 import { Fragment }         from 'react'
 import { Separator }        from '@/components/ui/separator'
 import { SidebarNavGroup }  from './SidebarNavGroup'
+import { CommunityLinks }   from './CommunityLinks' // <-- Import your new component
 import { sidebarNavGroups } from '@/config/site'
 import type { ActiveModal } from '@/types'
 
@@ -53,6 +54,7 @@ export function Sidebar({ activeModal, onOpenModal }: SidebarProps) {
       aria-label="Main navigation"
     >
       <nav className="flex flex-col gap-0 flex-1 overflow-y-auto px-2 py-4">
+        {/* Your Dynamic Navigation Groups */}
         {sidebarNavGroups.map((group, index) => (
           <Fragment key={group.label + index}>
             {/* Separator between groups — not before the first group */}
@@ -67,6 +69,11 @@ export function Sidebar({ activeModal, onOpenModal }: SidebarProps) {
             />
           </Fragment>
         ))}
+
+        {/* --- STATIC COMMUNITY LINKS --- */}
+        <Separator className="my-3 bg-border/40" />
+        <CommunityLinks />
+
       </nav>
     </aside>
   )
