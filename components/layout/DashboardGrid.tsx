@@ -1,51 +1,38 @@
 /**
  * components/layout/DashboardGrid.tsx
  *
- * Three-column CSS layout that fills the full height below the Header.
- * Provides named slots for each column — it has no knowledge of what
- * goes inside them.
+ * Three-column layout. Sidebar and chart are fixed-width flex children
+ * that never scroll. The centre main column scrolls vertically when
+ * VaultDashboard content (cards + growing transaction list) exceeds
+ * the viewport height.
  *
- * Desktop layout (lg and above):
- *   ┌──────────────┬────────────────────────┬─────────────────┐
- *   │ sidebar      │ main content (flex-1)   │ chart panel     │
- *   │ 240px fixed  │ scrollable              │ 340px fixed     │
- *   └──────────────┴────────────────────────┴─────────────────┘
+ * Desktop:
+ *   ┌──────────────┬──────────────────────────┬─────────────────┐
+ *   │ sidebar      │ main — overflow-y-auto    │ chart panel     │
+ *   │ 240px fixed  │ scrolls as cards grow     │ 340px fixed     │
+ *   └──────────────┴──────────────────────────┴─────────────────┘
  *
- * Mobile layout (below lg):
- *   ┌────────────────────────────────────────┐
- *   │ main content — full width, no page     │
- *   │ scroll; transaction card scrolls inside│
- *   └────────────────────────────────────────┘
- *   Sidebar hidden → replaced by MobileDrawer (rendered inside Header).
- *   Chart panel hidden — not shown on mobile per design decision.
+ * Mobile:
+ *   ┌───────────────────────────────────────────────────────────┐
+ *   │ main — full width, same overflow-y-auto scroll behaviour  │
+ *   └───────────────────────────────────────────────────────────┘
+ *   Sidebar → MobileDrawer (inside Header). Chart → hidden.
  *
- * Usage in vault/layout.tsx:
- *   <DashboardGrid
- *     sidebar={<Sidebar activeModal={activeModal} onOpenModal={handleOpen} />}
- *     chart={<ChartPanel />}
- *   >
- *     {children}
- *   </DashboardGrid>
- *
- * Props:
- *   sidebar   — left column content (Sidebar component)
- *   chart     — right column content (ChartPanel component)
- *   children  — centre column content (VaultDashboard / page content)
+ * Why this works:
+ *   The outer div has overflow-hidden which clips the sidebar/chart
+ *   to their natural height. The main column independently gets
+ *   overflow-y-auto so it scrolls without affecting the other columns.
  */
 
 import { ReactNode } from 'react'
 import { cn }        from '@/lib/utils'
 
-// --- Types ---
-
 interface DashboardGridProps {
-  sidebar:   ReactNode
-  chart?:    ReactNode
-  children:  ReactNode
+  sidebar:    ReactNode
+  chart?:     ReactNode
+  children:   ReactNode
   className?: string
 }
-
-// --- Component ---
 
 export function DashboardGrid({
   sidebar,
@@ -56,39 +43,36 @@ export function DashboardGrid({
   return (
     <div
       className={cn(
-        // Fill all remaining height below the Header
         'flex flex-1 overflow-hidden',
         className,
       )}
     >
-      {/* Left column: Sidebar */}
-      {/* Sidebar itself has hidden lg:flex — this wrapper matches that. */}
+      {/* Left: Sidebar (fixed, desktop only) */}
       {sidebar}
 
-      {/* Centre column: Main content */}
-      {/* flex-1 fills remaining height; overflow-hidden keeps the app viewport- */}
-      {/* locked. TransactionHistoryCard scrolls internally (see VaultDashboard). */}
+      {/* Centre: scrollable content column */}
+      {/*
+        overflow-y-auto  — scrolls when VaultDashboard height > viewport
+        flex-1           — fills all space between sidebar and chart
+        min-w-0          — prevents content from overflowing flex parent
+        No flex-col / min-h-0 needed — content flows in block layout
+      */}
       <main
         className={cn(
-          'flex flex-1 flex-col min-h-0 min-w-0 overflow-hidden',
+          'flex-1 min-w-0 overflow-y-auto',
           'px-4 py-5 lg:px-6 lg:py-6',
         )}
       >
         {children}
       </main>
 
-      {/* Right column: Chart panel */}
-      {/* Hidden on mobile — intentional per agreed design decision.      */}
-      {/* The chart slot renders nothing when no chart prop is provided.  */}
+      {/* Right: Chart panel (fixed, desktop only) */}
       {chart && (
         <aside
           className={cn(
-            // Desktop only — hidden on mobile
             'hidden lg:flex',
             'flex-col',
-            // Fixed width matching the Figma right panel
             'w-[340px] shrink-0',
-            // Left border separating chart from content column
             'border-l border-border/50',
           )}
           aria-label="Balance chart"

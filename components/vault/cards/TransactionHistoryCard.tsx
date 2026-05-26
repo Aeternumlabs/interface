@@ -2,8 +2,15 @@
  * components/vault/cards/TransactionHistoryCard.tsx
  *
  * The bottom card in the vault dashboard.
- * Fills all remaining centre-column height; the transaction list scrolls
- * inside this card so the rest of the app stays viewport-locked.
+ *
+ * APPROACH: The card grows naturally with its content. The parent
+ * (DashboardGrid main column) has overflow-y-auto so the user scrolls
+ * the entire middle column as the transaction list grows. No internal
+ * scroll mechanism is needed here — that complexity is removed.
+ *
+ * This works on both desktop and mobile:
+ *   Desktop — sidebar and chart stay fixed; only the centre column scrolls.
+ *   Mobile  — same centre column scroll, no sidebar or chart present.
  */
 
 import { TransactionList } from '@/components/vault/transactions/TransactionList'
@@ -17,28 +24,21 @@ export function TransactionHistoryCard({ className }: TransactionHistoryCardProp
   return (
     <div
       className={cn(
-        // flex-col + min-h-0 + flex-1 (from VaultDashboard) = bounded height
-        'flex flex-col min-h-0',
         'rounded-xl bg-card',
         'border border-border/30',
-        'px-5 py-4',             // ← was py-5, saves 8px
+        'px-5 py-4',
         className,
       )}
     >
-      <h2 className="shrink-0 text-sm font-medium text-foreground mb-2 select-none">
-        {/* ↑ was mb-4, saves 8px */}
+      <h2 className="text-sm font-medium text-foreground mb-2 select-none">
         Transaction history
       </h2>
 
       {/*
-        flex-1 min-h-0: fills remaining card height after the heading.
-        overflow-y-auto: scrolls when transaction rows exceed that height.
-        The scroll works because the parent card has a bounded height
-        (flex-1 min-h-0 in VaultDashboard's flex column).
+        TransactionList grows to fit all events. The card grows with it.
+        The parent column scrolls — no overflow needed here.
       */}
-      <div className="flex-1 min-h-0 overflow-y-auto overscroll-contain">
-        <TransactionList />
-      </div>
+      <TransactionList />
     </div>
   )
 }
