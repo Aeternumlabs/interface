@@ -6,14 +6,16 @@
  * the initial client paint (avoids wagmi / TanStack Query hydration mismatches).
  */
 
-import { useEffect, useState } from 'react'
+import { useSyncExternalStore } from 'react'
+
+// A no-op subscribe function because the "mounted" status of a client 
+// environment never changes back to unmounted during the session life.
+const subscribe = () => () => {}
 
 export function useMounted(): boolean {
-  const [mounted, setMounted] = useState(false)
-
-  useEffect(() => {
-    setMounted(true)
-  }, [])
-
-  return mounted
+  return useSyncExternalStore(
+    subscribe,
+    () => true,  // Client value (runs after hydration)
+    () => false  // Server/Hydration snapshot value
+  )
 }
