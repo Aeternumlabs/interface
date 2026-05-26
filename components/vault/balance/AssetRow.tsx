@@ -80,7 +80,6 @@ interface AssetRowProps {
 
 export function AssetRow({
   name,
-  symbol,
   wei,
   usdPrice,
   change24h,
