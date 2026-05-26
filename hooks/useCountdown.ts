@@ -1,100 +1,70 @@
 /**
  * hooks/useCountdown.ts
  *
- * Takes an absolute Unix deadline timestamp in seconds and returns a live
+ * Takes an absolute, stable Unix deadline timestamp in seconds and returns a live
  * CountdownBreakdown that ticks every second in the browser.
  *
  * This is a pure client-side timer — it does not make any RPC calls.
- * The deadline value comes from useTimeUntilRecovery() which seeds it
- * from the contract, and this hook handles the local tick-down between
- * contract polls.
+ * The deadline value comes from useTimeUntilRecovery(), which seeds it from 
+ * the contract using a stable block timestamp (dataUpdatedAt) to avoid drift.
  *
- * Design:
- *   useTimeUntilRecovery() → deadlineUnix (re-synced every ~12 seconds)
- *   useCountdown(deadlineUnix) → ticks every 1 second locally
- *   CountdownDisplay → renders days / hrs / mins / secs
+ * Design & Architecture:
+ * useTimeUntilRecovery()   → stable deadlineUnix (re-synced every ~12 seconds)
+ * useCountdown(deadline)   → tracks current wall-clock time, derives remaining seconds
+ * CountdownDisplay         → renders computed days / hrs / mins / secs
  *
- * The separation means the countdown stays smooth and live without a new
- * RPC call every second. When useTimeUntilRecovery() resync fires (e.g.
- * after a ping confirms), deadlineUnix changes, the useEffect re-runs,
- * and the countdown reseeds from the fresh contract value.
+ * To avoid cascading render errors and hydration mismatches, this hook follows the
+ * React-idiomatic pattern of derived state. It tracks only the *current time* in state 
+ * and computes the remaining intervals purely during rendering. If a new deadlineUnix 
+ * arrives from the parent, the countdown adapts immediately on the first render frame 
+ * without requiring a separate layout effect synchronization step.
  *
  * Returns:
- *   { days, hours, minutes, seconds, isExpired }
+ * { days, hours, minutes, seconds, isExpired }
  *
- *   isExpired is true when deadlineUnix has passed — CountdownDisplay
- *   can show a "Recovery due" state instead of the countdown numbers.
+ * isExpired is true when deadlineUnix has passed — CountdownDisplay
+ * can show a "Recovery due" state instead of the countdown numbers.
  *
  * Usage in CountdownDisplay:
- *   const { deadlineUnix } = useTimeUntilRecovery()
- *   const { days, hours, minutes, seconds, isExpired } = useCountdown(deadlineUnix)
+ * const { deadlineUnix } = useTimeUntilRecovery()
+ * const { days, hours, minutes, seconds, isExpired } = useCountdown(deadlineUnix)
  */
 
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect } from 'react'
 import { buildCountdown } from '@/lib/utils'
 import { COUNTDOWN_TICK_MS } from '@/lib/constants'
 import type { CountdownBreakdown } from '@/types'
 
-// --- Hook ---
-
-/**
- * @param deadlineUnix  Unix timestamp in seconds when recovery becomes eligible.
- *                      Pass 0 when the vault is unregistered, has no balance,
- *                      or while the contract read is still loading — the hook
- *                      returns all-zero breakdown with isExpired: false.
- */
 export function useCountdown(deadlineUnix: number): CountdownBreakdown {
-
-  // Computes seconds remaining from the deadline at call time.
-  // Wrapped in useCallback so it can be listed as a dependency without
-  // causing infinite re-renders.
-  const getSecondsRemaining = useCallback((): number => {
-    if (deadlineUnix <= 0) return 0
-    const nowSeconds = Math.floor(Date.now() / 1000)
-    return Math.max(0, deadlineUnix - nowSeconds)
-  }, [deadlineUnix])
-
-  // Initialise synchronously so the correct value is rendered on the first
-  // frame — no flash of "0 days 0 hours 0 minutes 0 seconds" on mount.
-  const [secondsRemaining, setSecondsRemaining] = useState<number>(
-    getSecondsRemaining
-  )
+  // 1. Store the "current time" in state, not the "remaining time".
+  const [now, setNow] = useState(() => Math.floor(Date.now() / 1000))
 
   useEffect(() => {
-    // Sync immediately when deadlineUnix changes.
-    // This fires when:
-    //   - A ping/deposit/send confirms and useTimeUntilRecovery resyncs
-    //   - The vault is first loaded and deadlineUnix arrives from the contract
-    //   - The vault transitions to unregistered (deadlineUnix becomes 0)
-    const initial = getSecondsRemaining()
-    setSecondsRemaining(initial)
-
-    // If the deadline is 0 (unregistered, no balance, or loading),
-    // do not start a timer — nothing to count down to.
-    if (deadlineUnix <= 0) return
-
-    // If we are already expired on mount (e.g. user opens app after their
-    // period has elapsed), show 0 immediately and skip the interval.
-    if (initial <= 0) return
+    // If the deadline is 0 (unregistered/loading) or has already passed,
+    // do not start a timer interval.
+    if (deadlineUnix <= 0 || deadlineUnix <= Math.floor(Date.now() / 1000)) {
+      return
+    }
 
     const interval = setInterval(() => {
-      const remaining = getSecondsRemaining()
-      setSecondsRemaining(remaining)
+      const currentNow = Math.floor(Date.now() / 1000)
+      setNow(currentNow)
 
       // Stop ticking once expired — no point keeping the interval alive
-      // after the deadline has passed.
-      if (remaining <= 0) {
+      if (currentNow >= deadlineUnix) {
         clearInterval(interval)
       }
     }, COUNTDOWN_TICK_MS)
 
-    // Clean up on unmount or when deadlineUnix changes to prevent
-    // multiple concurrent intervals from running simultaneously.
     return () => clearInterval(interval)
+  }, [deadlineUnix])
 
-  }, [deadlineUnix, getSecondsRemaining])
+  // 2. Derive the seconds remaining purely during render.
+  // Because this is outside the useEffect, if a new deadlineUnix arrives 
+  // from the parent, this math instantly recalculates with zero delay!
+  const secondsRemaining = deadlineUnix > 0 
+    ? Math.max(0, deadlineUnix - now) 
+    : 0
 
-  // Convert raw seconds to the { days, hours, minutes, seconds, isExpired }
-  // shape that CountdownBox renders.
   return buildCountdown(secondsRemaining)
 }
