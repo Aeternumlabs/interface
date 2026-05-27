@@ -128,7 +128,7 @@ export const sidebarNavGroups: NavGroup[] = [
       {
         kind: 'external',
         label: 'Documentation',
-        href: '/docs/Aeternum-core_technical_doc.pdf',
+        href: 'https://github.com/Aeternumlabs/aeternum-docs',
         icon: 'fileText',
       },
     ],
