@@ -5,10 +5,10 @@ import type { CountdownBreakdown } from '@/types'
 
 export function useCountdown(deadlineUnix: number): CountdownBreakdown {
 
-  const [now, setNow] = useState(() =>
-    Math.floor(Date.now() / 1000)
-  )
+  // 1. Initialize once safely
+  const [now, setNow] = useState(() => Math.floor(Date.now() / 1000))
 
+  // 2. Safely update the 'now' state every tick (Impure code stays in the Effect!)
   useEffect(() => {
     const interval = setInterval(() => {
       setNow(Math.floor(Date.now() / 1000))
@@ -17,6 +17,7 @@ export function useCountdown(deadlineUnix: number): CountdownBreakdown {
     return () => clearInterval(interval)
   }, [])
 
+  // 3. Pure render calculation
   const secondsRemaining =
     deadlineUnix <= 0
       ? 0
