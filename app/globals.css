@@ -152,4 +152,29 @@
   body {
     @apply bg-background text-foreground;
   }
+
+  /* Target WebKit browsers (Chrome, Safari, Edge) globally */
+  ::-webkit-scrollbar {
+    width: 5px;
+    height: 5px;
+  }
+
+  ::-webkit-scrollbar-track {
+    background: transparent;
+  }
+
+  ::-webkit-scrollbar-thumb {
+    background: hsl(var(--border) / 0.6);
+    border-radius: 9999px;
+  }
+
+  ::-webkit-scrollbar-thumb:hover {
+    background: hsl(var(--muted-foreground) / 0.4);
+  }
+
+  /* Target Firefox globally */
+  * {
+    scrollbar-width: thin;
+    scrollbar-color: hsl(var(--border) / 0.6) transparent;
+  }
 }
