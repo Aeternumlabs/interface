@@ -27,7 +27,7 @@ import { useReadContract, useAccount, useChainId }  from 'wagmi'
 import { getVaultContract }                         from '@/lib/contracts'
 import { VAULT_POLL_INTERVAL_MS }                   from '@/lib/constants'
 
-// ─── Return type ──────────────────────────────────────────────────────────────
+// --- Return type ---
 
 export interface UseTimeUntilRecoveryReturn {
   /**
@@ -62,7 +62,7 @@ export interface UseTimeUntilRecoveryReturn {
   refetch: () => void
 }
 
-// ─── Hook ─────────────────────────────────────────────────────────────────────
+// --- Hook ---
 
 export function useTimeUntilRecovery(): UseTimeUntilRecoveryReturn {
   const { address, isConnected } = useAccount()
@@ -95,7 +95,7 @@ export function useTimeUntilRecovery(): UseTimeUntilRecoveryReturn {
 
   const secondsRemaining = data !== undefined ? Number(data) : 0
 
-  // ── THE FIX ───────────────────────────────────────────────────────────────
+  // --- THE FIX --- //
   //
   // BUG (before): deadline was computed inline on every render:
   //
