@@ -33,7 +33,6 @@ import {
   CartesianGrid,
   Tooltip,
   ResponsiveContainer,
-  type TooltipProps,
 }                              from 'recharts'
 import { format }              from 'date-fns'
 import { useBalanceHistory }   from '@/hooks/useBalanceHistory'
@@ -89,11 +88,11 @@ function ChartTooltip({
   payload,
 }: {
   active?: boolean
-  payload?: any[]
+  payload?: { payload: ChartDataPoint }[]
 }) {
   if (!active || !payload?.length) return null
 
-  const point = payload[0].payload as ChartDataPoint
+  const point = payload[0].payload
 
   return (
     <div
@@ -139,7 +138,11 @@ export function BalanceChart({ timeRange, className }: BalanceChartProps) {
   // Recharts requires the DOM to be available. We render a placeholder on
   // the first pass and switch to the real chart after hydration completes.
   const [mounted, setMounted] = useState(false)
-  useEffect(() => { setMounted(true) }, [])
+  // Defer setting mounted to avoid synchronous state update inside effect
+  useEffect(() => {
+    const t = window.setTimeout(() => setMounted(true), 0)
+    return () => window.clearTimeout(t)
+  }, [])
 
   const { dataPoints, isLoading } = useBalanceHistory(timeRange)
 
