@@ -1,3 +1,18 @@
+/**
+ * hooks/useCountdown.ts
+ * 
+ * A pure, state-driven countdown hook.
+ * * This hook manages an internal tick (`now`) that updates every interval.
+ * By deriving the remaining time purely during the render phase, it ensures 
+ * that if `deadlineUnix` updates (e.g., from a fresh smart contract poll), 
+ * the UI reflects the new target instantly without requiring additional 
+ * synchronization effects or interval resets.
+ *
+ * @param deadlineUnix - Absolute Unix timestamp (in seconds) when the event triggers. 
+ * Pass 0 if the vault is unregistered, has no balance, or is loading.
+ * @returns A structured `CountdownBreakdown` object ready for UI rendering.
+ */
+
 import { useEffect, useState } from 'react'
 import { buildCountdown } from '@/lib/utils'
 import { COUNTDOWN_TICK_MS } from '@/lib/constants'
