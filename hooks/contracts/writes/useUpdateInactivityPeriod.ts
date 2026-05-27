@@ -23,7 +23,7 @@
  *   • newPeriod > MAX_INACTIVITY_PERIOD  → AeternumVault__InvalidInactivityPeriod
  *
  * After confirmation all wagmi reads are invalidated so UpdateConfigModal
- * immediately shows the new period from useVaultConfig, and RecoveryTimerCard
+ * immediately shows the new period from useVaultConfig, and CountdownDisplay
  * reseeds its countdown from the updated inactivity period.
  *
  * Usage in UpdateConfigModal:
@@ -117,7 +117,7 @@ export function useUpdateInactivityPeriod(): UseUpdateInactivityPeriodReturn {
   // Causes useVaultConfig to refetch so UpdateConfigModal immediately shows
   // the new period value. Also triggers useTimeUntilRecovery to refetch
   // since a longer or shorter period directly changes the recovery deadline —
-  // the countdown in RecoveryTimerCard reseeds from the new value.
+  // the countdown in CountdownDisplay reseeds from the new value.
   useEffect(() => {
     if (isConfirmed) {
       queryClient.invalidateQueries()

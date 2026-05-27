@@ -122,10 +122,10 @@ export function useCancelRecovery(): UseCancelRecoveryReturn {
   //   - useTimeUntilRecovery refetches → returns 0
   //
   // The dashboard responds by:
-  //   - VaultStatusCard switching to 'unregistered'
   //   - ActionButtonRow toggling back to <RegisterButton />
   //   - BalanceCard showing $0.00 with no countdown
-  //   - RecoveryConfigCard clearing the backup address display
+  //   - UpdateConfigModal clearing the backup address display
+  //   - the vault state behaving as unregistered
   useEffect(() => {
     if (isConfirmed) {
       queryClient.invalidateQueries()

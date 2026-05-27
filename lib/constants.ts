@@ -42,8 +42,8 @@ export const MAX_INACTIVITY_PERIOD_DAYS = 3650
 /**
  * Maximum consecutive failed recovery attempts before a vault is abandoned.
  * Mirrors MAX_RECOVERY_ATTEMPTS in the contract.
- * Used in VaultStatusCard to show a warning when failedRecoveryAttempts
- * is approaching this limit.
+ * Used by the dashboard to warn when failedRecoveryAttempts is approaching
+ * this contract limit.
  */
 export const MAX_RECOVERY_ATTEMPTS = 3
 

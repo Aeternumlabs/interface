@@ -24,7 +24,7 @@
  *   • wallet not registered → AeternumVault__NotRegistered
  *
  * After confirmation useVaultConfig and useTimeUntilRecovery are invalidated
- * so RecoveryTimerCard immediately reflects the reset countdown.
+ * so CountdownDisplay immediately reflects the reset countdown.
  *
  * Usage in PingButton:
  *   const { ping, isPending, isConfirming, isConfirmed, isError } = usePing()

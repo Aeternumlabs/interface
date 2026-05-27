@@ -4,9 +4,10 @@
  * Reads the full RecoveryConfig struct for the connected wallet
  * by calling getRecoveryConfig(address) on the contract.
  *
- * This is the primary data hook for the dashboard. Every card that
- * displays vault state — BalanceCard, RecoveryTimerCard, RecoveryConfigCard,
- * VaultStatusCard — consumes data from this hook.
+ * This is the primary data hook for the dashboard. Current consumers
+ * include BalanceCard, TopAssetsCard, and the vault modals that display
+ * current config state (UpdateConfigModal, WithdrawModal, DepositModal,
+ * SendModal, CancelRecoveryModal).
  *
  * Returns:
  *   config   — raw RecoveryConfig from the contract, undefined while loading
