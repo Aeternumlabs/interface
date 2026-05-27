@@ -43,14 +43,14 @@ const pillBase = [
   // Typography
   'text-sm font-medium tracking-wide',
   'whitespace-nowrap',
-  // Border + colour — metallic dark
-  'border border-border/70',
+  // Border + colour — metallic dark, slightly brighter outline
+  'border border-foreground/10',
   'bg-secondary',
   'text-foreground/90',
   // Interaction
   'cursor-pointer select-none',
   'transition-colors duration-150',
-  'hover:bg-accent hover:text-foreground hover:border-border',
+  'hover:bg-accent hover:text-foreground hover:border-foreground/20',
   'active:scale-[0.98]',
   // Focus
   'outline-none focus-visible:ring-1 focus-visible:ring-ring focus-visible:ring-offset-1',
@@ -84,7 +84,7 @@ export function WalletButton({ className }: WalletButtonProps) {
               className={cn(
                 'inline-flex rounded-full px-5 py-2 text-sm',
                 'opacity-0 pointer-events-none select-none',
-                'border border-border/70 bg-secondary',
+                'border border-foreground/10 bg-secondary',
                 className,
               )}
             >

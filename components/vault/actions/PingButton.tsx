@@ -109,9 +109,9 @@ export function PingButton({ className }: PingButtonProps) {
         // --- State-specific colours
         // idle / pending / confirming
         !isSuccess && [
-          'border-border/60 bg-secondary',
+          'border border-foreground/10 bg-secondary',
           'text-foreground/90',
-          'hover:bg-accent hover:text-foreground hover:border-border',
+          'hover:bg-accent hover:text-foreground hover:border-foreground/20',
           isBusy && 'opacity-70',
           'cursor-pointer',
         ],

@@ -42,11 +42,11 @@ export function DepositButton({ className }: DepositButtonProps) {
           // Shape
           'rounded-full',
           // Colour
-          'border border-border/60 bg-secondary',
+          'border border-foreground/10 bg-secondary',
           'text-sm font-medium text-foreground/90',
           // Interaction
           'transition-colors duration-150 select-none cursor-pointer',
-          'hover:bg-accent hover:text-foreground hover:border-border',
+          'hover:bg-accent hover:text-foreground hover:border-foreground/20',
           // Focus
           'outline-none focus-visible:ring-1 focus-visible:ring-ring',
           className,

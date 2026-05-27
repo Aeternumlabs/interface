@@ -41,12 +41,12 @@ export function RegisterButton({ className }: RegisterButtonProps) {
           'w-full h-9',
           // Shape
           'rounded-full',
-          // Colour — metallic dark, matching the connected-state buttons
-          'border border-border/60 bg-secondary',
+          // Colour — slightly brighter outline for better contrast
+          'border border-foreground/10 bg-secondary',
           'text-sm font-medium text-foreground/90',
           // Interaction
           'transition-colors duration-150 select-none cursor-pointer',
-          'hover:bg-accent hover:text-foreground hover:border-border',
+          'hover:bg-accent hover:text-foreground hover:border-foreground/20',
           // Focus
           'outline-none focus-visible:ring-1 focus-visible:ring-ring',
           className,
