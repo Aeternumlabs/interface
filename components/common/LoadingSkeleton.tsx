@@ -42,8 +42,8 @@ function Skeleton({ className, style, ...props }: SkeletonProps) {
         // Base appearance
         'rounded-md bg-muted/60',
         // Shimmer animation
-        'bg-gradient-to-r from-muted/60 via-muted-foreground/10 to-muted/60',
-        'bg-[length:200%_100%]',
+        'bg-linear-to-r from-muted/60 via-muted-foreground/10 to-muted/60',
+        'bg-size-[200%_100%]',
         'animate-shimmer',
         className,
       )}
