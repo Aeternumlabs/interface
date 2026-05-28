@@ -97,7 +97,7 @@ export function VaultDashboard({
   }
 
   return (
-    <div className={cn('flex flex-1 flex-col gap-4 overflow-y-auto pb-4 md:pr-4', className)}>
+    <div className={cn('flex flex-col gap-4 pb-4', className)}>
 
       {/* Top cards — fixed height; do not shrink */}
       <BalanceCard className="shrink-0" />

@@ -60,7 +60,7 @@ export function DashboardGrid({
       <main
         className={cn(
           'flex-1 min-w-0 overflow-y-auto',
-          'px-4 py-5 lg:pl-6 lg:pr-4 lg:py-6',
+          'px-4 py-5 lg:pl-6 lg:pr-4 lg:mr-4 lg:py-6',
         )}
       >
         {children}
