@@ -29,8 +29,9 @@
  *   Header.tsx — top right on every screen
  */
 
-import { ConnectButton } from '@rainbow-me/rainbowkit'
-import { cn }            from '@/lib/utils'
+import Image              from 'next/image'
+import { ConnectButton }  from '@rainbow-me/rainbowkit'
+import { cn }             from '@/lib/utils'
 import { truncateAddress } from '@/lib/utils'
 
 // --- Shared pill class ---
@@ -132,14 +133,32 @@ export function WalletButton({ className }: WalletButtonProps) {
         // Shows the truncated wallet address.
         // Clicking opens RainbowKit's account modal (disconnect, copy, etc.)
         return (
-          <button
-            onClick={openAccountModal}
-            type="button"
-            className={cn(pillBase, 'font-mono', className)}
-            title={account.address}
-          >
-            {truncateAddress(account.address)}
-          </button>
+          <div className="flex items-center gap-2">
+            <div
+              className={cn(
+                'hidden md:inline-flex items-center justify-center',
+                'size-10 rounded-full bg-muted/60 overflow-hidden',
+              )}
+              aria-hidden="true"
+            >
+              <Image
+                src="/assets/ethereum.png"
+                alt="Ethereum logo"
+                width={26}
+                height={26}
+                className="object-contain select-none"
+                priority
+              />
+            </div>
+            <button
+              onClick={openAccountModal}
+              type="button"
+              className={cn(pillBase, 'font-mono', className)}
+              title={account.address}
+            >
+              {truncateAddress(account.address)}
+            </button>
+          </div>
         )
       }}
     </ConnectButton.Custom>
