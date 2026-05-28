@@ -15,7 +15,9 @@
  * loading/error states are fully independent.
  */
 
-import { useEffect }                    from 'react'
+'use client'
+
+import { useCallback, useEffect }       from 'react'
 import { useForm }                      from 'react-hook-form'
 import { zodResolver }                  from '@hookform/resolvers/zod'
 import { z }                            from 'zod'
@@ -30,17 +32,14 @@ import {
 }                                       from '@/components/ui/dialog'
 import { Button }                       from '@/components/ui/button'
 import { Input }                        from '@/components/ui/input'
-import { Label }                        from '@/components/ui/label'
 import { Separator }                    from '@/components/ui/separator'
 import { AddressDisplay }               from '@/components/common/AddressDisplay'
 import { useVaultConfig }               from '@/hooks/contracts/reads/useVaultConfig'
 import { useUpdateBackupAddress }       from '@/hooks/contracts/writes/useUpdateBackupAddress'
 import { useUpdateInactivityPeriod }    from '@/hooks/contracts/writes/useUpdateInactivityPeriod'
 import { isValidAddress, isZeroAddress, cn } from '@/lib/utils'
-import { daysToSeconds, secondsToDays, formatDuration } from '@/lib/formatters'
+import { daysToSeconds, minutesToSeconds, formatDuration } from '@/lib/formatters'
 import { MAX_RECOVERY_ATTEMPTS }        from '@/lib/constants'
-
-// --- Types ---
 
 interface UpdateConfigModalProps {
   open:         boolean
@@ -48,7 +47,6 @@ interface UpdateConfigModalProps {
 }
 
 // --- Sub-component: update backup address ---
-
 const backupSchema = z.object({
   newBackupAddress: z
     .string()
@@ -58,13 +56,7 @@ const backupSchema = z.object({
 })
 type BackupFormValues = z.infer<typeof backupSchema>
 
-function UpdateBackupSection({
-  currentBackup,
-  onSuccess,
-}: {
-  currentBackup: `0x${string}` | undefined
-  onSuccess:     () => void
-}) {
+function UpdateBackupSection({ currentBackup, onSuccess }: { currentBackup: `0x${string}` | undefined, onSuccess: () => void }) {
   const { updateBackupAddress, isPending, isConfirming, isConfirmed, isError, error, reset: resetTx } = useUpdateBackupAddress()
   const { register, handleSubmit, reset: resetForm, formState: { errors } } = useForm<BackupFormValues>({
     resolver:      zodResolver(backupSchema),
@@ -100,9 +92,7 @@ function UpdateBackupSection({
       </div>
 
       <form
-        onSubmit={handleSubmit(({ newBackupAddress }) =>
-          updateBackupAddress(newBackupAddress as `0x${string}`)
-        )}
+        onSubmit={handleSubmit(({ newBackupAddress }) => updateBackupAddress(newBackupAddress as `0x${string}`))}
         className="flex gap-2 items-start"
       >
         <div className="flex flex-col gap-1 flex-1 min-w-0">
@@ -135,30 +125,45 @@ function UpdateBackupSection({
 }
 
 // --- Sub-component: update inactivity period ---
-
 const periodSchema = z.object({
-  periodDays: z
-    .number({ message: 'Enter the number of days' })
-    .int('Must be a whole number')
-    .min(1,   'Minimum is 1 day')
-    .max(365, 'Maximum is 365 days on Sepolia'),
+  periodValue: z
+    .number({ message: 'Enter a valid number' })
+    .int('Must be a whole number'),
+  periodUnit: z.enum(['minutes', 'days']),
+}).superRefine((data, ctx) => {
+  const totalSeconds = data.periodUnit === 'days' ? data.periodValue * 86400 : data.periodValue * 60
+  if (totalSeconds < 5 * 60) {
+    ctx.addIssue({ code: z.ZodIssueCode.custom, message: 'Minimum is 5 minutes', path: ['periodValue'] })
+  }
+  if (totalSeconds > 3650 * 86400) {
+    ctx.addIssue({ code: z.ZodIssueCode.custom, message: 'Maximum is 3650 days', path: ['periodValue'] })
+  }
 })
 type PeriodFormValues = z.infer<typeof periodSchema>
 
-function UpdatePeriodSection({
-  currentPeriodSeconds,
-  onSuccess,
-}: {
-  currentPeriodSeconds: bigint | undefined
-  onSuccess:            () => void
-}) {
-  const currentDays = currentPeriodSeconds ? secondsToDays(currentPeriodSeconds) : undefined
-
+function UpdatePeriodSection({ currentPeriodSeconds, onSuccess }: { currentPeriodSeconds: bigint | undefined, onSuccess: () => void }) {
   const { updateInactivityPeriod, isPending, isConfirming, isConfirmed, isError, error, reset: resetTx } = useUpdateInactivityPeriod()
+  
+  const getInitialValues = useCallback(() => {
+    if (!currentPeriodSeconds) return { periodValue: 30, periodUnit: 'days' as const }
+    const secs = Number(currentPeriodSeconds)
+    if (secs % 86400 === 0) {
+      return { periodValue: secs / 86400, periodUnit: 'days' as const }
+    }
+    return { periodValue: Math.floor(secs / 60), periodUnit: 'minutes' as const }
+  }, [currentPeriodSeconds])
+
   const { register, handleSubmit, reset: resetForm, formState: { errors } } = useForm<PeriodFormValues>({
-    resolver:      zodResolver(periodSchema),
-    defaultValues: { periodDays: currentDays ?? 365 },
+    resolver: zodResolver(periodSchema),
+    defaultValues: getInitialValues(),
   })
+
+  // Sync state if async contract query finishes reading after component lifecycle initializes
+  useEffect(() => {
+    if (currentPeriodSeconds) {
+      resetForm(getInitialValues())
+    }
+  }, [currentPeriodSeconds, getInitialValues, resetForm])
 
   const isBusy = isPending || isConfirming
   const TOAST  = 'update-period-tx'
@@ -181,37 +186,39 @@ function UpdatePeriodSection({
       <div>
         <p className="text-xs font-medium text-muted-foreground mb-1">Current period</p>
         <p className="text-sm text-foreground">
-          {currentPeriodSeconds
-            ? formatDuration(currentPeriodSeconds)
-            : <span className="text-muted-foreground/60">—</span>}
+          {currentPeriodSeconds ? formatDuration(currentPeriodSeconds) : <span className="text-muted-foreground/60">—</span>}
         </p>
       </div>
 
       <form
-        onSubmit={handleSubmit(({ periodDays }) =>
-          updateInactivityPeriod(daysToSeconds(periodDays))
-        )}
+        onSubmit={handleSubmit(({ periodValue, periodUnit }) => {
+          const totalSeconds = periodUnit === 'days' ? daysToSeconds(periodValue) : minutesToSeconds(periodValue)
+          updateInactivityPeriod(totalSeconds)
+        })}
         className="flex gap-2 items-start"
       >
         <div className="flex flex-col gap-1 flex-1 min-w-0">
-          <div className="relative">
+          <div className="flex gap-2">
             <Input
-              {...register('periodDays', { valueAsNumber: true })}
+              {...register('periodValue', { valueAsNumber: true })}
               type="number"
-              min={1}
-              max={365}
               disabled={isBusy}
               className={cn(
-                'bg-muted/50 border-border/60 pr-14 tabular-nums',
-                errors.periodDays && 'border-red-700/60',
+                'bg-muted/50 border-border/60 tabular-nums flex-1',
+                errors.periodValue && 'border-red-700/60',
               )}
             />
-            <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-muted-foreground pointer-events-none">
-              days
-            </span>
+            <select
+              {...register('periodUnit')}
+              disabled={isBusy}
+              className="bg-muted/50 border border-border/60 rounded-md px-2 text-sm text-foreground focus:outline-none focus:ring-1 focus:ring-ring h-9"
+            >
+              <option value="minutes">minutes</option>
+              <option value="days">days</option>
+            </select>
           </div>
-          {errors.periodDays && (
-            <p className="text-xs text-red-400">{errors.periodDays.message}</p>
+          {errors.periodValue && (
+            <p className="text-xs text-red-400">{errors.periodValue.message}</p>
           )}
         </div>
         <Button
@@ -227,12 +234,8 @@ function UpdatePeriodSection({
 }
 
 // --- Main component ---
-
 export function UpdateConfigModal({ open, onOpenChange }: UpdateConfigModalProps) {
   const { config, isLoading } = useVaultConfig()
-
-  // Close modal on parent request (no pending check needed here — each
-  // sub-form manages its own busy state internally)
   const handleClose = () => onOpenChange(false)
 
   return (
@@ -286,9 +289,7 @@ export function UpdateConfigModal({ open, onOpenChange }: UpdateConfigModalProps
                 </p>
                 <span className={cn(
                   'text-sm font-mono tabular-nums font-medium',
-                  config && config.failedRecoveryAttempts > 0
-                    ? 'text-amber-400'
-                    : 'text-foreground/70',
+                  config && config.failedRecoveryAttempts > 0 ? 'text-amber-400' : 'text-foreground/70',
                 )}>
                   {config?.failedRecoveryAttempts ?? 0} / {MAX_RECOVERY_ATTEMPTS}
                 </span>

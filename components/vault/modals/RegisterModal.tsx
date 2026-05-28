@@ -4,18 +4,20 @@
  * components/vault/modals/RegisterModal.tsx
  *
  * Opens when the user clicks the Register button (State 2 — connected, unregistered).
- * Collects backup address, inactivity period (days), and an optional initial deposit,
+ * Collects backup address, inactivity period (minutes), and an optional initial deposit,
  * then calls register() on the contract.
  *
  * Form fields:
  *   backup address  — validated Ethereum address, cannot be zero or self
- *   period (days)   — number input, min 1 / max 365 (Sepolia MVP)
+ *   period (minutes) — number input, min 5 / max 3,650 days (5256000 minutes)
  *   deposit (ETH)   — optional, defaults to 0 if left blank
  *
  * Transaction flow:
  *   submit → pending (MetaMask open) → confirming (mined) → confirmed → modal closes
  *   Sonner toasts reflect each state transition.
  */
+
+'use client'
 
 import { useEffect }        from 'react'
 import { useForm }          from 'react-hook-form'
@@ -35,11 +37,9 @@ import { Input }            from '@/components/ui/input'
 import { Label }            from '@/components/ui/label'
 import { useRegister }      from '@/hooks/contracts/writes/useRegister'
 import { isValidAddress }   from '@/lib/utils'
-import { daysToSeconds }    from '@/lib/formatters'
+import { daysToSeconds, minutesToSeconds } from '@/lib/formatters'
 import { ethToWei }         from '@/lib/utils'
 import { cn }               from '@/lib/utils'
-
-// --- Validation schema ---
 
 const schema = z.object({
   backupAddress: z
@@ -47,11 +47,11 @@ const schema = z.object({
     .min(1, 'Backup address is required')
     .refine(isValidAddress, 'Must be a valid Ethereum address'),
 
-  periodDays: z
-    .number({ message: 'Enter the number of days' })
-    .int('Must be a whole number of days')
-    .min(1,   'Minimum is 1 day')
-    .max(365, 'Maximum is 365 days on Sepolia'),
+  periodValue: z
+    .number({ message: 'Enter a valid number' })
+    .int('Must be a whole number'),
+
+  periodUnit: z.enum(['minutes', 'days']),
 
   depositEth: z
     .string()
@@ -60,18 +60,34 @@ const schema = z.object({
       (val) => !val || (!isNaN(parseFloat(val)) && parseFloat(val) >= 0),
       'Enter a valid ETH amount',
     ),
+}).superRefine((data, ctx) => {
+  const totalSeconds = data.periodUnit === 'days' 
+    ? data.periodValue * 86400 
+    : data.periodValue * 60
+
+  if (totalSeconds < 5 * 60) {
+    ctx.addIssue({
+      code: z.ZodIssueCode.custom,
+      message: 'Minimum inactivity period is 5 minutes',
+      path: ['periodValue'],
+    })
+  }
+
+  if (totalSeconds > 3650 * 86400) {
+    ctx.addIssue({
+      code: z.ZodIssueCode.custom,
+      message: 'Maximum inactivity period is 3650 days',
+      path: ['periodValue'],
+    })
+  }
 })
 
 type RegisterFormValues = z.infer<typeof schema>
-
-// --- Types ---
 
 interface RegisterModalProps {
   open:         boolean
   onOpenChange: (open: boolean) => void
 }
-
-// --- Helpers ---
 
 const TOAST_ID = 'register-tx'
 
@@ -80,8 +96,6 @@ function getErrorMessage(error: Error | null): string {
   const e = error as any
   return e.shortMessage ?? e.message ?? 'Transaction failed'
 }
-
-// --- Component ---
 
 export function RegisterModal({ open, onOpenChange }: RegisterModalProps) {
   const {
@@ -100,11 +114,10 @@ export function RegisterModal({ open, onOpenChange }: RegisterModalProps) {
     reset:      resetForm,
     formState:  { errors },
   } = useForm<RegisterFormValues>({
-    resolver:      zodResolver(schema),
-    defaultValues: { backupAddress: '', periodDays: 365, depositEth: '' },
+    resolver:    zodResolver(schema),
+    defaultValues: { backupAddress: '', periodValue: 30, periodUnit: 'days', depositEth: '' },
   })
 
-  // --- Reset form + hook when modal opens or closes
   useEffect(() => {
     if (!open) {
       resetForm()
@@ -112,21 +125,14 @@ export function RegisterModal({ open, onOpenChange }: RegisterModalProps) {
     }
   }, [open, resetForm, resetTx])
 
-  // --- Toast: pending
   useEffect(() => {
-    if (isPending) {
-      toast.loading('Waiting for wallet confirmation…', { id: TOAST_ID })
-    }
+    if (isPending) toast.loading('Waiting for wallet confirmation…', { id: TOAST_ID })
   }, [isPending])
 
-  // --- Toast: confirming
   useEffect(() => {
-    if (isConfirming) {
-      toast.loading('Transaction submitted, confirming…', { id: TOAST_ID })
-    }
+    if (isConfirming) toast.loading('Transaction submitted, confirming…', { id: TOAST_ID })
   }, [isConfirming])
 
-  // --- Toast + close: confirmed
   useEffect(() => {
     if (isConfirmed) {
       toast.success('Vault registered successfully!', { id: TOAST_ID })
@@ -134,31 +140,26 @@ export function RegisterModal({ open, onOpenChange }: RegisterModalProps) {
     }
   }, [isConfirmed, onOpenChange])
 
-  // --- Toast: error
   useEffect(() => {
-    if (isError) {
-      toast.error(getErrorMessage(error), { id: TOAST_ID })
-    }
+    if (isError) toast.error(getErrorMessage(error), { id: TOAST_ID })
   }, [isError, error])
 
-  // --- Form submit
   const onSubmit = (values: RegisterFormValues) => {
+    const inactivitySeconds = values.periodUnit === 'days'
+      ? daysToSeconds(values.periodValue)
+      : minutesToSeconds(values.periodValue)
+
     registerTx({
       backupAddress:           values.backupAddress as `0x${string}`,
-      inactivityPeriodSeconds: daysToSeconds(values.periodDays),
-      depositWei:              values.depositEth
-                                 ? ethToWei(values.depositEth)
-                                 : 0n,
+      inactivityPeriodSeconds: inactivitySeconds,
+      depositWei:              values.depositEth ? ethToWei(values.depositEth) : 0n,
     })
   }
 
   const isBusy = isPending || isConfirming
 
   return (
-    <Dialog
-      open={open}
-      onOpenChange={(o) => { if (!isBusy) onOpenChange(o) }}
-    >
+    <Dialog open={open} onOpenChange={(o) => { if (!isBusy) onOpenChange(o) }}>
       <DialogContent
         className="bg-card border-border/60 text-foreground max-w-md"
         onInteractOutside={(e) => { if (isBusy) e.preventDefault() }}
@@ -174,10 +175,7 @@ export function RegisterModal({ open, onOpenChange }: RegisterModalProps) {
           </DialogDescription>
         </DialogHeader>
 
-        <form
-          onSubmit={handleSubmit(onSubmit)}
-          className="flex flex-col gap-5 pt-1"
-        >
+        <form onSubmit={handleSubmit(onSubmit)} className="flex flex-col gap-5 pt-1">
           {/* Backup address */}
           <div className="flex flex-col gap-1.5">
             <Label className="text-xs font-medium text-muted-foreground">
@@ -196,9 +194,7 @@ export function RegisterModal({ open, onOpenChange }: RegisterModalProps) {
               )}
             />
             {errors.backupAddress && (
-              <p className="text-xs text-red-400">
-                {errors.backupAddress.message}
-              </p>
+              <p className="text-xs text-red-400">{errors.backupAddress.message}</p>
             )}
             <p className="text-[11px] text-muted-foreground/60">
               The wallet that receives your funds if you go inactive.
@@ -209,26 +205,32 @@ export function RegisterModal({ open, onOpenChange }: RegisterModalProps) {
           {/* Inactivity period */}
           <div className="flex flex-col gap-1.5">
             <Label className="text-xs font-medium text-muted-foreground">
-              Inactivity period (days)
+              Inactivity period
             </Label>
-            <Input
-              {...register('periodDays', { valueAsNumber: true })}
-              type="number"
-              min={1}
-              max={365}
-              disabled={isBusy}
-              className={cn(
-                'bg-muted/50 border-border/60 tabular-nums',
-                errors.periodDays && 'border-red-700/60',
-              )}
-            />
-            {errors.periodDays && (
-              <p className="text-xs text-red-400">
-                {errors.periodDays.message}
-              </p>
+            <div className="flex gap-2">
+              <Input
+                {...register('periodValue', { valueAsNumber: true })}
+                type="number"
+                disabled={isBusy}
+                className={cn(
+                  'bg-muted/50 border-border/60 tabular-nums flex-1',
+                  errors.periodValue && 'border-red-700/60',
+                )}
+              />
+              <select
+                {...register('periodUnit')}
+                disabled={isBusy}
+                className="bg-muted/50 border border-border/60 rounded-md px-2 text-sm text-foreground focus:outline-none focus:ring-1 focus:ring-ring h-9"
+              >
+                <option value="minutes">minutes</option>
+                <option value="days">days</option>
+              </select>
+            </div>
+            {errors.periodValue && (
+              <p className="text-xs text-red-400">{errors.periodValue.message}</p>
             )}
             <p className="text-[11px] text-muted-foreground/60">
-              Sepolia testnet: 1–365 days. Mainnet: 180–3,650 days.
+              Testnet configuration: 5 minutes up to 3650 days max.
             </p>
           </div>
 
@@ -255,9 +257,7 @@ export function RegisterModal({ open, onOpenChange }: RegisterModalProps) {
               </span>
             </div>
             {errors.depositEth && (
-              <p className="text-xs text-red-400">
-                {errors.depositEth.message}
-              </p>
+              <p className="text-xs text-red-400">{errors.depositEth.message}</p>
             )}
           </div>
 
@@ -265,12 +265,7 @@ export function RegisterModal({ open, onOpenChange }: RegisterModalProps) {
           <Button
             type="submit"
             disabled={isBusy}
-            className={cn(
-              'w-full',
-              'bg-secondary border border-border/60',
-              'text-foreground hover:bg-accent',
-              'disabled:opacity-50 disabled:cursor-not-allowed',
-            )}
+            className="w-full bg-secondary border border-border/60 text-foreground hover:bg-accent disabled:opacity-50"
           >
             {isBusy ? (
               <span className="flex items-center gap-2">

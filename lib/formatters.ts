@@ -8,13 +8,13 @@
  * Raw math and number conversion live in lib/utils.ts.
  *
  * Grouped into:
- *   1. ETH formatting     — wei to ETH display strings
- *   2. USD formatting     — numbers to dollar display strings
- *   3. Address formatting — truncation and display
- *   4. Duration formatting — seconds to human-readable period strings
- *   5. Timestamp formatting — unix timestamps to date/time strings
- *   6. Price change formatting — percentage display for Top assets card
- *   7. Transaction formatting — event type labels for TransactionRow
+ * 1. ETH formatting     — wei to ETH display strings
+ * 2. USD formatting     — numbers to dollar display strings
+ * 3. Address formatting — truncation and display
+ * 4. Duration formatting — seconds to human-readable period strings
+ * 5. Timestamp formatting — unix timestamps to date/time strings
+ * 6. Price change formatting — percentage display for Top assets card
+ * 7. Transaction formatting — event type labels for TransactionRow
  */
 
 import { formatUnits } from 'viem'
@@ -28,9 +28,9 @@ import type { TransactionType } from '@/types'
  * number of decimal places.
  *
  * Examples:
- *   formatWeiToEth(10000000000000000n)           →  "0.0100"
- *   formatWeiToEth(2160000000000000000n)          →  "2.1600"
- *   formatWeiToEth(10000000000000000n, 2)         →  "0.01"
+ * formatWeiToEth(10000000000000000n)        →  "0.0100"
+ * formatWeiToEth(2160000000000000000n)      →  "2.1600"
+ * formatWeiToEth(10000000000000000n, 2)     →  "0.01"
  *
  * @param wei       Raw wei value from the contract
  * @param decimals  Decimal places in the output string (default 4)
@@ -46,8 +46,8 @@ export function formatWeiToEth(wei: bigint, decimals = 4): string {
  * Used in BalanceDisplay, WithdrawModal, and TransactionRow.
  *
  * Examples:
- *   formatEthDisplay(10000000000000000n)   →  "0.01 ETH"
- *   formatEthDisplay(2160000000000000000n) →  "2.16 ETH"
+ * formatEthDisplay(10000000000000000n)   →  "0.01 ETH"
+ * formatEthDisplay(2160000000000000000n) →  "2.16 ETH"
  *
  * @param wei       Raw wei value
  * @param decimals  Decimal places (default 4)
@@ -61,7 +61,7 @@ export function formatEthDisplay(wei: bigint, decimals = 4): string {
  * Used after ethToWei round-trip or when amount is already in ETH.
  *
  * Example:
- *   formatEthString("0.5")  →  "0.5 ETH"
+ * formatEthString("0.5")  →  "0.5 ETH"
  */
 export function formatEthString(ethAmount: string): string {
   return `${ethAmount} ETH`
@@ -74,9 +74,9 @@ export function formatEthString(ethAmount: string): string {
  * Used in BalanceDisplay for the primary "$22.16" value.
  *
  * Examples:
- *   formatUSD(22.16)    →  "$22.16"
- *   formatUSD(1234.5)   →  "$1,234.50"
- *   formatUSD(0)        →  "$0.00"
+ * formatUSD(22.16)    →  "$22.16"
+ * formatUSD(1234.5)   →  "$1,234.50"
+ * formatUSD(0)        →  "$0.00"
  */
 export function formatUSD(amount: number): string {
   return new Intl.NumberFormat('en-US', {
@@ -114,7 +114,7 @@ export function formatEthNumberToUSD(ethAmount: number, usdPrice: number): strin
 
 /**
  * Formats a full Ethereum address for display in the Header wallet button:
- *   0x328809Bc894f92807417D2dAD6b7C998c1aFdac6  →  0x3288...dAD6
+ * 0x328809Bc894f92807417D2dAD6b7C998c1aFdac6  →  0x3288...dAD6
  *
  * This is a display-only formatter. For address validation use
  * isValidAddress() in lib/utils.ts.
@@ -139,11 +139,11 @@ export function formatAddress(
  * period string. Used in UpdateConfigModal to display the stored inactivity period.
  *
  * Examples:
- *   formatDuration(15552000n)  →  "180 days"
- *   formatDuration(31536000n)  →  "365 days"
- *   formatDuration(604800n)    →  "7 days"
- *   formatDuration(3600n)      →  "1 hour"
- *   formatDuration(120n)       →  "2 minutes"
+ * formatDuration(15552000n)  →  "180 days"
+ * formatDuration(31536000n)  →  "365 days"
+ * formatDuration(604800n)    →  "7 days"
+ * formatDuration(3600n)      →  "1 hour"
+ * formatDuration(120n)       →  "2 minutes"
  */
 export function formatDuration(seconds: bigint): string {
   const secs = Number(seconds)
@@ -164,7 +164,7 @@ export function formatDuration(seconds: bigint): string {
  * slider/input value (days) into the seconds value the contract expects.
  *
  * Example:
- *   daysToSeconds(180)  →  15552000n
+ * daysToSeconds(180)  →  15552000n
  */
 export function daysToSeconds(days: number): bigint {
   return BigInt(days * 86400)
@@ -175,11 +175,27 @@ export function daysToSeconds(days: number): bigint {
  * Used to initialise the PeriodSelector slider from the stored contract value.
  *
  * Example:
- *   secondsToDays(15552000n)  →  180
+ * secondsToDays(15552000n)  →  180
  */
 export function secondsToDays(seconds: bigint): number {
   return Math.floor(Number(seconds) / 86400)
 }
+
+/**
+ * Converts a number of minutes to a seconds bigint.
+ * Used for ultra-short testnet evaluation cycles.
+ */
+export function minutesToSeconds(minutes: number): bigint {
+  return BigInt(minutes * 60)
+}
+
+/**
+ * Converts a seconds bigint to a number of minutes.
+ */
+export function secondsToMinutes(seconds: bigint): number {
+  return Math.floor(Number(seconds) / 60)
+}
+
 
 // 5. --- Timestamp formatting ---
 
@@ -188,7 +204,7 @@ export function secondsToDays(seconds: bigint): number {
  * Used in TransactionRow alongside formatRelativeTime for older events.
  *
  * Example:
- *   formatDate(1746000000)  →  "Apr 30, 2025"
+ * formatDate(1746000000)  →  "Apr 30, 2025"
  */
 export function formatDate(unixSeconds: number): string {
   return new Intl.DateTimeFormat('en-US', {
@@ -203,7 +219,7 @@ export function formatDate(unixSeconds: number): string {
  * Shown alongside formatDate in the transaction list.
  *
  * Example:
- *   formatTime(1746000000)  →  "3:20 PM"
+ * formatTime(1746000000)  →  "3:20 PM"
  */
 export function formatTime(unixSeconds: number): string {
   return new Intl.DateTimeFormat('en-US', {
@@ -218,11 +234,11 @@ export function formatTime(unixSeconds: number): string {
  * falling back to formatDate for anything older than 7 days.
  *
  * Examples:
- *   "Just now"       — within the last minute
- *   "5m ago"         — within the last hour
- *   "3h ago"         — within the last day
- *   "2d ago"         — within the last 7 days
- *   "Apr 30, 2025"   — older than 7 days
+ * "Just now"       — within the last minute
+ * "5m ago"         — within the last hour
+ * "3h ago"         — within the last day
+ * "2d ago"         — within the last 7 days
+ * "Apr 30, 2025"   — older than 7 days
  */
 export function formatRelativeTime(unixSeconds: number): string {
   const diffMs   = Date.now() - unixSeconds * 1000
@@ -245,9 +261,9 @@ export function formatRelativeTime(unixSeconds: number): string {
  * The PriceChange component adds the ▼ or ▲ arrow and applies red/green color.
  *
  * Examples:
- *   formatPriceChange(-2.39)  →  "2.39%"
- *   formatPriceChange(1.2)    →  "1.20%"
- *   formatPriceChange(0)      →  "0.00%"
+ * formatPriceChange(-2.39)  →  "2.39%"
+ * formatPriceChange(1.2)    →  "1.20%"
+ * formatPriceChange(0)      →  "0.00%"
  */
 export function formatPriceChange(change: number): string {
   return `${Math.abs(change).toFixed(2)}%`
@@ -260,9 +276,9 @@ export function formatPriceChange(change: number): string {
  * Keeps the label logic in one place rather than scattered across components.
  *
  * Examples:
- *   formatTransactionLabel('deposited')         →  "Deposited"
- *   formatTransactionLabel('recoveryExecuted')  →  "Recovery executed"
- *   formatTransactionLabel('backupUpdated')     →  "Backup address updated"
+ * formatTransactionLabel('deposited')         →  "Deposited"
+ * formatTransactionLabel('recoveryExecuted')  →  "Recovery executed"
+ * formatTransactionLabel('backupUpdated')     →  "Backup address updated"
  */
 export function formatTransactionLabel(type: TransactionType): string {
   const labels: Record<TransactionType, string> = {
