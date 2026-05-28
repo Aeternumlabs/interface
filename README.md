@@ -69,6 +69,7 @@ Open `http://localhost:3000` in your browser.
 - `providers.tsx` — `wagmi`, `RainbowKit`, and React Query providers
 - `vault/page.tsx` — renders the main vault dashboard
 - `vault/layout.tsx` — layout grid for desktop and mobile
+- `vault/activity/page.tsx` — vault activity and history view
 
 ### `components/`
 
@@ -120,7 +121,9 @@ aeternum-app/
 │   ├── page.tsx
 │   └── vault/
 │       ├── layout.tsx
-│       └── page.tsx
+│       ├── page.tsx
+│       └── activity/
+│           └── page.tsx
 │
 ├── components/
 │   ├── ui/
