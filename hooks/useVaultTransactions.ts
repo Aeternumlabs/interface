@@ -17,7 +17,7 @@ import {
   eventMatchesWallet,
   type ParsedVaultEvent,
 } from '@/lib/eventLogs'
-import { EVENTS_POLL_INTERVAL_MS, TRANSACTION_PAGE_SIZE } from '@/lib/constants'
+import { EVENTS_POLL_INTERVAL_MS } from '@/lib/constants' // Removed TRANSACTION_PAGE_SIZE
 import type { TransactionEvent, TransactionType } from '@/types'
 
 // --- Contract event name → TransactionType ---
@@ -82,7 +82,7 @@ export interface UseVaultTransactionsReturn {
 
 // --- Hook ---
 
-export function useVaultTransactions(): UseVaultTransactionsReturn {
+export function useVaultTransactions(limit?: number): UseVaultTransactionsReturn {
   const { address, isConnected } = useAccount()
   const chainId                  = useChainId()
   const publicClient             = usePublicClient()
@@ -138,7 +138,8 @@ export function useVaultTransactions(): UseVaultTransactionsReturn {
         return 0
       })
 
-      return events.slice(0, TRANSACTION_PAGE_SIZE)
+      // Return ALL events to cache them globally
+      return events
     },
 
     enabled: isConnected && !!address && !!contractAddress && !!publicClient,
@@ -150,8 +151,12 @@ export function useVaultTransactions(): UseVaultTransactionsReturn {
     placeholderData: (prev: TransactionEvent[] | undefined) => prev,
   })
 
+  // Derive the sliced array based on the limit requested by the component
+  const allTransactions = data ?? []
+  const displayedTransactions = limit ? allTransactions.slice(0, limit) : allTransactions
+
   return {
-    transactions: data ?? [],
+    transactions: displayedTransactions,
     isLoading,
     isError,
     refetch,

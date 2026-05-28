@@ -39,93 +39,55 @@
  *    See: app/vault/layout.tsx for the complete wiring.
  */
 
-import { useState }              from 'react'
-import { BalanceCard }           from './cards/BalanceCard'
-import { TopAssetsCard }         from './cards/TopAssetsCard'
-import { TransactionHistoryCard } from './cards/TransactionHistoryCard'
-import { UpdateConfigModal }     from './modals/UpdateConfigModal'
-import { WithdrawModal }         from './modals/WithdrawModal'
-import { CancelRecoveryModal }   from './modals/CancelRecoveryModal'
-import { cn }                    from '@/lib/utils'
-import type { ActiveModal }      from '@/types'
+import { cn } from '@/lib/utils'
+import { BalanceCard } from '@/components/vault/cards/BalanceCard'
+import { TopAssetsCard } from '@/components/vault/cards/TopAssetsCard'
+import { TransactionHistoryCard } from '@/components/vault/cards/TransactionHistoryCard'
+import { UpdateConfigModal } from '@/components/vault/modals/UpdateConfigModal'
+import { WithdrawModal } from '@/components/vault/modals/WithdrawModal'
+import { CancelRecoveryModal } from '@/components/vault/modals/CancelRecoveryModal'
 
-// --- Types ---
-
-interface VaultDashboardProps {
-  /**
-   * Externally controlled active modal.
-   * Provide this (with onOpenModal + onCloseModal) when vault/page.tsx
-   * manages modal state so the sidebar can trigger modals via context.
-   * Omit to let VaultDashboard manage its own modal state internally.
-   */
-  activeModal?:   ActiveModal
-  onOpenModal?:   (modal: NonNullable<ActiveModal>) => void
-  onCloseModal?:  () => void
-  className?:     string
+export interface VaultDashboardProps {
+  activeModal?: string | null
+  onOpenModal?: (modal: string) => void
+  onCloseModal?: () => void
+  className?: string
 }
 
-// --- Component ---
-
 export function VaultDashboard({
-  activeModal:   externalModal,
-  onOpenModal:   externalOpen,
-  onCloseModal:  externalClose,
+  activeModal,
+  onOpenModal,
+  onCloseModal,
   className,
 }: VaultDashboardProps = {}) {
-
-  // --- Modal state
-  // Own internal state — used when no external control is provided.
-  const [ownModal, setOwnModal] = useState<ActiveModal>(null)
-
-  // Whether the parent is driving modal state.
-  // We detect this by checking if an external setter was provided.
-  const isControlled = externalOpen !== undefined
-
-  // The active modal is whichever source is authoritative.
-  const activeModal = isControlled ? (externalModal ?? null) : ownModal
-
-  // Open a sidebar modal — updates own state OR notifies the parent.
-  const openModal = (modal: NonNullable<ActiveModal>) => {
-    if (!isControlled) setOwnModal(modal)
-    externalOpen?.(modal)
-  }
-
-  // Close whatever modal is currently open.
+  
   const closeModal = () => {
-    if (!isControlled) setOwnModal(null)
-    externalClose?.()
+    if (onCloseModal) onCloseModal()
   }
 
   return (
-    <div className={cn('flex flex-col gap-4 pb-4', className)}>
-
+    // 'pb-4' removed from this wrapper to prevent the WebKit flexbox overflow bug
+    <div className={cn('flex flex-col gap-4', className)}>
+      
       {/* Top cards — fixed height; do not shrink */}
       <BalanceCard className="shrink-0" />
       <TopAssetsCard className="shrink-0" />
 
       {/* Fills remaining column height; list scrolls inside the card */}
-      <TransactionHistoryCard className="shrink-0" />
+      <TransactionHistoryCard limit={10} className="shrink-0" />
+
+      {/* Invisible spacer to permanently preserve bottom padding */}
+      <div className="h-4 shrink-0" />
 
       {/* Sidebar-triggered modals */}
-      {/*
-        These three modals are opened by sidebar nav items, not by the
-        action buttons inside BalanceCard. They live here so they are
-        always mounted when the dashboard is visible.
-      */}
-
-      {/* "Update config" sidebar item → opens this modal */}
       <UpdateConfigModal
         open={activeModal === 'updateConfig'}
         onOpenChange={(o) => { if (!o) closeModal() }}
       />
-
-      {/* "Withdraw balance" sidebar item → opens this modal */}
       <WithdrawModal
         open={activeModal === 'withdraw'}
         onOpenChange={(o) => { if (!o) closeModal() }}
       />
-
-      {/* "Cancel recovery" sidebar item → opens this modal */}
       <CancelRecoveryModal
         open={activeModal === 'cancelRecovery'}
         onOpenChange={(o) => { if (!o) closeModal() }}

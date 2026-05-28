@@ -18,9 +18,10 @@ import { cn }              from '@/lib/utils'
 
 interface TransactionHistoryCardProps {
   className?: string
+  limit?: number
 }
 
-export function TransactionHistoryCard({ className }: TransactionHistoryCardProps) {
+export function TransactionHistoryCard({ className, limit }: TransactionHistoryCardProps) {
   return (
     <div
       className={cn(
@@ -38,7 +39,7 @@ export function TransactionHistoryCard({ className }: TransactionHistoryCardProp
         TransactionList grows to fit all events. The card grows with it.
         The parent column scrolls — no overflow needed here.
       */}
-      <TransactionList />
+      <TransactionList limit={limit} />
     </div>
   )
 }

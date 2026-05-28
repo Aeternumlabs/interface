@@ -6,11 +6,11 @@
  * TransactionRow components inside TransactionHistoryCard.
  *
  * States:
- *   Not connected  → nothing (parent guards connection)
- *   Loading        → skeleton rows
- *   Empty          → EmptyTransactionState
- *   Populated      → list of TransactionRow, newest first
- *   Error          → inline error message
+ * Not connected  → nothing (parent guards connection)
+ * Loading        → skeleton rows
+ * Empty          → EmptyTransactionState
+ * Populated      → list of TransactionRow, newest first
+ * Error          → inline error message
  */
 
 import { LoadingSkeleton }          from '@/components/common/LoadingSkeleton'
@@ -23,18 +23,19 @@ import { cn }                       from '@/lib/utils'
 
 interface TransactionListProps {
   className?: string
+  limit?: number
 }
 
 // --- Component ---
 
-export function TransactionList({ className }: TransactionListProps) {
-  const { transactions, isLoading, isError, refetch } = useVaultTransactions()
+export function TransactionList({ className, limit }: TransactionListProps) {
+  const { transactions, isLoading, isError, refetch } = useVaultTransactions(limit)
 
   // --- Loading
   if (isLoading) {
     return (
       <div className={cn('px-1', className)}>
-        <LoadingSkeleton variant="tx-row" count={4} />
+        <LoadingSkeleton variant="tx-row" count={limit ? Math.min(limit, 4) : 4} />
       </div>
     )
   }
