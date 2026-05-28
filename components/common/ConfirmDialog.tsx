@@ -108,7 +108,7 @@ export function ConfirmDialog({
           <DialogTitle
             className={cn(
               'text-base font-semibold',
-              isDestructive ? 'text-red-400' : 'text-foreground',
+              isDestructive ? 'text-red-500' : 'text-foreground',
             )}
           >
             {title}
@@ -155,8 +155,8 @@ export function ConfirmDialog({
               'flex-1',
               isDestructive
                 ? [
-                    'bg-red-900/60 border border-red-800/60',
-                    'text-red-300 hover:bg-red-900 hover:text-red-200',
+                    'bg-red-600 border border-red-600',
+                    'text-white hover:bg-red-700',
                   ]
                 : [
                     'bg-secondary border border-border/60',
