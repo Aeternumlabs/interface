@@ -93,7 +93,7 @@ export function CountdownDisplay({
       </p>
 
       {/* Countdown container */}
-      {isExpired ? (
+      {isExpired && deadlineUnix > 0 ? (
         // --- Expired state
         // Recovery is due — shown when inactivity period has elapsed.
         <div
