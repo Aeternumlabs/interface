@@ -108,7 +108,7 @@ export function ConfirmDialog({
           <DialogTitle
             className={cn(
               'text-base font-semibold',
-              isDestructive ? 'text-red-500' : 'text-foreground',
+              isDestructive ? 'text-red-600' : 'text-foreground',
             )}
           >
             {title}
