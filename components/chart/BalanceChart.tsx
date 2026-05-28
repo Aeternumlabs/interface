@@ -174,6 +174,7 @@ export function BalanceChart({ timeRange, className }: BalanceChartProps) {
             dataKey="timestamp"
             type="number"
             scale="time"
+            allowDuplicatedCategory={false}
             domain={['dataMin', 'dataMax']}
             tickCount={tickCount}
             tickFormatter={(v) => formatXTick(v as number, timeRange)}
