@@ -87,7 +87,7 @@ export function SidebarNavItem({
   // --- Determine active state
   const isActive = (() => {
     if (item.kind === 'route') {
-      return pathname === item.href || pathname.startsWith(item.href + '/')
+      return pathname === item.href
     }
     if (item.kind === 'modal') {
       return activeModal === item.modal
