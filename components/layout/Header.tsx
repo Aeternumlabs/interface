@@ -48,7 +48,7 @@ export function Header({ activeModal, onOpenModal, className }: HeaderProps) {
         className={cn(
           // Full width, fixed height matching the drawer header height
           'flex items-center justify-between',
-          'h-16 px-4 lg:px-6',
+          'h-16 px-2 sm:px-4 lg:px-6',
           'shrink-0',
           // Dark background matching the page, subtle bottom border
           'bg-background border-b border-border/50',
@@ -61,7 +61,7 @@ export function Header({ activeModal, onOpenModal, className }: HeaderProps) {
         <AeternumLogo size="lg" />
 
         {/* Right: Wallet button + mobile hamburger */}
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-1 sm:gap-2">
           <WalletButton />
 
           {/* Hamburger — mobile only (hidden on lg and above) */}
