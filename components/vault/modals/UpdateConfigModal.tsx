@@ -1,22 +1,5 @@
 'use client'
 
-/**
- * components/vault/modals/UpdateConfigModal.tsx
- *
- * Opened from "Update config" in the sidebar. Displays current vault settings
- * and provides two independent update forms — one per setting.
- *
- * Sections:
- *   1. Backup address  — shows current, input for new, submit via useUpdateBackupAddress()
- *   2. Inactivity period — shows current, input for new, submit via useUpdateInactivityPeriod()
- *   3. Failed attempts — read-only counter (informational, no update available)
- *
- * Each section has its own react-hook-form instance and write hook so their
- * loading/error states are fully independent.
- */
-
-'use client'
-
 import { useCallback, useEffect }       from 'react'
 import { useForm }                      from 'react-hook-form'
 import { zodResolver }                  from '@hookform/resolvers/zod'
@@ -38,8 +21,13 @@ import { useVaultConfig }               from '@/hooks/contracts/reads/useVaultCo
 import { useUpdateBackupAddress }       from '@/hooks/contracts/writes/useUpdateBackupAddress'
 import { useUpdateInactivityPeriod }    from '@/hooks/contracts/writes/useUpdateInactivityPeriod'
 import { isValidAddress, isZeroAddress, cn } from '@/lib/utils'
-import { daysToSeconds, minutesToSeconds, formatDuration } from '@/lib/formatters'
-import { MAX_RECOVERY_ATTEMPTS }        from '@/lib/constants'
+import { daysToSeconds, hoursToSeconds, minutesToSeconds, formatDuration } from '@/lib/formatters'
+import {
+  MAX_RECOVERY_ATTEMPTS,
+  SEPOLIA_MIN_INACTIVITY_PERIOD_SECONDS,
+  SEPOLIA_MAX_INACTIVITY_PERIOD_SECONDS,
+} from '@/lib/constants'   
+
 
 interface UpdateConfigModalProps {
   open:         boolean
@@ -129,14 +117,27 @@ const periodSchema = z.object({
   periodValue: z
     .number({ message: 'Enter a valid number' })
     .int('Must be a whole number'),
-  periodUnit: z.enum(['minutes', 'days']),
+  periodUnit: z.enum(['minutes', 'hours', 'days']),
 }).superRefine((data, ctx) => {
-  const totalSeconds = data.periodUnit === 'days' ? data.periodValue * 86400 : data.periodValue * 60
-  if (totalSeconds < 5 * 60) {
-    ctx.addIssue({ code: z.ZodIssueCode.custom, message: 'Minimum is 5 minutes', path: ['periodValue'] })
+  const totalSeconds = 
+    data.periodUnit === 'days' ? data.periodValue * 86400 :
+    data.periodUnit === 'hours' ? data.periodValue * 3600 :
+    data.periodValue * 60;
+
+  if (totalSeconds < SEPOLIA_MIN_INACTIVITY_PERIOD_SECONDS) {
+    ctx.addIssue({
+      code: z.ZodIssueCode.custom,
+      message: `Minimum is ${SEPOLIA_MIN_INACTIVITY_PERIOD_SECONDS / 60} minutes`,
+      path: ['periodValue'],
+    })
   }
-  if (totalSeconds > 3650 * 86400) {
-    ctx.addIssue({ code: z.ZodIssueCode.custom, message: 'Maximum is 3650 days', path: ['periodValue'] })
+
+  if (totalSeconds > SEPOLIA_MAX_INACTIVITY_PERIOD_SECONDS) {
+    ctx.addIssue({
+      code: z.ZodIssueCode.custom,
+      message: `Maximum is ${SEPOLIA_MAX_INACTIVITY_PERIOD_SECONDS / 86400} days`,
+      path: ['periodValue'],
+    })
   }
 })
 type PeriodFormValues = z.infer<typeof periodSchema>
@@ -150,6 +151,9 @@ function UpdatePeriodSection({ currentPeriodSeconds, onSuccess }: { currentPerio
     if (secs % 86400 === 0) {
       return { periodValue: secs / 86400, periodUnit: 'days' as const }
     }
+    if (secs % 3600 === 0) {
+      return { periodValue: secs / 3600, periodUnit: 'hours' as const }
+    }
     return { periodValue: Math.floor(secs / 60), periodUnit: 'minutes' as const }
   }, [currentPeriodSeconds])
 
@@ -158,7 +162,6 @@ function UpdatePeriodSection({ currentPeriodSeconds, onSuccess }: { currentPerio
     defaultValues: getInitialValues(),
   })
 
-  // Sync state if async contract query finishes reading after component lifecycle initializes
   useEffect(() => {
     if (currentPeriodSeconds) {
       resetForm(getInitialValues())
@@ -192,7 +195,10 @@ function UpdatePeriodSection({ currentPeriodSeconds, onSuccess }: { currentPerio
 
       <form
         onSubmit={handleSubmit(({ periodValue, periodUnit }) => {
-          const totalSeconds = periodUnit === 'days' ? daysToSeconds(periodValue) : minutesToSeconds(periodValue)
+          const totalSeconds = 
+            periodUnit === 'days' ? daysToSeconds(periodValue) : 
+            periodUnit === 'hours' ? hoursToSeconds(periodValue) : 
+            minutesToSeconds(periodValue);
           updateInactivityPeriod(totalSeconds)
         })}
         className="flex gap-2 items-start"
@@ -214,6 +220,7 @@ function UpdatePeriodSection({ currentPeriodSeconds, onSuccess }: { currentPerio
               className="bg-muted/50 border border-border/60 rounded-md px-2 text-sm text-foreground focus:outline-none focus:ring-1 focus:ring-ring h-9"
             >
               <option value="minutes">minutes</option>
+              <option value="hours">hours</option>
               <option value="days">days</option>
             </select>
           </div>

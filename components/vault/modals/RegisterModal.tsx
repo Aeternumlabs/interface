@@ -1,24 +1,5 @@
 'use client'
 
-/**
- * components/vault/modals/RegisterModal.tsx
- *
- * Opens when the user clicks the Register button (State 2 — connected, unregistered).
- * Collects backup address, inactivity period (minutes), and an optional initial deposit,
- * then calls register() on the contract.
- *
- * Form fields:
- *   backup address  — validated Ethereum address, cannot be zero or self
- *   period (minutes) — number input, min 5 / max 3,650 days (5256000 minutes)
- *   deposit (ETH)   — optional, defaults to 0 if left blank
- *
- * Transaction flow:
- *   submit → pending (MetaMask open) → confirming (mined) → confirmed → modal closes
- *   Sonner toasts reflect each state transition.
- */
-
-'use client'
-
 import { useEffect }        from 'react'
 import { useForm }          from 'react-hook-form'
 import { zodResolver }      from '@hookform/resolvers/zod'
@@ -37,9 +18,13 @@ import { Input }            from '@/components/ui/input'
 import { Label }            from '@/components/ui/label'
 import { useRegister }      from '@/hooks/contracts/writes/useRegister'
 import { isValidAddress }   from '@/lib/utils'
-import { daysToSeconds, minutesToSeconds } from '@/lib/formatters'
+import { daysToSeconds, hoursToSeconds, minutesToSeconds } from '@/lib/formatters'
 import { ethToWei }         from '@/lib/utils'
 import { cn }               from '@/lib/utils'
+import { 
+  SEPOLIA_MIN_INACTIVITY_PERIOD_SECONDS, 
+  SEPOLIA_MAX_INACTIVITY_PERIOD_SECONDS 
+} from '@/lib/constants'
 
 const schema = z.object({
   backupAddress: z
@@ -51,7 +36,7 @@ const schema = z.object({
     .number({ message: 'Enter a valid number' })
     .int('Must be a whole number'),
 
-  periodUnit: z.enum(['minutes', 'days']),
+  periodUnit: z.enum(['minutes', 'hours', 'days']),
 
   depositEth: z
     .string()
@@ -61,22 +46,23 @@ const schema = z.object({
       'Enter a valid ETH amount',
     ),
 }).superRefine((data, ctx) => {
-  const totalSeconds = data.periodUnit === 'days' 
-    ? data.periodValue * 86400 
-    : data.periodValue * 60
+  const totalSeconds = 
+    data.periodUnit === 'days' ? data.periodValue * 86400 :
+    data.periodUnit === 'hours' ? data.periodValue * 3600 :
+    data.periodValue * 60;
 
-  if (totalSeconds < 5 * 60) {
+  if (totalSeconds < SEPOLIA_MIN_INACTIVITY_PERIOD_SECONDS) {
     ctx.addIssue({
       code: z.ZodIssueCode.custom,
-      message: 'Minimum inactivity period is 5 minutes',
+      message: `Minimum is ${SEPOLIA_MIN_INACTIVITY_PERIOD_SECONDS / 60} minutes`,
       path: ['periodValue'],
     })
   }
 
-  if (totalSeconds > 3650 * 86400) {
+  if (totalSeconds > SEPOLIA_MAX_INACTIVITY_PERIOD_SECONDS) {
     ctx.addIssue({
       code: z.ZodIssueCode.custom,
-      message: 'Maximum inactivity period is 3650 days',
+      message: `Maximum is ${SEPOLIA_MAX_INACTIVITY_PERIOD_SECONDS / 86400} days`,
       path: ['periodValue'],
     })
   }
@@ -145,9 +131,10 @@ export function RegisterModal({ open, onOpenChange }: RegisterModalProps) {
   }, [isError, error])
 
   const onSubmit = (values: RegisterFormValues) => {
-    const inactivitySeconds = values.periodUnit === 'days'
-      ? daysToSeconds(values.periodValue)
-      : minutesToSeconds(values.periodValue)
+    const inactivitySeconds = 
+      values.periodUnit === 'days' ? daysToSeconds(values.periodValue) :
+      values.periodUnit === 'hours' ? hoursToSeconds(values.periodValue) :
+      minutesToSeconds(values.periodValue)
 
     registerTx({
       backupAddress:           values.backupAddress as `0x${string}`,
@@ -223,6 +210,7 @@ export function RegisterModal({ open, onOpenChange }: RegisterModalProps) {
                 className="bg-muted/50 border border-border/60 rounded-md px-2 text-sm text-foreground focus:outline-none focus:ring-1 focus:ring-ring h-9"
               >
                 <option value="minutes">minutes</option>
+                <option value="hours">hours</option>
                 <option value="days">days</option>
               </select>
             </div>
