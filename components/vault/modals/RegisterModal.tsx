@@ -1,5 +1,20 @@
 'use client'
 
+/**
+ * components/vault/modals/RegisterModal.tsx
+ *
+ * Client component for the initial Aeternum vault registration flow.
+ *
+ * Handles user input and strict validation for:
+ * - Backup address (must be valid, non-zero)
+ * - Inactivity period (validated against Sepolia/Mainnet constants)
+ * - Optional initial ETH deposit
+ *
+ * Built with react-hook-form + zod for robust client-side validation, 
+ * integrating shadcn/ui components for consistent theming. 
+ * Transaction state is managed via the useRegister custom hook.
+ */
+
 import { useEffect }        from 'react'
 import { useForm, Controller }          from 'react-hook-form'
 import { zodResolver }      from '@hookform/resolvers/zod'

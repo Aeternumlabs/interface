@@ -3,6 +3,18 @@
  *
  * Display formatting functions — everything that produces a string
  * intended for UI rendering.
+ *
+ * Rule: Nothing in this file does math for computation purposes.
+ * Raw math and number conversion live in lib/utils.ts.
+ *
+ * Grouped into:
+ * 1. ETH formatting        — wei to ETH display strings
+ * 2. USD formatting        — numbers to dollar display strings
+ * 3. Address formatting    — truncation and display
+ * 4. Duration formatting   — seconds to human-readable period strings (days/hours/minutes)
+ * 5. Timestamp formatting  — unix timestamps to date/time strings
+ * 6. Price change format   — percentage display for Top assets card
+ * 7. Transaction format    — event type labels for TransactionRow
  */
 
 import { formatUnits } from 'viem'

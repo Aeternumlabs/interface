@@ -1,5 +1,19 @@
 'use client'
 
+/**
+ * components/vault/modals/UpdateConfigModal.tsx
+ *
+ * Client component for managing an existing Aeternum vault configuration.
+ *
+ * Structured as independent sub-forms to isolate transaction scopes:
+ * 1. Backup address updates
+ * 2. Inactivity period updates
+ * 3. Read-only view of failed recovery attempts
+ *
+ * Each section maintains its own React Hook Form instance and transaction 
+ * lifecycle, initialized by on-chain state fetched via useVaultConfig.
+ */
+
 import { useCallback, useEffect }       from 'react'
 import { useForm, Controller }                      from 'react-hook-form'
 import { zodResolver }                  from '@hookform/resolvers/zod'
