@@ -1,7 +1,7 @@
 'use client'
 
 import { useCallback, useEffect }       from 'react'
-import { useForm }                      from 'react-hook-form'
+import { useForm, Controller }                      from 'react-hook-form'
 import { zodResolver }                  from '@hookform/resolvers/zod'
 import { z }                            from 'zod'
 import { toast }                        from 'sonner'
@@ -16,6 +16,13 @@ import {
 import { Button }                       from '@/components/ui/button'
 import { Input }                        from '@/components/ui/input'
 import { Separator }                    from '@/components/ui/separator'
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+}                                       from '@/components/ui/select'
 import { AddressDisplay }               from '@/components/common/AddressDisplay'
 import { useVaultConfig }               from '@/hooks/contracts/reads/useVaultConfig'
 import { useUpdateBackupAddress }       from '@/hooks/contracts/writes/useUpdateBackupAddress'
@@ -157,7 +164,7 @@ function UpdatePeriodSection({ currentPeriodSeconds, onSuccess }: { currentPerio
     return { periodValue: Math.floor(secs / 60), periodUnit: 'minutes' as const }
   }, [currentPeriodSeconds])
 
-  const { register, handleSubmit, reset: resetForm, formState: { errors } } = useForm<PeriodFormValues>({
+  const { register, handleSubmit, control, reset: resetForm, formState: { errors } } = useForm<PeriodFormValues>({
     resolver: zodResolver(periodSchema),
     defaultValues: getInitialValues(),
   })
@@ -214,15 +221,26 @@ function UpdatePeriodSection({ currentPeriodSeconds, onSuccess }: { currentPerio
                 errors.periodValue && 'border-red-700/60',
               )}
             />
-            <select
-              {...register('periodUnit')}
-              disabled={isBusy}
-              className="bg-muted/50 border border-border/60 rounded-md px-2 text-sm text-foreground focus:outline-none focus:ring-1 focus:ring-ring h-9"
-            >
-              <option value="minutes">minutes</option>
-              <option value="hours">hours</option>
-              <option value="days">days</option>
-            </select>
+            <Controller
+              control={control}
+              name="periodUnit"
+              render={({ field }) => (
+                <Select
+                  disabled={isBusy}
+                  onValueChange={field.onChange}
+                  defaultValue={field.value}
+                >
+                  <SelectTrigger className="w-[110px] bg-muted/50 border-border/60 h-9 focus:ring-1 focus:ring-ring focus:ring-offset-0">
+                    <SelectValue placeholder="Unit" />
+                  </SelectTrigger>
+                  <SelectContent className="bg-popover border-border/60 text-popover-foreground">
+                    <SelectItem value="minutes" className="focus:bg-muted focus:text-foreground cursor-pointer">minutes</SelectItem>
+                    <SelectItem value="hours" className="focus:bg-muted focus:text-foreground cursor-pointer">hours</SelectItem>
+                    <SelectItem value="days" className="focus:bg-muted focus:text-foreground cursor-pointer">days</SelectItem>
+                  </SelectContent>
+                </Select>
+              )}
+            />
           </div>
           {errors.periodValue && (
             <p className="text-xs text-red-400">{errors.periodValue.message}</p>
