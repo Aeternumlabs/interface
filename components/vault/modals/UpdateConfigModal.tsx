@@ -230,7 +230,7 @@ function UpdatePeriodSection({ currentPeriodSeconds, onSuccess }: { currentPerio
                   onValueChange={field.onChange}
                   defaultValue={field.value}
                 >
-                  <SelectTrigger className="w-[110px] bg-muted/50 border-border/60 h-9 focus:ring-1 focus:ring-ring focus:ring-offset-0">
+                  <SelectTrigger className="w-27.5 bg-muted/50 border-border/60 h-9 focus:ring-1 focus:ring-ring focus:ring-offset-0">
                     <SelectValue placeholder="Unit" />
                   </SelectTrigger>
                   <SelectContent className="bg-popover border-border/60 text-popover-foreground">
