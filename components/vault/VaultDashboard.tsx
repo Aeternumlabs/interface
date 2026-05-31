@@ -42,7 +42,7 @@
 import { cn } from '@/lib/utils'
 import { BalanceCard } from '@/components/vault/cards/BalanceCard'
 import { TopAssetsCard } from '@/components/vault/cards/TopAssetsCard'
-import { TransactionHistoryCard } from '@/components/vault/cards/TransactionHistoryCard'
+import { VaultHistoryCard } from '@/components/vault/cards/VaultHistoryCard'
 import { UpdateConfigModal } from '@/components/vault/modals/UpdateConfigModal'
 import { WithdrawModal } from '@/components/vault/modals/WithdrawModal'
 import { CancelRecoveryModal } from '@/components/vault/modals/CancelRecoveryModal'
@@ -73,7 +73,7 @@ export function VaultDashboard({
       <TopAssetsCard className="shrink-0" />
 
       {/* Fills remaining column height; list scrolls inside the card */}
-      <TransactionHistoryCard limit={10} className="shrink-0" />
+      <VaultHistoryCard limit={10} className="shrink-0" />
 
       {/* Invisible spacer to permanently preserve bottom padding */}
       <div className="h-4 shrink-0" />

@@ -1,7 +1,7 @@
 /**
  * components/vault/transactions/EmptyTransactionState.tsx
  *
- * Shown inside TransactionHistoryCard when the connected wallet has no
+ * Shown inside VaultHistoryCard when the connected wallet has no
  * recorded events yet (new vault or vault with no activity).
  *
  * Deliberately minimal — a subtle icon and a short message.
@@ -33,7 +33,7 @@ export function EmptyTransactionState({ className }: EmptyTransactionStateProps)
       <p className="text-sm font-medium text-muted-foreground/70">
         No transactions yet
       </p>
-      <p className="text-xs text-muted-foreground/50 mt-1 max-w-[200px]">
+      <p className="text-xs text-muted-foreground/50 mt-1 max-w-50">
         Your deposits, sends, and vault activity will appear here.
       </p>
     </div>

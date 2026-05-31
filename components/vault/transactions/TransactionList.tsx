@@ -3,7 +3,7 @@
  *
  * Fetches all vault transaction events for the connected wallet via
  * useVaultTransactions() and renders them as a scrollable list of
- * TransactionRow components inside TransactionHistoryCard.
+ * TransactionRow components inside VaultHistoryCard.
  *
  * States:
  * Not connected  → nothing (parent guards connection)

@@ -23,7 +23,7 @@
  *   BalanceDisplay         — while wei balance loads from contract
  *   CountdownDisplay       — while time until recovery loads
  *   TopAssetsCard          — while ETH price loads from CoinGecko
- *   TransactionHistoryCard — while event logs load from RPC
+ *   VaultHistoryCard — while event logs load from RPC
  */
 
 import { cn } from '@/lib/utils'
@@ -60,7 +60,7 @@ type SkeletonVariant =
   | 'balance'    // "$22.16" large balance value in BalanceDisplay
   | 'countdown'  // Four countdown unit boxes in CountdownDisplay
   | 'asset-row'  // Single row in TopAssetsCard
-  | 'tx-row'     // Single row in TransactionHistoryCard
+  | 'tx-row'     // Single row in VaultHistoryCard
 
 // --- balance — matches the large "$22.16" value ---
 
@@ -119,7 +119,7 @@ function AssetRowSkeleton() {
   )
 }
 
-// --- tx-row — matches a single TransactionRow in TransactionHistoryCard ---
+// --- tx-row — matches a single TransactionRow in VaultHistoryCard ---
 
 function TxRowSkeleton() {
   return (

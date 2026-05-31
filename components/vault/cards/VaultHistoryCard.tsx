@@ -1,5 +1,5 @@
 /**
- * components/vault/cards/TransactionHistoryCard.tsx
+ * components/vault/cards/VaultHistoryCard.tsx
  *
  * The bottom card in the vault dashboard.
  *
@@ -16,12 +16,12 @@
 import { TransactionList } from '@/components/vault/transactions/TransactionList'
 import { cn }              from '@/lib/utils'
 
-interface TransactionHistoryCardProps {
+interface VaultHistoryCardProps {
   className?: string
   limit?: number
 }
 
-export function TransactionHistoryCard({ className, limit }: TransactionHistoryCardProps) {
+export function VaultHistoryCard({ className, limit }: VaultHistoryCardProps) {
   return (
     <div
       className={cn(
@@ -32,7 +32,7 @@ export function TransactionHistoryCard({ className, limit }: TransactionHistoryC
       )}
     >
       <h2 className="text-sm font-medium text-foreground mb-2 select-none">
-        Transaction history
+        Vault history
       </h2>
 
       {/*
