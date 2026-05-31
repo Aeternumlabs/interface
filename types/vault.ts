@@ -81,12 +81,13 @@ export type TransactionType =
   | 'recoveryAbandoned'    // RecoveryAbandoned
 
 export interface TransactionEvent {
+  id: string                    // Unique identifier from indexer (hash-logIndex)
   type: TransactionType
-  txHash: `0x${string}`
+  txHash?: `0x${string}`        // Optional: Not returned by default Ponder setup
   blockNumber: bigint
-  timestamp: number             // unix seconds — fetched from block
+  timestamp: number | bigint    // Accepts Ponder's bigint or traditional unix number
   amount?: bigint               // wei — present on deposited / sent / withdrawn / recoveryExecuted
-  toAddress?: `0x${string}`    // present on sent / recoveryExecuted
+  toAddress?: `0x${string}`     // present on sent / recoveryExecuted
 }
 
 // --- Balance chart ---
