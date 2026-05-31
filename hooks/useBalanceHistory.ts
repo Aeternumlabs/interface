@@ -2,241 +2,108 @@
  * hooks/useBalanceHistory.ts
  *
  * Reconstructs the vault balance over time by replaying balance-affecting
- * contract events in chronological order, then filters the result to the
- * selected time range for the BalanceChart in ChartPanel.
- *
- * Events that change vault balance (fetched in this hook):
- * Deposited(wallet, amount)                   → balance += amount
- * Sent(wallet, to, amount)                    → balance -= amount
- * Withdrawn(wallet, amount)                   → balance = 0
- * RecoveryExecuted(wallet, backupAddress, amount) → balance = 0
- * RecoveryCancelled(wallet, refundAmount)     → balance = 0
- *
- * Architecture — two-layer design:
- * Layer 1 (useQuery):
- * Fetches all balance-affecting events from contract genesis,
- * reconstructs the full balance history as RawBalancePoint[],
- * and caches the result. Time range does NOT affect this layer —
- * the full history is fetched once and reused across range changes.
- *
- * Layer 2 (useMemo):
- * Filters the cached raw points to the selected time range and
- * attaches the current ETH/USD price to each point for chart tooltips.
- * Re-runs instantly on time range change without a new RPC call.
- *
- * USD note:
- * Historical ETH/USD prices are not fetched (requires a paid API).
- * All data points use the current ETH price from useEthPrice().
- * The USD values shown in chart tooltips reflect today's price applied
- * to historical ETH balances — acceptable for an MVP.
- *
- * Returns:
- * dataPoints — ChartDataPoint[] filtered to the selected time range
- * isLoading  — true on the first event fetch
- * isError    — true if the getLogs calls failed
+ * contract events from the indexer, then filters the result to the
+ * selected time range for the BalanceChart.
  */
 
-import { useMemo }         from 'react'
-import { useQuery }        from '@tanstack/react-query'
-import { usePublicClient, useAccount, useChainId } from 'wagmi'
-import { getVaultAddress } from '@/lib/contracts'
-import {
-  fetchVaultEventLogs,
-  eventMatchesWallet,
-  type ParsedVaultEvent,
-} from '@/lib/eventLogs'
-import { useEthPrice }     from './useEthPrice'
-import { weiToEthNumber }  from '@/lib/utils'
+import { useMemo } from 'react'
+import { useQuery } from '@tanstack/react-query'
+import { useAccount, useChainId } from 'wagmi'
+import { fetchIndexer } from '@/lib/indexer'
+import { GET_VAULT_BALANCE_EVENTS } from '@/graphql/queries'
+import { useEthPrice } from './useEthPrice'
+import { weiToEthNumber } from '@/lib/utils'
 import { EVENTS_POLL_INTERVAL_MS } from '@/lib/constants'
 import type { ChartDataPoint, TimeRange } from '@/types'
 
-const BALANCE_EVENT_NAMES = new Set([
-  'Deposited',
-  'Sent',
-  'Withdrawn',
-  'RecoveryExecuted',
-  'RecoveryCancelled',
-])
-
-type BalanceDelta = {
-  blockNumber: bigint
-  logIndex:    number
-  delta:       bigint
-  zeroes:      boolean
-}
-
-function eventToBalanceDelta(event: ParsedVaultEvent): BalanceDelta | null {
-  const blockNumber = event.blockNumber ?? 0n
-  const logIndex = event.logIndex ?? 0
-  const args = event.args as Record<string, unknown>
-
-  switch (event.eventName) {
-    case 'Deposited':
-      return {
-        blockNumber,
-        logIndex,
-        delta: typeof args.amount === 'bigint' ? args.amount : 0n,
-        zeroes: false,
-      }
-    case 'Sent':
-      return {
-        blockNumber,
-        logIndex,
-        delta: typeof args.amount === 'bigint' ? -args.amount : 0n,
-        zeroes: false,
-      }
-    case 'Withdrawn':
-    case 'RecoveryExecuted':
-    case 'RecoveryCancelled':
-      return { blockNumber, logIndex, delta: 0n, zeroes: true }
-    default:
-      return null
-  }
-}
-
-// --- Time range → cutoff seconds ---
-//
-// Maps each TimeRange label to the number of seconds to look back from now.
-// null means no cutoff — show all history (ALL range).
-
 const TIME_RANGE_SECONDS: Record<TimeRange, number | null> = {
-  '1D':  86_400,
-  '1W':  604_800,
-  '1M':  2_592_000,
-  '6M':  15_552_000,
-  '1Y':  31_536_000,
+  '1D': 86_400,
+  '1W': 604_800,
+  '1M': 2_592_000,
+  '6M': 15_552_000,
+  '1Y': 31_536_000,
   'ALL': null,
 }
 
-// --- Internal raw point type ---
-//
-// Stored without USD value so the USD conversion stays fresh
-// when the ETH price updates — computed in useMemo, not in queryFn.
-
-interface RawBalancePoint {
-  timestamp:  number   // unix seconds
-  balanceEth: number   // vault balance in ETH at this moment
+interface GraphQLBalanceEvent {
+  eventName: 'Deposited' | 'Sent' | 'Withdrawn' | 'RecoveryExecuted' | 'RecoveryCancelled'
+  blockNumber: string | number
+  logIndex: number
+  blockTimestamp: string | number
+  amount?: string | null
 }
 
-// --- Return type ---
+interface RawBalancePoint {
+  timestamp: number
+  balanceEth: number
+}
 
 export interface UseBalanceHistoryReturn {
-  /**
-   * Balance history filtered to the selected time range.
-   * Each point has timestamp, balanceEth, and balanceUsd (current price applied).
-   * Empty array while loading, on error, or when no transactions exist yet.
-   */
   dataPoints: ChartDataPoint[]
-
-  /** True on the first event fetch before any data arrives. */
   isLoading: boolean
-
-  /** True if the getLogs calls failed (e.g. RPC error or rate limit). */
   isError: boolean
 }
 
-// --- Hook ---
-
-/**
- * @param timeRange  Selected time range from TimeRangeSelector.
- * Changing this filters existing cached data instantly —
- * no new RPC call is made on range change.
- */
 export function useBalanceHistory(timeRange: TimeRange): UseBalanceHistoryReturn {
   const { address, isConnected } = useAccount()
-  const chainId                  = useChainId()
-  const publicClient             = usePublicClient()
-  const contractAddress          = getVaultAddress(chainId)
-
-  // Current ETH/USD price — applied to all historical points.
-  // When the price updates (every 60s), useMemo recomputes balanceUsd
-  // for all points without a new getLogs fetch.
+  const chainId = useChainId()
   const { usdPrice } = useEthPrice()
 
-  // --- Layer 1: fetch and reconstruct full balance history
-  //
-  // queryKey excludes timeRange deliberately — the full event history is
-  // fetched once and reused when the user switches between 1D, 1W, etc.
-
-  // 1. Destructure dataUpdatedAt here
+  // --- Layer 1: Fetch events and reconstruct chronological balance ---
   const { data: rawPoints, dataUpdatedAt, isLoading, isError } = useQuery<RawBalancePoint[]>({
     queryKey: ['balanceHistory', address, chainId],
 
     queryFn: async (): Promise<RawBalancePoint[]> => {
-      if (!address || !publicClient || !contractAddress) return []
+      if (!address) return []
 
-      const decoded = await fetchVaultEventLogs(
-        publicClient,
-        contractAddress,
-        chainId,
+      // Properly type the Ponder pagination wrapper structure
+      const response = await fetchIndexer<{ balanceEvents: { items: GraphQLBalanceEvent[] } }>(
+        GET_VAULT_BALANCE_EVENTS,
+        { vaultId: address.toLowerCase() }
       )
 
-      const allDeltas = decoded
-        .filter(
-          (event) =>
-            BALANCE_EVENT_NAMES.has(event.eventName) &&
-            eventMatchesWallet(event, address),
-        )
-        .map(eventToBalanceDelta)
-        .filter((d): d is BalanceDelta => d !== null)
+      // Drill down into the items array
+      const events = response?.balanceEvents?.items ?? []
+      if (events.length === 0) return []
 
-      if (allDeltas.length === 0) return []
-
-      allDeltas.sort((a, b) => {
-        const blockDiff = a.blockNumber - b.blockNumber
-        if (blockDiff > 0n) return 1
-        if (blockDiff < 0n) return -1
+      // Sort chronologically by block and log index (backup in case GraphQL sorting is ignored)
+      const sortedEvents = [...events].sort((a, b) => {
+        const blockDiff = BigInt(a.blockNumber) - BigInt(b.blockNumber)
+        if (blockDiff !== 0n) return blockDiff > 0n ? 1 : -1
         return a.logIndex - b.logIndex
       })
 
-      // --- Fetch timestamps for unique block numbers
-      const uniqueBlocks = [
-        ...new Set(
-          allDeltas
-            .map(d => d.blockNumber)
-            .filter((bn): bn is bigint => bn > 0n)
-        ),
-      ]
-
-      const blockTimestamps = new Map<bigint, number>()
-
-      await Promise.all(
-        uniqueBlocks.map(async (blockNumber) => {
-          try {
-            const block = await publicClient.getBlock({ blockNumber })
-            blockTimestamps.set(blockNumber, Number(block.timestamp))
-          } catch {
-            blockTimestamps.set(blockNumber, 0)
-          }
-        })
-      )
-
-      // --- Walk events and compute running balance
       let runningBalance = 0n
       const points: RawBalancePoint[] = []
 
-      for (const delta of allDeltas) {
-        if (delta.zeroes) {
-          runningBalance = 0n
-        } else {
-          runningBalance += delta.delta
-          if (runningBalance < 0n) runningBalance = 0n
+      for (const event of sortedEvents) {
+        const amount = event.amount ? BigInt(event.amount) : 0n
+
+        switch (event.eventName) {
+          case 'Deposited':
+            runningBalance += amount
+            break
+          case 'Sent':
+            runningBalance -= amount
+            if (runningBalance < 0n) runningBalance = 0n
+            break
+          case 'Withdrawn':
+          case 'RecoveryExecuted':
+          case 'RecoveryCancelled':
+            runningBalance = 0n
+            break
         }
 
-        const timestamp = blockTimestamps.get(delta.blockNumber) ?? 0
-
         points.push({
-          timestamp,
+          timestamp: Number(event.blockTimestamp),
           balanceEth: weiToEthNumber(runningBalance),
         })
       }
 
-      // Add a "now" data point.
-      // (Using Date.now() inside queryFn is safe from linter errors because
-      // queryFn runs in a background async worker, not during the React render cycle!)
+      // Append a rolling "now" point to extend the chart line cleanly to the edge
       if (points.length > 0) {
         points.push({
-          timestamp:  Math.floor(Date.now() / 1000),
+          timestamp: Math.floor(Date.now() / 1000),
           balanceEth: points[points.length - 1].balanceEth,
         })
       }
@@ -244,42 +111,35 @@ export function useBalanceHistory(timeRange: TimeRange): UseBalanceHistoryReturn
       return points
     },
 
-    enabled: isConnected && !!address && !!contractAddress && !!publicClient,
+    enabled: isConnected && !!address,
     refetchInterval: EVENTS_POLL_INTERVAL_MS,
-    retry: 2,
-    retryDelay: 2_000,
     placeholderData: (prev: RawBalancePoint[] | undefined) => prev,
   })
 
-  // --- Layer 2: filter by time range + attach USD price
+  // --- Layer 2: Filter by range & apply fresh market price ---
   const dataPoints = useMemo((): ChartDataPoint[] => {
-    // 2. Ensure dataUpdatedAt exists before computing
     if (!rawPoints || rawPoints.length === 0 || !dataUpdatedAt) return []
 
     const rangeSeconds = TIME_RANGE_SECONDS[timeRange]
     let filtered: RawBalancePoint[]
 
     if (rangeSeconds === null) {
-      // ALL — no time cutoff
       filtered = rawPoints
     } else {
-      // 3. Replaced Date.now() with dataUpdatedAt to guarantee render purity!
       const cutoff = Math.floor(dataUpdatedAt / 1000) - rangeSeconds
       filtered = rawPoints.filter(p => p.timestamp >= cutoff)
 
-      // If the selected range predates all recorded events, fall back
       if (filtered.length === 0 && rawPoints.length > 0) {
         filtered = [rawPoints[rawPoints.length - 1]]
       }
     }
 
-    // Attach current ETH/USD price
     return filtered.map(p => ({
-      timestamp:  p.timestamp,
+      timestamp: p.timestamp,
       balanceEth: p.balanceEth,
       balanceUsd: p.balanceEth * usdPrice,
     }))
-  }, [rawPoints, timeRange, usdPrice, dataUpdatedAt]) // 4. Add dataUpdatedAt to dependencies
+  }, [rawPoints, timeRange, usdPrice, dataUpdatedAt])
 
   return { dataPoints, isLoading, isError }
 }

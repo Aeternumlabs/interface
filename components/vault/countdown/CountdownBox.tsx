@@ -35,7 +35,7 @@ export function CountdownBox({
     <div
       className={cn(
         'flex flex-col items-center',
-        'min-w-[1.75rem]',
+        'min-w-7',
         className,
       )}
     >

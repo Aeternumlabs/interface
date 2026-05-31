@@ -12,13 +12,12 @@ import { VaultDashboard } from '@/components/vault/VaultDashboard'
 import { useVaultModal }  from './layout'
 
 export default function VaultPage() {
-  const { activeModal, openModal, closeModal } = useVaultModal()
+  const { activeModal, closeModal } = useVaultModal()
 
   return (
     <VaultDashboard
       className="h-full min-h-0"
       activeModal={activeModal}
-      onOpenModal={openModal}
       onCloseModal={closeModal}
     />
   )
