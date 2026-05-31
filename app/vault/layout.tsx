@@ -1,3 +1,5 @@
+'use client'
+
 /**
  * app/vault/layout.tsx
  *
@@ -7,13 +9,9 @@
  *   DashboardGrid   — [Sidebar | page content | ChartPanel]
  *
  * Modal state for sidebar items (Update config, Withdraw, Cancel recovery)
- * lives here and is shared with app/vault/page.tsx via VaultModalContext so
- * Header, Sidebar, MobileDrawer, and VaultDashboard stay in sync.
- *
- * Action-button modals (Register, Deposit, Send) stay inside their buttons.
+ * lives here and is shared globally. The modals themselves are mounted here
+ * so they persist across sub-routes (like /activity).
  */
-
-'use client'
 
 import {
   createContext,
@@ -27,6 +25,11 @@ import { DashboardGrid } from '@/components/layout/DashboardGrid'
 import { Sidebar }       from '@/components/layout/Sidebar'
 import { ChartPanel }    from '@/components/chart/ChartPanel'
 import type { ActiveModal } from '@/types'
+
+// Import your modals here
+import { UpdateConfigModal }   from '@/components/vault/modals/UpdateConfigModal'
+import { WithdrawModal }       from '@/components/vault/modals/WithdrawModal'
+import { CancelRecoveryModal } from '@/components/vault/modals/CancelRecoveryModal'
 
 // --- Modal context (layout ↔ page) ---
 
@@ -85,6 +88,22 @@ export default function VaultLayout({ children }: VaultLayoutProps) {
           {children}
         </DashboardGrid>
       </div>
+
+      {/* --- Global Modals --- */}
+      <UpdateConfigModal 
+        open={activeModal === 'updateConfig'} 
+        onOpenChange={(open) => !open && closeModal()} 
+      />
+      <WithdrawModal 
+        open={activeModal === 'withdraw'} 
+        onOpenChange={(open) => !open && closeModal()} 
+      />
+      <CancelRecoveryModal 
+        open={activeModal === 'cancelRecovery'} 
+        onOpenChange={(open) => !open && closeModal()} 
+      />
     </VaultModalContext.Provider>
   )
 }
+
+// v2

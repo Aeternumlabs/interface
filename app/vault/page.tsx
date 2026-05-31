@@ -3,22 +3,17 @@
  *
  * Vault dashboard route (/vault).
  * Renders the three stacked cards in the centre column.
- * Sidebar-triggered modals are controlled by vault/layout.tsx via useVaultModal.
+ * Sidebar-triggered modals are now globally controlled and mounted in vault/layout.tsx.
  */
 
 'use client'
 
 import { VaultDashboard } from '@/components/vault/VaultDashboard'
-import { useVaultModal }  from './layout'
 
 export default function VaultPage() {
-  const { activeModal, closeModal } = useVaultModal()
-
   return (
-    <VaultDashboard
-      className="h-full min-h-0"
-      activeModal={activeModal}
-      onCloseModal={closeModal}
-    />
+    <VaultDashboard className="h-full min-h-0" />
   )
 }
+
+// v2
