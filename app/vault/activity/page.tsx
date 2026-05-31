@@ -1,5 +1,13 @@
 'use client'
 
+/**
+ * app/vault/activity/page.tsx
+ *
+ * Activity history route (/vault/activity).
+ * Displays a unified timeline of all on-chain vault interactions (deposits,
+ * sends, contract pings) indexed via the Ponder/PostgreSQL pipeline.
+ */
+
 import { TransactionList } from '@/components/vault/transactions/TransactionList'
 
 export default function VaultActivityPage() {
