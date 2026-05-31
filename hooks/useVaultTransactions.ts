@@ -1,164 +1,137 @@
 /**
  * hooks/useVaultTransactions.ts
  *
- * Fetches vault event logs for the connected wallet and returns typed
- * TransactionEvent rows for TransactionList.
- *
- * Uses a single bounded getLogs call (see lib/eventLogs.ts) instead of
- * eleven parallel scans from genesis — avoids common Alchemy / public RPC
- * failures on Sepolia.
+ * Fetches historical vault event logs via the Aeternum GraphQL indexer interface.
+ * Eliminates intensive parallel RPC getLogs scans and block timestamp lookups,
+ * providing instant pagination-ready transaction histories.
  */
 
-import { useQuery } from '@tanstack/react-query'
-import { usePublicClient, useAccount, useChainId } from 'wagmi'
-import { getVaultAddress } from '@/lib/contracts'
-import {
-  fetchVaultEventLogs,
-  eventMatchesWallet,
-  type ParsedVaultEvent,
-} from '@/lib/eventLogs'
-import { EVENTS_POLL_INTERVAL_MS } from '@/lib/constants' // Removed TRANSACTION_PAGE_SIZE
+import { useInfiniteQuery } from '@tanstack/react-query'
+import { useAccount, useChainId } from 'wagmi'
+import { fetchIndexer } from '@/lib/indexer'
+import { GET_VAULT_TRANSACTIONS } from '@/graphql/queries'
+import { EVENTS_POLL_INTERVAL_MS } from '@/lib/constants'
 import type { TransactionEvent, TransactionType } from '@/types'
-
-// --- Contract event name → TransactionType ---
-
-const EVENT_NAME_TO_TYPE: Record<string, TransactionType> = {
-  RecoveryRegistered:     'registered',
-  Deposited:              'deposited',
-  Sent:                   'sent',
-  Withdrawn:              'withdrawn',
-  ActivityPinged:         'pinged',
-  BackupAddressUpdated:   'backupUpdated',
-  InactivityPeriodUpdated: 'periodUpdated',
-  RecoveryExecuted:       'recoveryExecuted',
-  RecoveryFailed:         'recoveryFailed',
-  RecoveryCancelled:      'recoveryCancelled',
-  RecoveryAbandoned:      'recoveryAbandoned',
-}
-
-function mapEventToTransaction(
-  event: ParsedVaultEvent,
-  blockTimestamps: Map<bigint, number>,
-): TransactionEvent | null {
-  const type = EVENT_NAME_TO_TYPE[event.eventName]
-  if (!type) return null
-
-  const blockNumber = event.blockNumber ?? 0n
-  const timestamp = blockNumber
-    ? (blockTimestamps.get(blockNumber) ?? 0)
-    : 0
-
-  const args = event.args as Record<string, unknown>
-
-  let amount: bigint | undefined
-  if (typeof args.amount === 'bigint') amount = args.amount
-  if (typeof args.refundAmount === 'bigint') amount = args.refundAmount
-  if (typeof args.balance === 'bigint') amount = args.balance
-
-  let toAddress: `0x${string}` | undefined
-  if (typeof args.to === 'string') toAddress = args.to as `0x${string}`
-  if (typeof args.backupAddress === 'string' && type !== 'registered') {
-    toAddress = args.backupAddress as `0x${string}`
-  }
-
-  return {
-    type,
-    txHash:      event.transactionHash ?? '0x0',
-    blockNumber,
-    timestamp,
-    amount,
-    toAddress,
-  }
-}
-
-// --- Return type ---
 
 export interface UseVaultTransactionsReturn {
   transactions: TransactionEvent[]
   isLoading: boolean
   isError: boolean
   refetch: () => void
+  fetchNextPage: () => void
+  hasNextPage: boolean
+  isFetchingNextPage: boolean
 }
 
-// --- Hook ---
+interface GraphQLTransactionItem {
+  id: string
+  vaultId: string
+  type: string
+  amount: string | null
+  timestamp: number | string
+  transactionHash: string
+  blockNumber?: string | number
+  toAddress?: string | null
+}
+
+interface IndexerResponse {
+  vaultTransactionsItems: {
+    items: GraphQLTransactionItem[]
+    pageInfo: {
+      hasNextPage: boolean
+      endCursor: string | null
+    }
+  }
+}
+
+const INDEXER_TYPE_MAP: Record<string, TransactionType> = {
+  'REGISTERED': 'registered',
+  'DEPOSIT': 'deposited',
+  'SENT': 'sent',
+  'WITHDRAWAL': 'withdrawn',
+  'PING': 'pinged',
+  'PINGED': 'pinged',
+  'BACKUP_UPDATED': 'backupUpdated',
+  'PERIOD_UPDATED': 'periodUpdated',
+  'RECOVERY_EXECUTED': 'recoveryExecuted',
+  'RECOVERY_FAILED': 'recoveryFailed',
+  'RECOVERY_CANCELLED': 'recoveryCancelled',
+  'RECOVERY_ABANDONED': 'recoveryAbandoned',
+}
 
 export function useVaultTransactions(limit?: number): UseVaultTransactionsReturn {
   const { address, isConnected } = useAccount()
-  const chainId                  = useChainId()
-  const publicClient             = usePublicClient()
-  const contractAddress          = getVaultAddress(chainId)
+  const chainId = useChainId()
 
-  const { data, isLoading, isError, refetch } = useQuery({
-    queryKey: ['vaultTransactions', address, chainId],
-
-    queryFn: async (): Promise<TransactionEvent[]> => {
-      if (!address || !publicClient || !contractAddress) return []
-
-      const decoded = await fetchVaultEventLogs(
-        publicClient,
-        contractAddress,
-        chainId,
-      )
-
-      const walletEvents = decoded.filter((event) =>
-        eventMatchesWallet(event, address),
-      )
-
-      if (walletEvents.length === 0) return []
-
-      const uniqueBlocks = [
-        ...new Set(
-          walletEvents
-            .map((e) => e.blockNumber)
-            .filter((bn): bn is bigint => bn !== null && bn !== undefined),
-        ),
-      ]
-
-      const blockTimestamps = new Map<bigint, number>()
-
-      await Promise.all(
-        uniqueBlocks.map(async (blockNumber) => {
-          try {
-            const block = await publicClient.getBlock({ blockNumber })
-            blockTimestamps.set(blockNumber, Number(block.timestamp))
-          } catch {
-            blockTimestamps.set(blockNumber, 0)
-          }
-        }),
-      )
-
-      const events = walletEvents
-        .map((event) => mapEventToTransaction(event, blockTimestamps))
-        .filter((e): e is TransactionEvent => e !== null)
-
-      events.sort((a, b) => {
-        const diff = b.blockNumber - a.blockNumber
-        if (diff > 0n) return 1
-        if (diff < 0n) return -1
-        return 0
-      })
-
-      // Return ALL events to cache them globally
-      return events
-    },
-
-    enabled: isConnected && !!address && !!contractAddress && !!publicClient,
-
-    refetchInterval: EVENTS_POLL_INTERVAL_MS,
-    retry: 2,
-    retryDelay: 2_000,
-
-    placeholderData: (prev: TransactionEvent[] | undefined) => prev,
-  })
-
-  // Derive the sliced array based on the limit requested by the component
-  const allTransactions = data ?? []
-  const displayedTransactions = limit ? allTransactions.slice(0, limit) : allTransactions
-
-  return {
-    transactions: displayedTransactions,
+  const {
+    data,
     isLoading,
     isError,
     refetch,
+    fetchNextPage,
+    hasNextPage,
+    isFetchingNextPage,
+  } = useInfiniteQuery({
+    queryKey: ['vaultTransactions', address, chainId, limit],
+    
+    queryFn: async ({ pageParam }) => {
+      if (!address) return { items: [], endCursor: null, hasNextPage: false }
+
+      // If a strict layout limit is passed (dashboard), fetch exactly that.
+      // Otherwise, pull down blocks in clean chunks of 50.
+      const pageSize = limit ?? 50
+
+      const response = await fetchIndexer<IndexerResponse>(
+        GET_VAULT_TRANSACTIONS,
+        {
+          vaultId: address.toLowerCase(),
+          limit: pageSize,
+          after: pageParam, // The cursor string passed by React Query
+        }
+      )
+
+      const rawItems = response?.vaultTransactionsItems?.items ?? []
+      const hasNext = response?.vaultTransactionsItems?.pageInfo?.hasNextPage ?? false
+      const cursor = response?.vaultTransactionsItems?.pageInfo?.endCursor ?? null
+
+      const mappedItems = rawItems.map((item) => {
+        const rawType = (item.type || '').trim().toUpperCase()
+        const mappedType = INDEXER_TYPE_MAP[rawType] || (item.type as TransactionType)
+
+        return {
+          id: item.id,
+          type: mappedType,
+          txHash: (item.transactionHash ?? '0x0') as `0x${string}`,
+          blockNumber: item.blockNumber ? BigInt(item.blockNumber) : 0n,
+          timestamp: Number(item.timestamp),
+          amount: item.amount ? BigInt(item.amount) : undefined,
+          toAddress: item.toAddress ? (item.toAddress as `0x${string}`) : undefined,
+        }
+      })
+
+      return { items: mappedItems, endCursor: cursor, hasNextPage: hasNext }
+    },
+
+    initialPageParam: null as string | null,
+    
+    // Looks at the last fetched page to determine the next DB evaluation point
+    getNextPageParam: (lastPage) => (lastPage.hasNextPage ? lastPage.endCursor : undefined),
+    
+    enabled: isConnected && !!address,
+    refetchInterval: limit ? EVENTS_POLL_INTERVAL_MS : false, // Poll on dashboard, let manual/scroll govern large tables
+    retry: 2,
+  })
+
+  // Flatten all query pages into a single continuous transaction array
+  const allTransactions = data ? data.pages.flatMap((page) => page.items) : []
+
+  return {
+    transactions: allTransactions,
+    isLoading,
+    isError,
+    refetch,
+    fetchNextPage,
+    hasNextPage,
+    isFetchingNextPage,
   }
 }

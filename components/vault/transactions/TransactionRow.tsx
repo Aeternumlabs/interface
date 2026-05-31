@@ -4,8 +4,8 @@
  * Renders a single contract event as a transaction history row.
  *
  * Layout:
- *   [Icon]  [Label             ]  [± Amount  ]
- *           [secondary address ]  [timestamp ]
+ * [Icon]  [Label             ]  [± Amount  ]
+ * [secondary address ]  [timestamp ]
  *
  * Supports all TransactionType values from types/vault.ts.
  * Amount colour: green for inflows (deposited), red for outflows (sent).
@@ -62,10 +62,23 @@ interface TransactionRowProps {
 
 export function TransactionRow({ event, className }: TransactionRowProps) {
   const chainId = useChainId()
-  const cfg     = TYPE_CONFIG[event.type]
-  const Icon    = cfg.icon
+  
+  // Look up the configuration. Note: if your indexer returns uppercase strings 
+  // (e.g., "DEPOSIT") you may need to map them to match TYPE_CONFIG keys here.
+  const cfg = TYPE_CONFIG[event.type]
 
-  const explorerUrl = getTxUrl(event.txHash, chainId)
+  // Safety fallback: If an unrecognized event type is passed, don't crash the app
+  if (!cfg) {
+    console.warn(`Missing TYPE_CONFIG for event type: ${event.type}`)
+    return null
+  }
+
+  const Icon = cfg.icon
+
+  // Extract the transaction hash from the Ponder ID (format: "hash-logIndex")
+  // Fallback to "0x" just in case to prevent string errors
+  const extractedHash = event.id ? event.id.split('-')[0] : '0x'
+  const explorerUrl = getTxUrl(extractedHash, chainId)
 
   return (
     <a
@@ -130,7 +143,8 @@ export function TransactionRow({ event, className }: TransactionRowProps) {
 
         {/* Timestamp */}
         <span className="text-[11px] text-muted-foreground/60 group-hover:text-muted-foreground transition-colors">
-          {event.timestamp ? formatRelativeTime(event.timestamp) : `#${event.blockNumber.toString()}`}
+          {/* @ts-expect-error - Handling potential missing blockNumber depending on type definition */}
+          {event.timestamp ? formatRelativeTime(event.timestamp) : event.blockNumber ? `#${event.blockNumber.toString()}` : ''}
         </span>
       </div>
     </a>

@@ -7,7 +7,7 @@
 
 export const GET_ALL_VAULTS = `
   query GetAllVaults {
-    vaultsItems(orderBy: "createdAtBlock", orderDirection: "desc") {
+    vaultsItems: vaultss(orderBy: "createdAtBlock", orderDirection: "desc") {
       items {
         id
         backupAddress
@@ -23,7 +23,7 @@ export const GET_ALL_VAULTS = `
 
 export const GET_USER_VAULT = `
   query GetUserVault($id: String!) {
-    vault(id: $id) {
+    vault: vaults(id: $id) {
       id
       backupAddress
       inactivityPeriod
@@ -36,19 +36,46 @@ export const GET_USER_VAULT = `
 `;
 
 export const GET_VAULT_TRANSACTIONS = `
-  query GetVaultTransactions($vaultId: String!) {
-    vaultTransactionsItems(
-      where: { vaultId: $vaultId }, 
+  query GetVaultTransactions($vaultId: String!, $limit: Int, $after: String) {
+    vaultTransactionsItems: vaultTransactionss(
+      where: { wallet: $vaultId }, 
       orderBy: "timestamp", 
-      orderDirection: "desc"
+      orderDirection: "desc",
+      limit: $limit,
+      after: $after
     ) {
       items {
         id
-        vaultId
+        vaultId: wallet
         type
         amount
         timestamp
         transactionHash
+        blockNumber
+        toAddress
+      }
+      pageInfo {
+        hasNextPage
+        endCursor
+      }
+    }
+  }
+`;
+
+export const GET_VAULT_BALANCE_EVENTS = `
+  query GetVaultBalanceEvents($vaultId: String!) {
+    balanceEvents: balanceEventss(
+      where: { vaultId: $vaultId },
+      orderBy: "blockTimestamp",
+      orderDirection: "asc",
+      limit: 1000
+    ) {
+      items {
+        eventName
+        blockNumber
+        logIndex
+        blockTimestamp
+        amount
       }
     }
   }

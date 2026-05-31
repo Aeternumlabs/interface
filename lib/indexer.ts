@@ -21,7 +21,8 @@ export async function fetchIndexer<T>(query: string, variables: Record<string, a
     const { data, errors } = await response.json();
 
     if (errors) {
-      console.error("Indexer GraphQL Errors:", errors);
+      // Force stringification so we can read the exact GraphQL complaint
+      console.error("Indexer GraphQL Errors:", JSON.stringify(errors, null, 2));
       throw new Error("Failed to fetch data from indexer");
     }
 

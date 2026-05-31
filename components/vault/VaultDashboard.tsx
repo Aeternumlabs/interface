@@ -56,7 +56,6 @@ export interface VaultDashboardProps {
 
 export function VaultDashboard({
   activeModal,
-  onOpenModal,
   onCloseModal,
   className,
 }: VaultDashboardProps = {}) {
