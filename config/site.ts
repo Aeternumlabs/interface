@@ -16,7 +16,7 @@ export const siteConfig = {
   description:
     'Store ETH safely, send and receive like a normal wallet, and set up an ' +
     'automatic backup plan. If you go inactive, your funds go to the person you chose.',
-  url: 'https://aeternum.xyz',          // update when live
+  url: 'https://aeternumvault.xyz',
   ogImage: '/og-image.png',
 } as const
 

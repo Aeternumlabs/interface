@@ -50,8 +50,8 @@ export const wagmiConfig = getDefaultConfig({
   appName:     'Aeternum',
   appDescription:
     'Trustless smart wallet vault with automated ETH recovery.',
-  appUrl:      'https://aeternum.xyz',
-  appIcon:     'https://aeternum.xyz/logo.png',
+  appUrl:      'https://aeternumvault.xyz',
+  appIcon:     'https://aeternumvault.xyz/logo.png',
 
   projectId: walletConnectProjectId,
 
