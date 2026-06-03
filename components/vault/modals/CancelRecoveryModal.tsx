@@ -60,14 +60,14 @@ export function CancelRecoveryModal({ open, onOpenChange }: CancelRecoveryModalP
     >
       {/* Warning block */}
       <div className={cn(
-        'rounded-lg border border-red-600/60 bg-red-950/20',
+        'rounded-lg border border-red-500/60 bg-red-950/20',
         'px-3 py-3 flex flex-col gap-2',
       )}>
         <div className="flex items-start gap-2">
-          <AlertTriangle className="size-4 text-red-600 shrink-0 mt-0.5" />
+          <AlertTriangle className="size-4 text-red-500 shrink-0 mt-0.5" />
           <div className="flex flex-col gap-1.5">
-            <p className="text-xs font-medium text-red-600">What happens when you confirm:</p>
-            <ul className="text-xs text-red-600 space-y-1 list-disc list-inside">
+            <p className="text-xs font-medium text-red-500">What happens when you confirm:</p>
+            <ul className="text-xs text-red-500 space-y-1 list-disc list-inside">
               <li>Your vault balance is returned to your wallet</li>
               <li>Your vault is removed from Chainlink monitoring</li>
               <li>Your backup address and timer settings are wiped</li>
@@ -77,10 +77,10 @@ export function CancelRecoveryModal({ open, onOpenChange }: CancelRecoveryModalP
         </div>
 
         {/* Balance to be returned */}
-        {config && config.balance > 0n && (
-          <div className="border-t border-red-600/40 pt-2 mt-0.5">
-            <p className="text-[11px] text-red-600 mb-0.5">Balance to be returned</p>
-            <ETHAmount wei={config.balance} className="text-sm font-medium text-red-600" />
+         {config && config.balance > 0n && (
+          <div className="border-t border-red-500/40 pt-2 mt-0.5">
+            <p className="text-[11px] text-red-500 mb-0.5">Balance to be returned</p>
+            <ETHAmount wei={config.balance} className="text-sm font-medium text-red-500" />
           </div>
         )}
       </div>

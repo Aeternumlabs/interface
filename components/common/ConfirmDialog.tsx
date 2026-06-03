@@ -108,7 +108,7 @@ export function ConfirmDialog({
           <DialogTitle
             className={cn(
               'text-base font-semibold',
-              isDestructive ? 'text-red-600' : 'text-foreground',
+              isDestructive ? 'text-red-500' : 'text-foreground',
             )}
           >
             {title}
@@ -157,8 +157,8 @@ export function ConfirmDialog({
               'py-2.5 sm:py-2',
               isDestructive
                 ? [
-                    'bg-red-600 border border-red-600',
-                    'text-white hover:bg-red-700',
+                    'bg-red-500 border border-red-500',
+                    'text-white hover:bg-red-600',
                   ]
                 : [
                     'bg-secondary border border-border/60',
