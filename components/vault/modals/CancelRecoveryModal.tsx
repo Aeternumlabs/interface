@@ -69,7 +69,7 @@ export function CancelRecoveryModal({ open, onOpenChange }: CancelRecoveryModalP
             <p className="text-xs font-medium text-red-500">What happens when you confirm:</p>
             <ul className="text-xs text-red-500 space-y-1 list-disc list-inside">
               <li>Your vault balance is returned to your wallet</li>
-              <li>Your vault is removed from automated recovery monitoring</li>
+              <li>Your vault is removed from recovery monitoring</li>
               <li>Your backup address and timer settings are wiped</li>
               <li>You must register from scratch to use Aeternum again</li>
             </ul>
