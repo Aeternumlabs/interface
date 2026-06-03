@@ -67,15 +67,24 @@ Open `http://localhost:3000` in your browser.
 
 - `layout.tsx` — application shell, providers and metadata
 - `globals.css` — global styling and theme tokens
+- `icon.png` — app icon
 - `providers.tsx` — `wagmi`, `RainbowKit`, and React Query providers
-- `vault/page.tsx` — renders the main vault dashboard
+- `page.tsx` — root application entry
 - `vault/layout.tsx` — layout grid for desktop and mobile
+- `vault/page.tsx` — renders the main vault dashboard
 - `vault/activity/page.tsx` — vault activity and history view
 
 ### `components/`
 
 - `components/layout/` — header, sidebar, mobile drawer, grid layout
 - `components/vault/` — vault dashboard cards, actions, countdown, transactions, and modals
+  - `VaultDashboard.tsx` — root vault page composition
+  - `actions/` — action buttons and button row
+  - `balance/` — balance display and asset rows
+  - `cards/` — dashboard cards
+  - `countdown/` — recovery timer
+  - `modals/` — vault action modals
+  - `transactions/` — transaction list and rows
 - `components/chart/` — balance chart and range selector
 - `components/common/` — shared UI pieces used throughout the app
 - `components/ui/` — shadcn/ui primitives used by the interface
@@ -88,6 +97,11 @@ Open `http://localhost:3000` in your browser.
 - `hooks/useVaultTransactions.ts` — transaction event history
 - `hooks/useBalanceHistory.ts` — balance chart data
 - `hooks/useCountdown.ts` — live countdown timer logic
+- `hooks/useMounted.ts` — client-side hydration guard
+
+### `graphql/`
+
+- `graphql/queries.ts` — GraphQL query definitions for indexer/API operations
 
 ### `lib/`
 
@@ -97,6 +111,8 @@ Open `http://localhost:3000` in your browser.
 - `lib/utils.ts` — utility helpers and common functionality
 - `lib/formatters.ts` — formatting helpers for currency, dates, and addresses
 - `lib/constants.ts` — application constants and timing values
+- `lib/eventLogs.ts` — event log parsing utilities
+- `lib/indexer.ts` — indexer integration helpers
 
 ### `types/`
 
@@ -118,6 +134,7 @@ aeternum-app/
 ├── app/
 │   ├── layout.tsx
 │   ├── globals.css
+│   ├── icon.png
 │   ├── providers.tsx
 │   ├── page.tsx
 │   └── vault/
@@ -130,27 +147,69 @@ aeternum-app/
 │   ├── ui/
 │   ├── layout/
 │   ├── vault/
-│   │   ├── cards/
-│   │   ├── balance/
-│   │   ├── countdown/
+│   │   ├── VaultDashboard.tsx
 │   │   ├── actions/
-│   │   ├── transactions/
-│   │   └── modals/
+│   │   │   ├── ActionButtonRow.tsx
+│   │   │   ├── DepositButton.tsx
+│   │   │   ├── PingButton.tsx
+│   │   │   ├── RegisterButton.tsx
+│   │   │   ├── SendButton.tsx
+│   │   │   └── VaultActions.tsx
+│   │   ├── balance/
+│   │   │   ├── AssetRow.tsx
+│   │   │   └── BalanceDisplay.tsx
+│   │   ├── cards/
+│   │   │   ├── BalanceCard.tsx
+│   │   │   ├── TopAssetsCard.tsx
+│   │   │   └── VaultHistoryCard.tsx
+│   │   ├── countdown/
+│   │   │   ├── CountdownBox.tsx
+│   │   │   └── CountdownDisplay.tsx
+│   │   ├── modals/
+│   │   │   ├── CancelRecoveryModal.tsx
+│   │   │   ├── DepositModal.tsx
+│   │   │   ├── RegisterModal.tsx
+│   │   │   ├── SendModal.tsx
+│   │   │   ├── UpdateConfigModal.tsx
+│   │   │   └── WithdrawModal.tsx
+│   │   └── transactions/
+│   │       ├── EmptyTransactionState.tsx
+│   │       ├── TransactionList.tsx
+│   │       └── TransactionRow.tsx
 │   ├── chart/
 │   └── common/
+│
+├── graphql/
+│   └── queries.ts
 │
 ├── hooks/
 │   ├── contracts/
 │   │   ├── reads/
 │   │   └── writes/
 │   ├── useEthPrice.ts
+│   ├── useMounted.ts
 │   ├── useVaultTransactions.ts
 │   ├── useBalanceHistory.ts
 │   └── useCountdown.ts
 │
 ├── lib/
+│   ├── wagmi.ts
+│   ├── contracts.ts
+│   ├── abi.ts
+│   ├── utils.ts
+│   ├── formatters.ts
+│   ├── constants.ts
+│   ├── eventLogs.ts
+│   └── indexer.ts
+│
 ├── types/
+│   ├── vault.ts
+│   └── index.ts
+│
 ├── config/
+│   ├── chains.ts
+│   └── site.ts
+│
 ├── public/
 ├── .env.example
 ├── next.config.ts
