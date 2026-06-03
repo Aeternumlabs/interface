@@ -12,9 +12,9 @@
 
 export const siteConfig = {
   name: 'Aeternum',
-  tagline: 'Trustless smart wallet vault with automated ETH recovery.',
+  tagline: 'Ethereum recovery vault.',
   description:
-    'Trustless, automated funds recovery for your Ethereum assets. ' +
+    'Trustless, automated funds recovery vault for your Ethereum assets. ' +
     'Store and transact safely, like a normal wallet, and set up an inactivity-based backup plan ' +
     'that protects your funds if you ever go dark.',
   url: 'https://aeternumvault.xyz',
