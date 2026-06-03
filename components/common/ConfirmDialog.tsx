@@ -138,7 +138,7 @@ export function ConfirmDialog({
             disabled={isPending}
             className={cn(
               'flex-1',
-              'py-2.5 sm:py-2',
+              'py-2',
               'border-border/60 bg-transparent',
               'text-foreground/80 hover:text-foreground',
               'hover:bg-accent',
