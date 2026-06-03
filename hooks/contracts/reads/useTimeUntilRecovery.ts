@@ -23,16 +23,16 @@ export function useTimeUntilRecovery(): UseTimeUntilRecoveryReturn {
   const isActive = config?.isActive
   const lastActivity = config?.lastActivity
   const inactivityPeriod = config?.inactivityPeriod
+  const balance = config?.balance
 
   const deadlineUnix = useMemo(() => {
-    // Check the individual extracted primitives 
-    if (!isActive || !lastActivity || !inactivityPeriod) {
+    // Check the individual extracted primitives
+    if (!isActive || !lastActivity || !inactivityPeriod || !balance) {
       return 0
     }
 
-    // Fixed configuration sum guarantees zero poll-driven UI jitter
     return Number(lastActivity) + Number(inactivityPeriod)
-  }, [isActive, lastActivity, inactivityPeriod])
+  }, [isActive, lastActivity, inactivityPeriod, balance])
 
   const secondsRemaining =
     deadlineUnix > 0

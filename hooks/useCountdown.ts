@@ -20,16 +20,17 @@ import type { CountdownBreakdown } from '@/types'
 
 export function useCountdown(deadlineUnix: number): CountdownBreakdown {
 
-  // 1. Initialize once safely
+  // 1. --- Initialize once safely
   const [now, setNow] = useState(() => Math.floor(Date.now() / 1000))
 
-  // 2. Safely update the 'now' state every tick, aligned to real second boundaries.
+  // 2. --- Safely update the 'now' state every tick, aligned to real second boundaries.
   useEffect(() => {
+    if (deadlineUnix <= 0) return
+
     let timeout: ReturnType<typeof setTimeout>
 
     const tick = () => {
       setNow(Math.floor(Date.now() / 1000))
-
       timeout = setTimeout(
         tick,
         COUNTDOWN_TICK_MS - (Date.now() % COUNTDOWN_TICK_MS),
@@ -42,9 +43,9 @@ export function useCountdown(deadlineUnix: number): CountdownBreakdown {
     )
 
     return () => clearTimeout(timeout)
-  }, [])
+  }, [deadlineUnix])  // <-- CHANGE: was [], now [deadlineUnix]
 
-  // 3. Pure render calculation
+  // 3. --- Pure render calculation
   const secondsRemaining =
     deadlineUnix <= 0
       ? 0
