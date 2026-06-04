@@ -34,7 +34,7 @@ export function CommunityLinks() {
         
         {/* X (Twitter) */}
         <a 
-          href="https://x.com" 
+          href="https://x.com/AeternumXYZ" 
           target="_blank" 
           rel="noopener noreferrer"
           className={linkClass}
