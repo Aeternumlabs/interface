@@ -105,5 +105,3 @@ export default function VaultLayout({ children }: VaultLayoutProps) {
     </VaultModalContext.Provider>
   )
 }
-
-// v2

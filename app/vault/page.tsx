@@ -15,5 +15,3 @@ export default function VaultPage() {
     <VaultDashboard className="h-full min-h-0" />
   )
 }
-
-// v2
