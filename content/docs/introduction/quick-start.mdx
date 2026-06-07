@@ -1,0 +1,76 @@
+---
+title: Quick Start
+description: Connect your wallet, register a vault, and run your first recovery test on Sepolia in under five minutes.
+---
+
+<Callout type="info" title="Testnet only">
+Aeternum is currently live on **Ethereum Sepolia** testnet. All ETH used is test ETH with no real-world value. The contract address is `0x33f81c1199732094744ee2efabe9adf8c4eff0db`. Mainnet deployment follows an independent external security audit.
+</Callout>
+
+## Prerequisites
+
+Before you start, you need:
+
+- A browser-based Ethereum wallet — [MetaMask](https://metamask.io), Coinbase Wallet, or any wallet supported by RainbowKit
+- Sepolia test ETH — free from the faucets listed below
+- A second Ethereum address to use as your backup (another wallet you control, or a fresh address from a hardware wallet)
+
+### Getting Sepolia ETH
+
+Sepolia test ETH is available free from two reliable faucets. Each allows one claim per day:
+
+| Faucet | URL |
+| --- | --- |
+| Chainlink Faucet | [faucets.chain.link](https://faucets.chain.link) |
+| Alchemy Sepolia Faucet | [sepoliafaucet.com](https://sepoliafaucet.com) |
+
+Request at least **0.05 Sepolia ETH** — enough to cover gas fees and fund your vault during testing.
+
+---
+
+## Set Up Your Vault
+
+<StepList>
+  <StepItem step={1} title="Open the Aeternum app">
+    Navigate to [aeternumvault.xyz](https://aeternumvault.xyz) in your browser. You will see the vault dashboard with a **Connect Wallet** prompt in the top-right corner.
+  </StepItem>
+
+  <StepItem step={2} title="Connect your wallet and switch to Sepolia">
+    Click **Connect Wallet**. Select your wallet from the RainbowKit modal and approve the connection request. If your wallet is not already on the Sepolia network, the app will prompt you to switch — confirm the network switch in your wallet.
+  </StepItem>
+
+  <StepItem step={3} title="Register your vault">
+    Click **Register** in the vault dashboard. You will be asked for two values:
+
+    **Backup address** — the Ethereum address that receives your ETH if recovery triggers. This should be a wallet you fully control (a separate MetaMask account, a hardware wallet, or a trusted address). It cannot be your own connected address.
+
+    **Inactivity period** — how long you need to be silent before recovery fires. For testing on Sepolia, enter **300 seconds (5 minutes)**. For real use, the minimum on mainnet is 180 days.
+
+    Confirm the registration transaction in your wallet. The `register()` call costs a small amount of gas.
+  </StepItem>
+
+  <StepItem step={4} title="Deposit test ETH into your vault">
+    Once registered, click **Deposit** and enter an amount of Sepolia ETH to vault (e.g. `0.01`). Confirm the transaction. Your vault balance will update on the dashboard and the recovery countdown timer will begin.
+  </StepItem>
+
+  <StepItem step={5} title="Watch automatic recovery execute">
+    With a 5-minute timer, Chainlink Automation will detect your vault as eligible roughly **5 minutes after your last interaction**. You can confirm by doing nothing — the Chainlink node calls `checkUpkeep` every 12 seconds. When it finds your vault due, it calls `performUpkeep` on-chain and your Sepolia ETH moves to your backup address automatically.
+
+    Check your backup address balance on [Sepolia Etherscan](https://sepolia.etherscan.io) to confirm the transfer arrived.
+  </StepItem>
+</StepList>
+
+<Callout type="tip" title="Reset the timer any time">
+  While waiting, you can test the `Ping` button in the dashboard — it resets your countdown timer without moving any funds. This is how you would signal liveness on mainnet if you go on holiday and don't need to move funds for a while.
+</Callout>
+
+---
+
+## What to Do Next
+
+Now that you have seen the full cycle on testnet, explore the rest of the documentation to understand how each part works:
+
+- [The Vault](/docs/how-it-works/the-vault) — how funds are held and what operations are available
+- [Inactivity Timer](/docs/how-it-works/inactivity-timer) — what counts as activity, and what to do if you need to stay quiet
+- [Automatic Recovery](/docs/how-it-works/automatic-recovery) — the full recovery lifecycle including failure handling
+- [Testnet Walkthrough](/docs/user-guide/testnet-walkthrough) — the step-by-step guide with annotated screenshots
