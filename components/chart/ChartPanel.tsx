@@ -41,7 +41,7 @@ export function ChartPanel({ className }: ChartPanelProps) {
       className={cn(
         // Fill the full height of the DashboardGrid right column
         'flex flex-col h-full',
-        'px-4 pt-4 pb-4',
+        'px-4 pt-4 pb-8',
         className,
       )}
     >
