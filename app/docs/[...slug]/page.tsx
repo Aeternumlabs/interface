@@ -117,7 +117,7 @@ export default async function DocsPage({ params }: PageProps) {
 
       {/* Page header */}
       <div className="mt-4 flex flex-wrap items-start gap-3">
-        <h1 className="text-3xl font-semibold tracking-tight text-foreground">
+        <h1 className="text-2xl font-semibold tracking-tight text-foreground">
           {doc.frontmatter.title}
         </h1>
 
