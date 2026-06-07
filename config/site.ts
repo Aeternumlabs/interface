@@ -127,9 +127,9 @@ export const sidebarNavGroups: NavGroup[] = [
         icon: 'globe',
       },
       {
-        kind: 'external',
+        kind: 'route',
         label: 'Documentation',
-        href: 'https://github.com/Aeternumlabs/aeternum-docs',
+        href: '/docs',
         icon: 'fileText',
       },
     ],
