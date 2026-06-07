@@ -1,0 +1,140 @@
+---
+title: Security Design
+description: Reentrancy protection, forwarder access control, the CEI pattern, and the immutable contract guarantee.
+---
+
+## Non-Custodial by Design
+
+The foundation of Aeternum's security model is non-custody: the protocol never owns your ETH. The contract holds it in escrow on your behalf and executes only what you have configured. There is no admin key that can redirect funds, no pause mechanism that can freeze withdrawals, and no upgrade path that can rewrite the rules after you have deposited.
+
+This is not a promise from a team — it is a property of the code. AeternumVault has no `Ownable` inheritance, no `onlyOwner` modifier on any function, and no proxy pattern. The deployed bytecode is what runs, permanently.
+
+---
+
+## Reentrancy Protection: Two Independent Layers
+
+A reentrancy attack occurs when a malicious contract calls back into an ETH-sending function before the first call completes — exploiting the window between "send ETH" and "update state" to steal funds multiple times. AeternumVault uses two independent defences.
+
+### Layer 1 — Checks-Effects-Interactions (CEI)
+
+Every function that transfers ETH follows a strict ordering: update all state before making the external call. By the time ETH leaves the contract, the caller's balance is already recorded as zero. Even if a malicious backup address attempted a reentrancy, there would be nothing left to steal:
+
+```solidity
+function _executeRecovery(address wallet) internal {
+    // ... checks (re-validate eligibility) ...
+
+    uint256 amount = config.balance;
+
+    // ── Effects (ALL before external call) ──────────────────────
+    config.balance = 0;               // zeroed before ETH moves
+    config.isActive = false;          // removed from active state
+    config.failedRecoveryAttempts = newAttempts;
+    _removeFromRegistry(wallet);      // removed from registry
+
+    // ── Interaction (ETH transfer happens last) ──────────────────
+    (bool success,) = backupAddress.call{value: amount}("");
+
+    if (!success) {
+        // Restore balance only if transfer failed — safe because nonReentrant
+        // locks all reentrant calls and balance was zeroed above
+        config.balance = amount;
+        // ... failure handling ...
+    }
+}
+```
+
+### Layer 2 — ReentrancyGuard
+
+Every function that sends ETH is protected by OpenZeppelin's `ReentrancyGuard`:
+
+```solidity
+contract AeternumVault is IAeternumVault, ReentrancyGuard, AutomationCompatibleInterface {
+```
+
+`ReentrancyGuard` uses a locked/unlocked mutex stored in contract storage. When a guarded function is executing, any attempt to re-enter another guarded function immediately reverts. This is a belt-and-suspenders defence — CEI alone is sufficient, but the guard provides a safety net against any future code path that might inadvertently violate CEI ordering.
+
+<Callout type="info">
+  These two defences are independent. If CEI were accidentally violated in a future code change, ReentrancyGuard would still block the attack. If ReentrancyGuard were not present, CEI alone would still protect all current code paths. Neither layer depends on the other working correctly.
+</Callout>
+
+---
+
+## Forwarder Access Control
+
+`performUpkeep` is the most sensitive function in the contract — it is the only path through which ETH moves without an explicit user instruction. Without access control, a sophisticated attacker could craft a malicious `performData` payload and call `performUpkeep` directly, attempting to manipulate which wallets get processed.
+
+The forwarder pattern eliminates this risk entirely. Once `setForwarder()` has been called, the contract permanently rejects any `performUpkeep` call from any address other than the registered Chainlink forwarder:
+
+```solidity
+if (s_forwarder != address(0) && msg.sender != s_forwarder) {
+    revert AeternumVault__NotForwarder();
+}
+```
+
+The forwarder address itself is immutable after registration — it can only be set once and cannot be changed:
+
+```solidity
+function setForwarder(address forwarder) external {
+    if (s_forwarder != address(0)) revert AeternumVault__ForwarderAlreadySet();
+    if (forwarder == address(0)) revert AeternumVault__InvalidAddress();
+    s_forwarder = forwarder;
+    emit ForwarderSet(forwarder);
+}
+```
+
+This means the forwarder lock is not an ongoing privilege — it is a one-time bootstrap that permanently seals the execution path. After the call, no one (including the deployer) can change which address is authorised to call `performUpkeep`.
+
+---
+
+## Direct ETH Rejection
+
+The contract's `receive()` function is set to revert unconditionally:
+
+```solidity
+receive() external payable {
+    revert AeternumVault__DirectTransferNotAllowed();
+}
+```
+
+If you accidentally send ETH directly to the contract address without going through `deposit()` or `register()`, the transaction fails immediately and your ETH is returned. This prevents funds from becoming permanently stranded in the contract with no vault association.
+
+---
+
+## No Admin Key
+
+The absence of admin functionality is worth stating explicitly because it is an unusual design choice. Many DeFi contracts include emergency pause mechanisms, fee collection functions, or upgrade paths "for safety". These introduce a class of risk: the admin key can be compromised, the multisig can be coerced, the governance vote can be manipulated.
+
+AeternumVault has none of these. The only privileged operation is `setForwarder()` — and once called, it eliminates itself as a future option. After that single call, there are no privileged addresses in the system.
+
+| Common admin function | Present in AeternumVault? |
+| --- | --- |
+| Pause / unpause vault | No |
+| Drain contract funds | No |
+| Change fee parameters | No |
+| Upgrade contract logic | No |
+| Override user recovery config | No |
+| Change forwarder address | No (immutable after first set) |
+
+---
+
+## Immutable Contract Guarantee
+
+Each deployed version of AeternumVault is immutable and cannot be modified after deployment. There are no proxy upgrades, no admin-controlled logic changes, and no governance mechanisms that could alter how your vault operates once you have deposited.
+
+The rules you agree to when registering — the inactivity bounds, the scan limits, the retry cap, the recovery logic — are fixed for the lifetime of that deployed contract.
+
+Aeternum Labs will continue developing new versions, deployed as entirely new contracts. You choose whether to stay on your current deployment or migrate to a newer one. You are never forced to upgrade.
+
+---
+
+## Testing and Audit Status
+
+AeternumVault has undergone comprehensive internal security testing:
+
+- **127+ tests** covering unit, fuzz, and invariant scenarios across 100% of contract functions and all identified branch conditions
+- **Static analysis** with Slither
+- **Property-based fuzzing** with Echidna across 50,000+ randomized call sequences
+
+<Callout type="warning" title="External audit pending">
+  An independent external audit by a professional security firm is required before mainnet deployment. The contract should not be used for real-value ETH until that audit is complete and its findings have been addressed.
+</Callout>

@@ -1,0 +1,162 @@
+---
+title: Chainlink Integration
+description: How checkUpkeep and performUpkeep work, the stale data safety pattern, and how to register your own upkeep.
+---
+
+## How Chainlink Automation Monitors Vaults
+
+Chainlink Automation is a decentralised network of nodes that evaluates conditions on-chain and triggers contract execution when those conditions are met. For AeternumVault, it provides the automation layer that watches every registered wallet and fires recovery when a vault becomes eligible.
+
+The integration uses two functions defined on the contract:
+
+| Function | Where it runs | Who pays | What it does |
+| --- | --- | --- | --- |
+| `checkUpkeep()` | Off-chain (simulation) | Free — no gas | Scans the current cursor window, returns eligible wallets |
+| `performUpkeep(performData)` | On-chain | LINK from upkeep balance | Executes the recovery transfers |
+
+---
+
+## checkUpkeep — Off-Chain, Free
+
+`checkUpkeep` is a `view` function that Chainlink nodes call as a simulation every ~12 seconds. Because it runs entirely in Chainlink's off-chain simulation environment, it consumes no actual gas and does not interact with the blockchain state.
+
+```solidity
+function checkUpkeep(
+    bytes calldata /* checkData */
+) external view returns (bool upkeepNeeded, bytes memory performData) {
+    uint256 total = s_registeredWallets.length;
+    if (total == 0) return (false, bytes(""));
+
+    // Resolve cursor position
+    uint256 cursor = (s_checkCursor >= total || total <= MAX_CHECK_UPKEEP_SIZE) 
+        ? 0 : s_checkCursor;
+
+    uint256 end = cursor + MAX_CHECK_UPKEEP_SIZE;
+    if (end > total) end = total;
+
+    // Scan window for due wallets
+    address[] memory candidates = new address[](MAX_PERFORM_UPKEEP_SIZE);
+    uint256 count = 0;
+
+    for (uint256 i = cursor; i < end;) {
+        address wallet = s_registeredWallets[i];
+        RecoveryConfig storage config = s_configs[wallet];
+
+        if (config.isActive && config.balance > 0
+            && block.timestamp >= config.lastActivity + config.inactivityPeriod) {
+            candidates[count] = wallet;
+            if (++count == MAX_PERFORM_UPKEEP_SIZE) break; // batch full
+        }
+        unchecked { ++i; }
+    }
+
+    if (count > 0) {
+        // Return eligible wallets + hold cursor (nextCursor = cursor, isIdleAdvance = false)
+        assembly { mstore(candidates, count) }
+        return (true, abi.encode(candidates, cursor, false));
+    }
+
+    // No due wallets — check if we should advance the cursor
+    uint256 nextCursor = (end >= total) ? 0 : end;
+    if (total > MAX_CHECK_UPKEEP_SIZE 
+        && block.timestamp >= s_lastCursorAdvance + CURSOR_ADVANCE_INTERVAL) {
+        return (true, abi.encode(new address[](0), nextCursor, true));
+    }
+
+    return (false, bytes(""));
+}
+```
+
+The return value `performData` is ABI-encoded as `(address[] candidates, uint256 nextCursor, bool isIdleAdvance)`. This is passed directly to `performUpkeep`.
+
+---
+
+## performUpkeep — On-Chain, Costs LINK
+
+When `checkUpkeep` returns `upkeepNeeded = true`, Chainlink's forwarder contract submits `performUpkeep` as a real on-chain transaction. This is where ETH actually moves.
+
+```solidity
+function performUpkeep(bytes calldata performData) external nonReentrant {
+    // Reject callers that aren't the registered forwarder
+    if (s_forwarder != address(0) && msg.sender != s_forwarder) {
+        revert AeternumVault__NotForwarder();
+    }
+
+    (address[] memory walletsToRecover, uint256 nextCursor, bool isIdleAdvance) =
+        abi.decode(performData, (address[], uint256, bool));
+
+    // Guard against oversized batches
+    if (walletsToRecover.length > MAX_PERFORM_UPKEEP_SIZE) {
+        revert AeternumVault__MaxPerformUpkeepSizeExceeded();
+    }
+
+    // Update cursor
+    s_checkCursor = nextCursor;
+    if (isIdleAdvance) s_lastCursorAdvance = block.timestamp;
+
+    // Execute recovery for each candidate
+    for (uint256 i = 0; i < walletsToRecover.length;) {
+        _executeRecovery(walletsToRecover[i]);
+        unchecked { ++i; }
+    }
+}
+```
+
+LINK is deducted from the upkeep's registered balance to pay for each `performUpkeep` transaction. If the upkeep balance runs to zero, automation pauses until it is topped up.
+
+---
+
+## Stale Data Safety
+
+There is always a short gap — typically a few seconds to a minute — between when `checkUpkeep` identifies a wallet and when `performUpkeep` actually executes on-chain. During this gap, a user might ping their vault, withdraw their balance, or cancel recovery entirely.
+
+AeternumVault handles this safely by **re-validating every wallet** inside `_executeRecovery` before touching any funds:
+
+```solidity
+function _executeRecovery(address wallet) internal {
+    RecoveryConfig storage config = s_configs[wallet];
+
+    // Re-validate — stale entries are silently skipped
+    if (!config.isActive) return;
+    if (config.balance == 0) return;
+    if (block.timestamp < config.lastActivity + config.inactivityPeriod) return;
+
+    // ... proceed with recovery
+}
+```
+
+If a wallet no longer qualifies, `_executeRecovery` returns early without moving any ETH. The rest of the batch continues executing normally. No gas is wasted reverting the entire transaction, and no incorrect recovery happens.
+
+---
+
+## Setting Up Chainlink Automation
+
+If you are deploying AeternumVault on your own infrastructure (for testing, a fork, or a future chain deployment), follow these steps to connect Chainlink Automation.
+
+<StepList>
+  <StepItem step={1} title="Deploy the contract">
+    Deploy `AeternumVault` with your chosen constructor parameters. On Sepolia, use 300 seconds as `minInactivityPeriod_` and 30 seconds as `cursorAdvanceInterval_` for fast testing.
+  </StepItem>
+
+  <StepItem step={2} title="Fund the upkeep with LINK">
+    Get Sepolia LINK from [faucets.chain.link](https://faucets.chain.link). You need at least 1 LINK to register an upkeep.
+  </StepItem>
+
+  <StepItem step={3} title="Register a new upkeep">
+    Go to [automation.chain.link](https://automation.chain.link) and connect your wallet. Click **Register new upkeep**, select **Custom Logic**, and enter your deployed contract address. Leave `checkData` empty. Set the gas limit to **500,000**. Fund the upkeep with your LINK.
+  </StepItem>
+
+  <StepItem step={4} title="Copy the forwarder address">
+    After registration, open your upkeep's detail page on the Chainlink Automation UI. Copy the **Forwarder** address shown in the upkeep details.
+  </StepItem>
+
+  <StepItem step={5} title="Lock the contract to the forwarder">
+    Call `setForwarder(forwarderAddress)` on your deployed contract with the address copied in the previous step. This permanently locks `performUpkeep` so only Chainlink's forwarder can call it. This step can only be performed once.
+  </StepItem>
+</StepList>
+
+<Callout type="danger" title="Mainnet: call setForwarder() in the deployment script">
+  On mainnet, `setForwarder()` must be called immediately after deployment — ideally in the same script — to close the window where `performUpkeep` is callable by anyone. On Sepolia this is acceptable to skip during development. On mainnet it is not.
+</Callout>
+
+One upkeep registration is sufficient for any number of users. The rolling cursor handles full registry coverage automatically over time without any additional configuration.

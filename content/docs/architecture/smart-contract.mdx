@@ -1,0 +1,95 @@
+---
+title: Smart Contract
+description: Single-contract design, the registry data structure, and per-vault isolation guarantees.
+---
+
+## A Single, Self-Contained Contract
+
+AeternumVault is deployed as a single smart contract. There are no proxy contracts, no multi-contract inheritance chains for the core logic, no dependency on external liquidity pools, and no protocol governance. The entire system lives in one auditable file.
+
+This is intentional. Every additional contract in a system is a new attack surface, a new upgradeability risk, and a new thing for users to trust. AeternumVault keeps its scope minimal: hold ETH on behalf of registered wallets, monitor inactivity, and execute recovery when conditions are met.
+
+The contract inherits two battle-tested OpenZeppelin components — `ReentrancyGuard` and `AutomationCompatibleInterface` — but defines all vault logic internally.
+
+## The Two Core Data Structures
+
+Everything the contract does revolves around two state variables working in tandem.
+
+### The Config Mapping
+
+```solidity
+mapping(address => RecoveryConfig) private s_configs;
+```
+
+This is the primary store of truth for every vault. Each registered address maps to a `RecoveryConfig` struct containing all vault state: balance, backup address, inactivity period, last activity timestamp, active status, failed attempt count, and abandonment flag.
+
+The mapping key is the registered wallet address. No one can write to `s_configs[alice]` except Alice. No one can read the stored ETH as usable funds except through functions that check `msg.sender`.
+
+### The Registry Array
+
+```solidity
+address[] private s_registeredWallets;
+mapping(address => uint256) private s_walletIndexPlusOne;
+```
+
+The registry is an ordered list of all currently active wallet addresses. It exists because Chainlink Automation needs something to iterate over — without it, there would be no way to know which wallets to scan.
+
+`s_walletIndexPlusOne` stores each wallet's **1-indexed position** in the array. A value of 0 means the wallet is not in the registry. The 1-indexing is deliberate: it lets the zero-value of `uint256` serve as a natural sentinel for "not present", without needing a separate boolean.
+
+## O(1) Registry Removal
+
+Removing a wallet from a dynamic array without leaving gaps is a classic data structure problem. Naive deletion shifts all subsequent elements, costing O(n) gas — unacceptable when the registry could have hundreds of thousands of entries.
+
+AeternumVault uses a **swap-and-pop** strategy that removes any wallet in O(1), regardless of registry size:
+
+```solidity
+function _removeFromRegistry(address wallet) internal {
+    uint256 indexPlusOne = s_walletIndexPlusOne[wallet];
+    if (indexPlusOne == 0) return; // not in registry
+
+    uint256 indexToRemove = indexPlusOne - 1;
+    uint256 lastIndex = s_registeredWallets.length - 1;
+
+    if (indexToRemove != lastIndex) {
+        // Move the last element into the gap left by the removed wallet
+        address lastWallet = s_registeredWallets[lastIndex];
+        s_registeredWallets[indexToRemove] = lastWallet;
+        s_walletIndexPlusOne[lastWallet] = indexPlusOne; // update moved element's index
+    }
+
+    s_registeredWallets.pop();
+    delete s_walletIndexPlusOne[wallet];
+}
+```
+
+The algorithm in plain terms:
+
+1. Find the position of the wallet to remove.
+2. Move the last element in the array into that position.
+3. Update the moved element's index in `s_walletIndexPlusOne`.
+4. Pop the last element (now a duplicate) off the array.
+5. Delete the removed wallet's index entry.
+
+This is safe even when multiple wallets are removed in the same `performUpkeep` call, because the index mapping is updated atomically with each removal — subsequent lookups always find the correct current position.
+
+## No Owner, No Admin, No Upgrades
+
+The contract has no owner role, no `Ownable` inheritance, and no function that can pause, redirect, or modify any user's vault after deployment.
+
+The only privileged operation is `setForwarder()`, which registers the Chainlink Automation forwarder address. This is a one-time bootstrap call — once set, the function permanently reverts on any future call:
+
+```solidity
+if (s_forwarder != address(0)) revert AeternumVault__ForwarderAlreadySet();
+```
+
+There is no upgrade mechanism. Each deployed version of AeternumVault is immutable. The rules you agree to when registering are fixed for the lifetime of that deployment. Future versions are deployed as entirely new contracts; users choose whether to migrate.
+
+<Callout type="info" title="What you see is what you get — permanently">
+  Because the contract is immutable, every security property described in this documentation is permanent. There is no governance vote, no timelock admin, and no developer multisig that could retroactively change how your vault operates after you have deposited funds.
+</Callout>
+
+## Registered Wallets: Current Scope
+
+The registry (`s_registeredWallets`) only contains **currently active** vaults. Wallets that have cancelled their vault, been abandoned, or never registered are not in the array. This keeps the array compact and keeps Chainlink scan costs proportional to the active user base.
+
+When a user cancels via `cancelRecovery()`, or when abandonment occurs after three failed recovery attempts, `_removeFromRegistry()` is called immediately — the wallet leaves the registry and is no longer scanned on subsequent upkeep calls.

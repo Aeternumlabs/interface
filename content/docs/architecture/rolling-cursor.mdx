@@ -1,0 +1,102 @@
+---
+title: Rolling Cursor
+description: How one Chainlink upkeep job monitors any number of registered wallets indefinitely without splitting jobs.
+---
+
+## The Scaling Challenge
+
+Chainlink Automation calls `checkUpkeep` every 12 seconds. Each call can only do so much work before hitting practical limits — Chainlink's off-chain simulation environment has a gas limit of roughly 6.5 million gas units, and each storage read during a scan costs around 800 gas.
+
+At maximum scan size (5,000 wallets), `checkUpkeep` uses approximately 4 million gas. That is fine. But a protocol with 500,000 registered users cannot scan all wallets in a single call — that would require 400 million gas, roughly 13 times the block gas limit.
+
+The naive solution — registering more upkeep jobs as the user base grows — is expensive and operationally complex. AeternumVault solves this with a different approach: a **rolling cursor** that scans the registry in windows, one window at a time.
+
+<RollingCursorDiagram />
+
+## How the Cursor Works
+
+The cursor is a single state variable, `s_checkCursor`, that remembers where the last scan ended:
+
+```solidity
+uint256 private s_checkCursor;
+```
+
+On each `checkUpkeep` call, the contract defines a scan window starting from the cursor position and ending either at `cursor + MAX_CHECK_UPKEEP_SIZE` or the end of the registry, whichever comes first:
+
+```solidity
+// Wrap cursor if registry has shrunk, or if all wallets fit in one window
+uint256 cursor = (s_checkCursor >= total || total <= MAX_CHECK_UPKEEP_SIZE) 
+    ? 0 
+    : s_checkCursor;
+
+uint256 end = cursor + MAX_CHECK_UPKEEP_SIZE;
+if (end > total) end = total;
+```
+
+The cursor has two behaviours:
+
+**Holds position** when due wallets are found. The same window is re-scanned on the next call until all due wallets in that window have been processed. This ensures no wallet is missed in a dense recovery period.
+
+**Advances** when a window is fully clear. After the idle cooldown interval (`CURSOR_ADVANCE_INTERVAL`) has elapsed, the cursor moves to the next window. When it reaches the end of the registry, it wraps back to zero and starts again.
+
+## Two Separate Size Limits
+
+The architecture cleanly separates two different constraints — scanning cost and execution cost — into two independently tunable constants:
+
+### MAX_CHECK_UPKEEP_SIZE — 5,000 wallets
+
+`checkUpkeep` runs entirely off-chain in Chainlink's simulation environment. There is no block gas limit here, so this number can be high. At 5,000 wallets per scan, one `checkUpkeep` call provides wide coverage per tick.
+
+```solidity
+uint256 public immutable MAX_CHECK_UPKEEP_SIZE;
+// Deployed with: 5_000
+```
+
+### MAX_PERFORM_UPKEEP_SIZE — 50 wallets
+
+`performUpkeep` is an actual on-chain transaction subject to Ethereum's block gas limit. Each `_executeRecovery` call worst-case consumes around 100,000 gas (multiple storage writes, an external ETH transfer, and event emissions). At 50 wallets per batch, the total sits safely under 5 million gas — well within the 30 million block limit.
+
+```solidity
+uint256 public immutable MAX_PERFORM_UPKEEP_SIZE;
+// Deployed with: 50
+```
+
+The two limits work together: `checkUpkeep` can find up to 5,000 eligible wallets in one scan but will only queue 50 for the matching `performUpkeep`. Any remaining eligible wallets in the same window are picked up on subsequent calls while the cursor holds its position.
+
+## Cursor Advance Logic
+
+The cursor only advances when a window is completely clear of due wallets. Additionally, to prevent spending LINK on constant idle advancement, the contract enforces a minimum cooldown between advances:
+
+```solidity
+if (total > MAX_CHECK_UPKEEP_SIZE 
+    && block.timestamp >= s_lastCursorAdvance + CURSOR_ADVANCE_INTERVAL) {
+    // Registry spans multiple windows — advance to next window
+    address[] memory empty = new address[](0);
+    return (true, abi.encode(empty, nextCursor, true));
+}
+```
+
+`CURSOR_ADVANCE_INTERVAL` is 1 hour on mainnet and 30 seconds on Sepolia. The `isIdleAdvance` flag in `performData` tells `performUpkeep` whether to update the advance timestamp — this distinction is important because the timestamp should only be updated during an actual cursor advance, not during a recovery pass where the cursor is holding position.
+
+## Self-Correcting Design
+
+The cursor is self-correcting in two ways:
+
+**Registry shrinkage.** If users cancel their vaults and the registry shrinks below the cursor position, the cursor automatically resets to zero on the next `checkUpkeep` call. This prevents the cursor from pointing past the end of the array.
+
+**Single-window registries.** If the entire registry fits within one scan window (`total <= MAX_CHECK_UPKEEP_SIZE`), the cursor is always pinned to zero. No LINK is spent on idle advancement — the full registry is covered every single call.
+
+## At Scale: What This Means
+
+With the deployed constants (5,000 scan window, 1-hour cooldown):
+
+| Registered users | Windows required | Time for full sweep |
+| --- | --- | --- |
+| 5,000 | 1 | Instant (single-window, cursor pinned to 0) |
+| 50,000 | 10 | ~10 hours |
+| 500,000 | 100 | ~4 days |
+| 5,000,000 | 1,000 | ~41 days |
+
+At 500,000 users — the realistic medium-term target — every registered wallet is checked for recovery eligibility at least once every four days. For most users with timers measured in months or years, four days is entirely acceptable sweep latency.
+
+One upkeep job handles all of this. No sharding, no coordination, no growth-related operational changes needed.
