@@ -1,0 +1,69 @@
+---
+title: Connect Wallet
+description: Supported wallets, how to connect via RainbowKit, and switching to the Sepolia test network.
+---
+
+## Supported Wallets
+
+Aeternum uses [RainbowKit](https://www.rainbowkit.com) for wallet connections. Any wallet that supports the EIP-1193 provider standard is compatible. The most commonly used options:
+
+| Wallet | Desktop | Mobile | Notes |
+| --- | --- | --- | --- |
+| MetaMask | ✓ | ✓ | Most widely tested |
+| Coinbase Wallet | ✓ | ✓ | |
+| Rainbow | — | ✓ | Mobile-first |
+| WalletConnect | ✓ | ✓ | Scan QR from any compatible wallet |
+| Ledger | ✓ | — | Hardware wallet via WalletConnect |
+| Frame | ✓ | — | Desktop native; ideal for hardware wallets |
+
+Ledger and other hardware wallets are fully supported through the WalletConnect bridge. If you are using a Ledger, make sure **blind signing** is enabled in the Ethereum app settings on the device — some vault interactions require signing transactions that Ledger's default firmware considers "blind".
+
+---
+
+## Connecting Your Wallet
+
+<StepList>
+  <StepItem step={1} title="Open the app">
+    Navigate to [aeternumvault.xyz](https://www.aeternumvault.xyz). The vault dashboard loads in an unconnected state — you will see a **Connect Wallet** button in the top-right corner of the header.
+  </StepItem>
+
+  <StepItem step={2} title="Click Connect Wallet">
+    The RainbowKit modal opens showing available wallet options. Select your wallet. If you are using WalletConnect, a QR code is shown — scan it with your mobile wallet app.
+  </StepItem>
+
+  <StepItem step={3} title="Approve the connection request">
+    Your wallet will prompt you to approve the connection to `aeternumvault.xyz`. This is a read-only permission — it does not grant the app any spending authority over your funds. Approve it.
+  </StepItem>
+
+  <StepItem step={4} title="Confirm your address appears in the header">
+    Once connected, your truncated address (e.g. `0x1234…abcd`) appears in the top-right of the header. The vault dashboard now loads your vault state from the contract.
+  </StepItem>
+</StepList>
+
+---
+
+## Switching to Sepolia
+
+Aeternum is currently deployed on **Ethereum Sepolia** testnet. If your wallet is connected to a different network (mainnet, Polygon, etc.), the app will display a network warning and prompt you to switch.
+
+**Automatic switch prompt:** most wallet integrations through RainbowKit will show a "Wrong Network" banner with a **Switch Network** button. Click it — your wallet will prompt you to confirm the network switch.
+
+**Manual switch in MetaMask:** open MetaMask → click the network dropdown at the top → select **Sepolia Test Network**. If Sepolia is not listed, go to Settings → Advanced → enable "Show test networks".
+
+**Manual switch in Coinbase Wallet:** tap the network icon in the top-left of the wallet → select **Sepolia**.
+
+<Callout type="info" title="No Sepolia ETH yet?">
+  You need Sepolia test ETH to pay for gas and to fund your vault. Get it free from [Google Cloud Web3](https://cloud.google.com/application/web3/faucet/ethereum/sepolia) or [sepoliafaucet.com](https://sepoliafaucet.com). Each faucet allows one claim per day. Request at least 0.05 Sepolia ETH to cover testing comfortably.
+</Callout>
+
+---
+
+## Troubleshooting
+
+**The app shows "Wrong Network" even after switching:** some wallets need a page refresh after a network change. Reload the page and try again.
+
+**WalletConnect sessions expire:** if you come back after a few hours and find your wallet disconnected, click Connect Wallet again. WalletConnect sessions expire automatically as a security measure.
+
+**MetaMask shows a "Blocked Request" error:** MetaMask may block the app if it detects phishing patterns in the page. This can happen on localhost during development. If you are on `localhost:3000`, add an exception in MetaMask's settings or try a different browser.
+
+**Transaction reverts immediately:** the most common cause is insufficient Sepolia ETH for gas. Check your wallet balance. Even if you have 0.01 ETH in the vault, you still need a small additional amount for gas in your wallet balance (not the vault balance).

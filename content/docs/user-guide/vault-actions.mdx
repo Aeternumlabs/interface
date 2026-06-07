@@ -1,0 +1,121 @@
+---
+title: Vault Actions
+description: Deposit, send, withdraw, ping, update config, and cancel recovery — every action explained.
+---
+
+## Overview
+
+Once your vault is registered, six actions are available from the dashboard. All of them — except Ping — move ETH or change your vault configuration. Every action resets your inactivity timer, confirming that you are alive and actively controlling your wallet.
+
+---
+
+## Deposit
+
+**What it does:** Adds ETH to your vault balance.
+
+**When to use it:** Any time you want to bring ETH under Aeternum's recovery protection. You can deposit as many times as you like after the initial registration.
+
+**Gas cost:** ~65,000 gas (~0.001 USD on mainnet at 20 gwei).
+
+**How:** Click **Deposit** on the dashboard, enter the amount in ETH, and confirm the transaction. Your vault balance updates immediately after confirmation.
+
+<Callout type="info">
+  You can also deposit at registration time by including ETH in the `register()` call. This saves one transaction if you already know how much you want to vault.
+</Callout>
+
+---
+
+## Send
+
+**What it does:** Transfers ETH from your vault to any Ethereum address — a normal wallet, a DeFi protocol, an exchange, another contract. Your vault acts as a sending wallet.
+
+**When to use it:** When you want to use your vaulted ETH to pay for something without withdrawing to your primary wallet first.
+
+**Gas cost:** ~80,000–100,000 gas (higher if the recipient is a contract that executes code on receipt).
+
+**How:** Click **Send**, enter the recipient address and the ETH amount, and confirm. The transaction deducts the amount from your vault balance and transfers it on-chain.
+
+<Callout type="tip" title="Send resets your timer">
+  Every `send()` call counts as activity — your inactivity timer resets. If you regularly send ETH from your vault, you naturally maintain your liveness signal without needing to ping separately.
+</Callout>
+
+---
+
+## Withdraw
+
+**What it does:** Pulls your entire vault balance back to your connected wallet address in one transaction.
+
+**When to use it:** When you want your ETH back without cancelling your vault configuration. Your vault stays registered and active after a withdrawal — you can deposit again any time.
+
+**Gas cost:** ~60,000 gas.
+
+**How:** Click **Withdraw balance** in the sidebar. The full balance is sent to your connected address. Confirm in your wallet. The vault balance drops to zero but the vault itself remains live.
+
+<Callout type="warning" title="Zero balance means recovery won't trigger">
+  After withdrawing to a zero balance, your vault is still registered and monitored — but recovery cannot trigger because there is nothing to recover. A zero-balance vault is effectively dormant until you deposit again.
+</Callout>
+
+---
+
+## Ping
+
+**What it does:** Resets your inactivity timer without moving any funds or changing any settings.
+
+**When to use it:** When your inactivity period is approaching and you do not need to transact but want to confirm you are still in control.
+
+**Gas cost:** ~30,000 gas (~0.0005 USD on mainnet at 20 gwei) — the cheapest possible vault interaction.
+
+**How:** Click **Ping** on the dashboard and confirm the transaction. Your countdown timer resets to the full inactivity period.
+
+The `ping()` function does exactly one thing:
+
+```solidity
+function ping() external onlyRegistered {
+    s_configs[msg.sender].lastActivity = block.timestamp;
+    emit ActivityPinged(msg.sender, block.timestamp);
+}
+```
+
+It is intentionally minimal. There is no risk of accidentally moving funds or changing settings by calling ping.
+
+---
+
+## Update Config
+
+**What it does:** Changes your backup address, your inactivity period, or both. Resets your timer as a side effect.
+
+**When to use it:**
+- Your backup address wallet has been compromised or you no longer trust it
+- Your backup address person has changed (new family beneficiary, different trusted party)
+- Your interaction frequency has changed and you want a longer or shorter timer
+
+**Gas cost:** ~45,000 gas for backup address update; ~40,000 gas for inactivity period update.
+
+**How:** Click **Update config** in the sidebar. A modal opens with your current settings pre-filled. Change either or both values and confirm the transaction.
+
+<Callout type="danger" title="You cannot reuse an abandoned backup address">
+  If a backup address has been permanently blocked (after three consecutive failed recovery attempts), it cannot be set as a backup address in any vault — not even a fresh registration. If you previously used a broken backup address, you must choose a different one.
+</Callout>
+
+---
+
+## Cancel Recovery
+
+**What it does:** Withdraws your entire balance AND permanently removes your vault from the monitoring system — in a single transaction.
+
+**When to use it:** When you want to fully opt out of Aeternum protection and take your ETH back without any ongoing monitoring.
+
+**Gas cost:** ~70,000–100,000 gas.
+
+**How:** Click **Cancel recovery** in the sidebar. A confirmation modal warns that this removes your vault from monitoring. Confirm the transaction. Your ETH is sent to your connected wallet and your vault is deregistered.
+
+**After cancellation:** You can re-register at any time by clicking Register again. Your vault starts fresh with new settings.
+
+| Action | Balance change | Vault stays active? | Timer resets? |
+| --- | --- | --- | --- |
+| Deposit | +ETH | Yes | Yes |
+| Send | −ETH (to recipient) | Yes | Yes |
+| Withdraw | −ETH (to you) | Yes | Yes |
+| Ping | None | Yes | Yes |
+| Update Config | None | Yes | Yes |
+| Cancel Recovery | −ETH (to you) | **No** | — |
