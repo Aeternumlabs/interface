@@ -1,0 +1,90 @@
+---
+title: Automatic Recovery
+description: The full recovery lifecycle — trigger conditions, failed transfer handling, and vault abandonment.
+---
+
+## When Recovery Triggers
+
+Recovery is automatic and fully on-chain. No human being decides when to execute it. Chainlink Automation monitors every registered vault and triggers recovery the moment three conditions are all simultaneously true:
+
+```solidity
+// From _executeRecovery() — these three checks happen inside performUpkeep
+if (!config.isActive)  return;   // 1. vault must be registered and active
+if (config.balance == 0) return; // 2. vault must hold a non-zero ETH balance
+if (block.timestamp < config.lastActivity + config.inactivityPeriod) return; // 3. timer must be elapsed
+```
+
+All three must hold. If you have an active vault but a zero balance, nothing happens — there is nothing to recover. If your vault has ETH but you interacted an hour ago, nothing happens — your timer is still running. Recovery only fires when all three conditions align.
+
+<Callout type="info">
+  Chainlink's `checkUpkeep` evaluates these conditions off-chain every 12 seconds. When it finds eligible vaults, it calls `performUpkeep` on-chain to execute the transfers. See [Chainlink Integration](/docs/architecture/chainlink-integration) for the detailed mechanics.
+</Callout>
+
+## How Recovery Executes
+
+When your vault is identified as due for recovery, the contract executes a single `_executeRecovery()` call for your address. The process follows the Checks-Effects-Interactions (CEI) security pattern:
+
+**Step 1 — Checks:** Conditions are re-validated inside `performUpkeep`. If anything has changed since `checkUpkeep` ran (you sent a ping in the gap between the two calls), the recovery is silently skipped and no ETH moves.
+
+**Step 2 — Effects:** Your balance is zeroed, your vault is marked inactive, and your address is removed from the monitoring registry — all before any ETH is transferred.
+
+**Step 3 — Interaction:** The contract calls your backup address and sends the full ETH balance in a single transfer.
+
+If the transfer succeeds, a `RecoveryExecuted` event is emitted and your ETH is now at your backup address.
+
+## When Transfers Fail
+
+A recovery transfer can fail if the backup address is a smart contract that does not accept ETH (for example, a contract with a `revert` in its `receive()` function, or a misconfigured multisig).
+
+When a transfer fails, the contract does not panic or lock up. It handles the failure gracefully:
+
+1. **Your balance is restored** — the ETH is returned to your vault record.
+2. **A failure counter is incremented** — `failedRecoveryAttempts` goes from 0 to 1.
+3. **Your vault is re-added to monitoring** — Chainlink will attempt recovery again on the next pass.
+4. A `RecoveryFailed` event is emitted so off-chain monitors and the dashboard can surface the issue.
+
+This means a broken backup address does not lock your funds permanently — it just delays the recovery and gives you (or whoever controls your wallet) an opportunity to update the backup address via `updateBackupAddress()`.
+
+<Callout type="warning" title="A failing backup address blocks recovery but not withdrawal">
+  If recovery keeps failing, your ETH is not lost. You (the original vault owner) can still call `withdrawAll()` or `send()` at any time to move your funds. The backup address only matters if recovery triggers — and only after your inactivity period elapses, meaning you are presumably incapacitated. Make sure your backup address is tested before you rely on it.
+</Callout>
+
+## The Three-Attempt Limit
+
+To prevent Chainlink from running in an infinite loop attempting to send ETH to a permanently broken address — which would waste LINK tokens and degrade performance for all users — AeternumVault limits consecutive recovery attempts to **three**.
+
+| Attempt | Result |
+| --- | --- |
+| 1st failure | Balance restored, vault re-monitored, `RecoveryFailed` emitted |
+| 2nd failure | Balance restored, vault re-monitored, `RecoveryFailed` emitted |
+| 3rd failure | Vault permanently abandoned, `RecoveryAbandoned` emitted |
+
+After three consecutive failures, the vault is marked as **abandoned**:
+- It is removed from the monitoring system permanently
+- The backup address is recorded as a blocked address — no future registration can use it
+- A `RecoveryAbandoned` event is emitted
+
+## After Abandonment
+
+Abandonment does not mean you lose your ETH. The two things that change are:
+
+**The vault is no longer monitored.** Chainlink will not attempt recovery again for this vault. The automatic protection is gone.
+
+**Your ETH balance remains fully accessible.** The `balance` field in your vault config is still intact. You can call `withdrawAll()` or `send()` at any time to retrieve your funds.
+
+To start fresh with new recovery protection, call `register()` again — but with a **different backup address** (the failed one is permanently blocked). If you have not withdrawn your balance first, `register()` will automatically carry it over into your new vault.
+
+```solidity
+// From register() — carried balance from abandoned vault
+uint256 carriedBalance = s_configs[msg.sender].isAbandoned 
+    ? s_configs[msg.sender].balance 
+    : 0;
+
+// Your new vault inherits the old balance automatically
+s_configs[msg.sender] = RecoveryConfig({
+    balance: msg.value + carriedBalance,
+    // ... rest of new config
+});
+```
+
+This design ensures no ETH is ever lost due to a failed recovery — the worst outcome is that your backup plan stops working and you need to set it up again with a valid address.

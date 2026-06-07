@@ -1,0 +1,105 @@
+---
+title: Key Actors
+description: The roles of the vault owner, backup address, Chainlink Automation network, and the Chainlink forwarder.
+---
+
+Four actors participate in the Aeternum protocol. Understanding each one's capabilities and limits is the foundation for trusting the system.
+
+---
+
+## The Vault Owner (You)
+
+The vault owner is the Ethereum address that called `register()`. This is the only address that can:
+
+- Deposit ETH into the vault
+- Send ETH from the vault to any address
+- Withdraw the full balance
+- Ping the timer
+- Update the backup address or inactivity period
+- Cancel the vault and withdraw funds
+
+Every write function that touches your vault is protected by the `onlyRegistered` modifier, which checks that the caller is the registered owner:
+
+```solidity
+modifier onlyRegistered() {
+    if (!s_configs[msg.sender].isActive && !s_configs[msg.sender].isAbandoned) {
+        revert AeternumVault__NotRegistered();
+    }
+    _;
+}
+```
+
+No other address — not the backup address, not the contract deployer, not anyone — can call these functions on your behalf.
+
+---
+
+## The Backup Address
+
+The backup address is the destination for your ETH if recovery triggers. You choose it at registration and can update it at any time while your vault is active.
+
+**What the backup address can do:** receive ETH when recovery executes.
+
+**What the backup address cannot do:** nothing else. It cannot initiate transfers, read your vault config, or interact with your vault in any way while you are active. It is purely a recipient.
+
+The backup address can be:
+- A second wallet you control (another MetaMask account, a hardware wallet)
+- A wallet held by a family member or trusted person
+- A multisig wallet shared with people you trust
+- Any Ethereum address that can receive ETH
+
+<Callout type="warning" title="Test your backup address before you rely on it">
+  If your backup address is a smart contract (like a multisig), make sure it is configured to accept plain ETH transfers. A contract that reverts on `receive()` will cause recovery to fail. After three failures, the vault is abandoned. Test the full cycle on Sepolia before setting up on mainnet.
+</Callout>
+
+**Blocked backup addresses:** If recovery has failed three consecutive times against a backup address, that address is permanently blocked from being used in any new registration. This prevents accidental or repeated use of a broken address.
+
+---
+
+## Chainlink Automation
+
+Chainlink Automation is a decentralised network of independent nodes that evaluates on-chain conditions and triggers contract execution when those conditions are met. In Aeternum, it is the automated engine that watches your vault.
+
+The network interacts with AeternumVault through two functions:
+
+**`checkUpkeep()`** — called every ~12 seconds as an off-chain simulation. No gas, no cost. The function scans the current cursor window of registered wallets and returns a list of any vaults due for recovery. If none are found, it returns `upkeepNeeded = false` and the network does nothing.
+
+**`performUpkeep(performData)`** — called on-chain only when `checkUpkeep` returns `upkeepNeeded = true`. This is the real transaction that transfers ETH to backup addresses. It costs LINK tokens, which are deposited in the upkeep registration.
+
+<Callout type="info" title="What if Chainlink goes down?">
+  Chainlink Automation is a decentralised network with thousands of independent nodes. A complete outage is extremely unlikely. If it were unavailable, your ETH would remain in your vault until the service resumed. The worst-case outcome is a delay in recovery, not loss of funds.
+</Callout>
+
+The key property is that Chainlink nodes are **permissionless monitors** — they observe and execute, but they cannot override the contract logic, redirect funds, or skip the trigger conditions. The contract's `_executeRecovery()` function re-validates every condition before any ETH moves. Chainlink only provides the scheduling; the rules are in the contract.
+
+---
+
+## The Chainlink Forwarder
+
+When you register an upkeep with Chainlink Automation, Chainlink deploys a unique **forwarder contract** specifically for that upkeep. The forwarder is the only address permitted to call `performUpkeep` on AeternumVault.
+
+This is a critical security layer. Without the forwarder check, anyone could construct a crafted `performData` payload and call `performUpkeep` directly — potentially attempting to manipulate which vaults get processed in a given batch.
+
+The forwarder is set once after deployment:
+
+```solidity
+function setForwarder(address forwarder) external {
+    if (s_forwarder != address(0)) revert AeternumVault__ForwarderAlreadySet(); // can only be set once
+    if (forwarder == address(0)) revert AeternumVault__InvalidAddress();
+    s_forwarder = forwarder;
+    emit ForwarderSet(forwarder);
+}
+```
+
+Once set, every call to `performUpkeep` from any other address is immediately rejected:
+
+```solidity
+if (s_forwarder != address(0) && msg.sender != s_forwarder) {
+    revert AeternumVault__NotForwarder();
+}
+```
+
+<Callout type="danger" title="Set the forwarder immediately after deployment on mainnet">
+  Between contract deployment and calling `setForwarder()`, `performUpkeep` is open to any caller. On Sepolia this is acceptable for testing. On mainnet, `setForwarder()` must be called in the same deployment script, immediately after registration, to close this window.
+</Callout>
+
+The forwarder address can only be set once and cannot be changed afterward. This means it is not an ongoing admin function — it is a one-time bootstrap that permanently locks down the execution path.

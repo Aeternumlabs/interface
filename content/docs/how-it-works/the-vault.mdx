@@ -1,0 +1,94 @@
+---
+title: The Vault
+description: How your ETH is stored, how vault isolation works, and what you can do with your vault.
+---
+
+## What Is a Vault?
+
+When you register with AeternumVault, the contract creates a private record in your name — a **vault**. Think of it like a safety deposit box that only you can open. Your ETH sits inside, and no one else can access it under normal conditions.
+
+Technically, a vault is a struct stored in a mapping keyed by your wallet address:
+
+```solidity
+// Simplified — the actual struct lives in IAeternumVault.sol
+struct RecoveryConfig {
+    address backupAddress;       // where ETH goes if recovery triggers
+    uint256 inactivityPeriod;    // how long silence is allowed (seconds)
+    uint256 lastActivity;        // timestamp of your last on-chain interaction
+    uint256 balance;             // your ETH balance, in wei
+    bool    isActive;            // true when your vault is live and monitored
+    uint8   failedRecoveryAttempts; // retry counter (max 3 before abandonment)
+    bool    isAbandoned;         // true if recovery failed 3 times
+}
+
+mapping(address => RecoveryConfig) private s_configs;
+```
+
+Every field is per-wallet. There is no shared pool, no commingling, and no way for one user's vault state to affect another's.
+
+## Vault Isolation
+
+Each vault is **completely isolated**. Your ETH balance is tracked separately from every other user. If something goes wrong with another user's vault configuration (for example, their backup address is a broken contract), it has zero effect on your vault or your funds.
+
+This is a deliberate design choice. The `s_configs` mapping gives each wallet its own private namespace within the contract. The contract enforces this at the code level — your address is the key, and only transactions from your address can modify your config or move your funds.
+
+## What You Can Do With Your Vault
+
+Your vault supports the full set of operations you would expect from a standard Ethereum wallet, plus the recovery-specific functions:
+
+| Function | What it does | Resets timer? |
+| --- | --- | --- |
+| `deposit()` | Add ETH to your vault | Yes |
+| `send(to, amount)` | Send ETH from your vault to any address | Yes |
+| `withdrawAll()` | Pull your entire balance back to your own wallet | Yes |
+| `ping()` | Prove liveness without moving funds | Yes |
+| `updateBackupAddress(newAddr)` | Change your backup address | Yes |
+| `updateInactivityPeriod(newPeriod)` | Change your inactivity timer | Yes |
+| `cancelRecovery()` | Withdraw everything and remove your vault from monitoring | — |
+
+Every function that touches the contract resets your inactivity timer — because any on-chain interaction is proof that you are alive and in control of your wallet. The only exception is `cancelRecovery()`, which closes your vault entirely.
+
+<Callout type="tip" title="Use ping() when you're not moving funds">
+  If you plan to hold ETH for an extended period without transacting, call `ping()` before your inactivity period elapses. It costs roughly 6,000 gas — a fraction of a cent on mainnet — and resets your countdown completely.
+</Callout>
+
+## Sending ETH From Your Vault
+
+The `send()` function lets your vault behave like a normal wallet. You can pay anyone directly from your vault balance without withdrawing first:
+
+```solidity
+// Send 0.1 ETH to a recipient address
+// msg.sender must have a registered, active vault
+function send(address to, uint256 amount) external onlyRegistered nonReentrant {
+    // Checks
+    if (amount > config.balance) revert AeternumVault__InsufficientBalance();
+
+    // Effects (balance zeroed before the external call — CEI pattern)
+    config.balance -= amount;
+    config.lastActivity = block.timestamp;
+
+    // Interaction
+    (bool success,) = to.call{value: amount}("");
+    if (!success) revert AeternumVault__TransferFailed();
+}
+```
+
+The balance reduction and timer reset happen before the ETH transfer. This follows the Checks-Effects-Interactions pattern, which protects against reentrancy attacks. See the [Security Design](/docs/architecture/security) page for a full explanation.
+
+## Withdrawing and Cancelling
+
+`withdrawAll()` and `cancelRecovery()` are two different exit paths:
+
+**`withdrawAll()`** pulls your entire balance back to your wallet but **leaves your vault active**. Your recovery config stays in place. You can deposit again whenever you want. Your timer resets, so you are not at risk of an immediate recovery trigger.
+
+**`cancelRecovery()`** does two things in one transaction: it withdraws any remaining balance AND permanently removes your vault from the monitoring system. You are deregistered. You can re-register later with a clean slate.
+
+<Callout type="warning" title="cancelRecovery() is final until you re-register">
+  Once you call `cancelRecovery()`, you are no longer protected. Your ETH is returned to you, but the automatic backup plan is gone. If you want continued protection, you need to call `register()` again.
+</Callout>
+
+## Free in Version 1
+
+AeternumVault v1 has no subscription fees, no tiers, and no protocol-level charges. The only costs are standard Ethereum gas fees for the transactions you initiate (register, deposit, send, etc.). The Chainlink Automation upkeep — the service that watches your vault and triggers recovery — is funded separately and does not pass costs on to individual users.
+
+This is intentional. Foundational wallet safety should not be gated behind a paywall.

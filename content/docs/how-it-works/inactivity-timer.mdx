@@ -1,0 +1,89 @@
+---
+title: Inactivity Timer
+description: How the timer starts, which interactions reset it, and how it determines when recovery triggers.
+---
+
+## How the Timer Works
+
+The inactivity timer is the core mechanism of Aeternum. It answers one question on an ongoing basis: **has this wallet owner been silent for too long?**
+
+The timer is not a countdown running on a server. It is a simple comparison between two numbers stored on-chain:
+
+```solidity
+// Recovery is due when this condition becomes true
+block.timestamp >= config.lastActivity + config.inactivityPeriod
+```
+
+`lastActivity` is the Unix timestamp of your most recent on-chain interaction with the vault. `inactivityPeriod` is the duration you configured at registration. Their sum is your **deadline** — the moment at which recovery becomes eligible.
+
+Chainlink Automation evaluates this expression every 12 seconds. The moment `block.timestamp` crosses the deadline and your balance is non-zero, recovery is triggered.
+
+## What Counts as Activity
+
+Every on-chain interaction with the AeternumVault contract updates `lastActivity` to `block.timestamp`, resetting the countdown. The full list of interactions that count as activity:
+
+| Action | Function called |
+| --- | --- |
+| Deposit ETH into your vault | `deposit()` |
+| Send ETH from your vault to any address | `send()` |
+| Withdraw your entire balance | `withdrawAll()` |
+| Prove liveness without moving funds | `ping()` |
+| Change your backup address | `updateBackupAddress()` |
+| Change your inactivity period | `updateInactivityPeriod()` |
+| Register (initial) | `register()` |
+
+Notice that **reading** your vault state does not reset the timer. Read-only calls (`getRecoveryConfig`, `isRecoveryDue`, etc.) are view functions that do not write to the blockchain and therefore have no effect on `lastActivity`. Only transactions — state-changing calls that cost gas — reset the timer.
+
+<Callout type="tip">
+  If you want to periodically confirm your vault is live without the overhead of a full transaction, use `ping()`. It is the cheapest possible interaction — approximately 6,000 gas, less than a tenth of a cent on mainnet — and it resets your timer completely.
+</Callout>
+
+## The Ping Function
+
+`ping()` exists for exactly one purpose: to prove you are alive and in control of your wallet without moving any funds.
+
+```solidity
+function ping() external onlyRegistered {
+    s_configs[msg.sender].lastActivity = block.timestamp;
+    emit ActivityPinged(msg.sender, block.timestamp);
+}
+```
+
+This is useful in several situations:
+
+- You are holding ETH long-term and do not need to transact, but your inactivity period is approaching
+- You are recovering from a medical situation and want to confirm control before your timer expires
+- You are travelling and do not have access to your main DeFi setup, but you can still send one lightweight transaction
+
+In Phase 2 (the Hybrid Wallet), simply opening the Aeternum app will send an automatic background ping — so users will no longer need to think about this at all. For v1, it is a manual step worth building into your routine.
+
+## Choosing an Inactivity Period
+
+The inactivity period is configured at registration and can be updated at any time via `updateInactivityPeriod()`. The contract enforces hard bounds:
+
+| Bound | Value (mainnet) | Value (Sepolia testnet) |
+| --- | --- | --- |
+| Minimum | 180 days (~6 months) | 5 minutes (300 seconds) |
+| Maximum | 3,650 days (~10 years) | 3,650 days |
+
+The minimum exists to prevent accidents — a period shorter than 180 days would be easy to miss even for an active user. The maximum prevents funds from being permanently locked in an effectively unreachable vault.
+
+**Choosing the right period for you:**
+
+- **365 days** is a reasonable default for most users. You interact with crypto at least once a year, and a year of silence is a meaningful signal.
+- **180 days** is appropriate if you want faster protection and are confident you will interact at least every six months.
+- **Longer periods** (2–5 years) make sense for cold-storage wallets where the goal is multi-year holds with minimal interaction.
+
+<Callout type="warning" title="Shorter is not always safer">
+  A very short inactivity period can create false positives — your ETH moves to your backup address because you went on a long trip or had an unexpected hospital stay. Match your inactivity period to your realistic interaction frequency, not your optimistic one.
+</Callout>
+
+## When the Timer Reaches Zero
+
+If `block.timestamp >= lastActivity + inactivityPeriod` and your vault holds a non-zero ETH balance, your vault becomes **eligible for recovery**. This does not mean recovery happens instantly — it means that on the next Chainlink `checkUpkeep` cycle, your vault will be included in the batch of due wallets.
+
+Chainlink runs `checkUpkeep` every 12 seconds. In practice, recovery executes within a minute of eligibility being detected, subject to on-chain confirmation times.
+
+Once you interact with your vault again after the timer expires — even a single `ping()` — the timer resets and recovery is no longer eligible. You remain in full control until the next deadline.
+
+See [Automatic Recovery](/docs/how-it-works/automatic-recovery) for the full recovery execution lifecycle.
