@@ -1,0 +1,141 @@
+---
+title: User Functions
+description: All write functions — register, deposit, send, withdrawAll, ping, updateBackupAddress, updateInactivityPeriod, cancelRecovery.
+---
+
+All functions on this page are state-changing — they cost gas and modify on-chain state. Every function except `setForwarder` resets the caller's `lastActivity` timestamp as a side effect.
+
+The contract address on Sepolia is `0x33f81c1199732094744ee2efabe9adf8c4eff0db`.
+
+---
+
+<FunctionCard
+  name="register"
+  signature="register(address backupAddress, uint256 inactivityPeriod) external payable"
+  modifier="payable"
+  description="Creates a vault for the caller. The caller's address becomes the protected wallet. Registration with a zero balance is valid — ETH can be deposited later. If the caller previously had an abandoned vault with a remaining balance, that balance is automatically carried into the new vault."
+  params={[
+    { name: 'backupAddress', type: 'address', description: 'The wallet that receives ETH if recovery triggers. Must not be zero, the caller\'s own address, or a permanently blocked address.' },
+    { name: 'inactivityPeriod', type: 'uint256', description: 'Timer duration in seconds. Must be within [MIN_INACTIVITY_PERIOD, MAX_INACTIVITY_PERIOD]. Mainnet: 180 days to 3,650 days. Sepolia: 300 seconds to 3,650 days.' },
+  ]}
+  returns="Nothing. Emits RecoveryRegistered. Emits Deposited if msg.value > 0."
+  example={`// Register with a 365-day timer, depositing 0.1 ETH
+await vault.write.register(
+  [backupAddress, 365n * 24n * 3600n],
+  { value: parseEther('0.1') }
+)`}
+/>
+
+---
+
+<FunctionCard
+  name="deposit"
+  signature="deposit() external payable"
+  modifier="payable"
+  description="Adds ETH to the caller's existing vault. The vault must already be registered and active. Resets the inactivity timer."
+  params={[]}
+  returns="Nothing. Emits Deposited and ActivityPinged."
+  example={`// Add 0.05 ETH to an existing vault
+await vault.write.deposit([], { value: parseEther('0.05') })`}
+/>
+
+---
+
+<FunctionCard
+  name="send"
+  signature="send(address to, uint256 amount) external"
+  modifier="nonpayable"
+  description="Sends ETH from the caller's vault to any Ethereum address. The vault balance decreases by the sent amount. Resets the inactivity timer. Follows the CEI pattern — balance is updated before the external ETH call."
+  params={[
+    { name: 'to', type: 'address', description: 'Recipient address. Must not be the zero address. Can be any EOA or contract that accepts ETH.' },
+    { name: 'amount', type: 'uint256', description: 'Amount in wei to send. Must be non-zero and must not exceed the caller\'s vault balance.' },
+  ]}
+  returns="Nothing. Emits Sent and ActivityPinged."
+  example={`// Send 0.01 ETH from vault to a recipient
+await vault.write.send([recipientAddress, parseEther('0.01')])`}
+/>
+
+---
+
+<FunctionCard
+  name="withdrawAll"
+  signature="withdrawAll() external"
+  modifier="nonpayable"
+  description="Transfers the caller's entire vault balance back to their own wallet. The vault remains active and registered after withdrawal — the user can deposit again at any time. To fully deregister, use cancelRecovery() instead. Resets the inactivity timer."
+  params={[]}
+  returns="Nothing. Emits Withdrawn and ActivityPinged."
+  example={`// Withdraw entire vault balance to your wallet
+await vault.write.withdrawAll()`}
+/>
+
+---
+
+<FunctionCard
+  name="ping"
+  signature="ping() external"
+  modifier="nonpayable"
+  description="Resets the inactivity timer without moving any funds or changing any settings. The cheapest possible vault interaction (~30,000 gas). Use this to signal liveness when you are not planning to transact but your inactivity period is approaching."
+  params={[]}
+  returns="Nothing. Emits ActivityPinged."
+  example={`// Reset timer — no funds move
+await vault.write.ping()`}
+/>
+
+---
+
+<FunctionCard
+  name="updateBackupAddress"
+  signature="updateBackupAddress(address newBackupAddress) external"
+  modifier="nonpayable"
+  description="Changes the backup address on the caller's vault. The new address must not be zero, the caller's own address, or a permanently blocked address. Resets the inactivity timer."
+  params={[
+    { name: 'newBackupAddress', type: 'address', description: 'The new backup address. Cannot be zero, the caller\'s address, or an address permanently blocked after 3 consecutive failed recovery attempts.' },
+  ]}
+  returns="Nothing. Emits BackupAddressUpdated and ActivityPinged."
+  example={`// Switch to a new backup wallet
+await vault.write.updateBackupAddress([newBackupWallet])`}
+/>
+
+---
+
+<FunctionCard
+  name="updateInactivityPeriod"
+  signature="updateInactivityPeriod(uint256 newPeriod) external"
+  modifier="nonpayable"
+  description="Changes the inactivity period on the caller's vault. The new period must fall within the enforced minimum and maximum bounds. Resets the inactivity timer."
+  params={[
+    { name: 'newPeriod', type: 'uint256', description: 'New inactivity period in seconds. Must be within [MIN_INACTIVITY_PERIOD, MAX_INACTIVITY_PERIOD].' },
+  ]}
+  returns="Nothing. Emits InactivityPeriodUpdated and ActivityPinged."
+  example={`// Change inactivity period to 2 years
+await vault.write.updateInactivityPeriod([2n * 365n * 24n * 3600n])`}
+/>
+
+---
+
+<FunctionCard
+  name="cancelRecovery"
+  signature="cancelRecovery() external"
+  modifier="nonpayable"
+  description="Withdraws all ETH and permanently removes the vault from monitoring in one transaction. The caller is deregistered. Re-registration is allowed after cancellation. If the vault has zero balance, deregistration still completes with no ETH transfer."
+  params={[]}
+  returns="Nothing. Emits RecoveryCancelled."
+  example={`// Exit Aeternum completely and withdraw all ETH
+await vault.write.cancelRecovery()`}
+/>
+
+---
+
+<FunctionCard
+  name="setForwarder"
+  signature="setForwarder(address forwarder) external"
+  modifier="nonpayable"
+  description="Registers the Chainlink Automation forwarder address for this upkeep. Can only be called once. Once set, only the registered forwarder address may call performUpkeep(). Obtain the forwarder address from the Chainlink Automation UI after registering your upkeep. This function is intended for the deployer immediately after deployment — it is not a standard user-facing action."
+  params={[
+    { name: 'forwarder', type: 'address', description: 'The forwarder contract address assigned by Chainlink Automation for this upkeep. Must not be zero.' },
+  ]}
+  returns="Nothing. Emits ForwarderSet."
+  example={`// Lock performUpkeep to the Chainlink forwarder
+// Call immediately after deployment — can only be set once
+await vault.write.setForwarder([chainlinkForwarderAddress])`}
+/>

@@ -1,0 +1,128 @@
+---
+title: Events
+description: Full event log reference for frontends, indexers, and on-chain monitoring tools.
+---
+
+AeternumVault emits a comprehensive set of events for every state transition. Every significant action — user interactions, Chainlink recovery executions, failures, and configuration changes — is logged on-chain. This makes it straightforward to build frontends, indexers, and monitoring dashboards that accurately reflect vault state.
+
+The Ponder-based indexer (`aeternum-indexer`) subscribes to all events below and serves them via a GraphQL API to the frontend.
+
+---
+
+## User Interaction Events
+
+These events fire when a vault owner takes an action.
+
+| Event | When emitted | Key fields |
+| --- | --- | --- |
+| `RecoveryRegistered` | `register()` succeeds | `wallet`, `backupAddress`, `inactivityPeriod` |
+| `Deposited` | `deposit()` or `register()` with `msg.value > 0` | `wallet`, `amount` |
+| `Sent` | `send()` succeeds | `from`, `to`, `amount` |
+| `Withdrawn` | `withdrawAll()` succeeds | `wallet`, `amount` |
+| `ActivityPinged` | Any interaction that resets `lastActivity` | `wallet`, `timestamp` |
+| `BackupAddressUpdated` | `updateBackupAddress()` succeeds | `wallet`, `newBackupAddress` |
+| `InactivityPeriodUpdated` | `updateInactivityPeriod()` succeeds | `wallet`, `newPeriod` |
+| `RecoveryCancelled` | `cancelRecovery()` completes | `wallet`, `amount` |
+
+---
+
+## Recovery Lifecycle Events
+
+These events fire during automated recovery execution by Chainlink.
+
+| Event | When emitted | Key fields |
+| --- | --- | --- |
+| `RecoveryExecuted` | ETH successfully sent to backup address | `wallet`, `backupAddress`, `amount` |
+| `RecoveryFailed` | ETH transfer to backup address reverted | `wallet`, `backupAddress`, `amount` |
+| `RecoveryAbandoned` | 3rd consecutive failed recovery attempt | `wallet`, `backupAddress`, `amount` |
+
+---
+
+## System Events
+
+| Event | When emitted | Key fields |
+| --- | --- | --- |
+| `ForwarderSet` | `setForwarder()` called (one-time only) | `forwarder` |
+
+---
+
+## Full Event Signatures
+
+```solidity
+// User interaction events
+event RecoveryRegistered(
+    address indexed wallet,
+    address indexed backupAddress,
+    uint256 inactivityPeriod
+);
+
+event Deposited(
+    address indexed wallet,
+    uint256 amount
+);
+
+event Sent(
+    address indexed from,
+    address indexed to,
+    uint256 amount
+);
+
+event Withdrawn(
+    address indexed wallet,
+    uint256 amount
+);
+
+event ActivityPinged(
+    address indexed wallet,
+    uint256 timestamp
+);
+
+event BackupAddressUpdated(
+    address indexed wallet,
+    address indexed newBackupAddress
+);
+
+event InactivityPeriodUpdated(
+    address indexed wallet,
+    uint256 newPeriod
+);
+
+event RecoveryCancelled(
+    address indexed wallet,
+    uint256 amount
+);
+
+// Recovery lifecycle events
+event RecoveryExecuted(
+    address indexed wallet,
+    address indexed backupAddress,
+    uint256 amount
+);
+
+event RecoveryFailed(
+    address indexed wallet,
+    address indexed backupAddress,
+    uint256 amount
+);
+
+event RecoveryAbandoned(
+    address indexed wallet,
+    address indexed backupAddress,
+    uint256 amount
+);
+
+// System events
+event ForwarderSet(address indexed forwarder);
+```
+
+---
+
+## Notable Patterns
+
+**`ActivityPinged` is emitted by every timer-resetting function.** This means `deposit`, `send`, `withdrawAll`, `ping`, `updateBackupAddress`, `updateInactivityPeriod`, and `register` all emit `ActivityPinged`. When building an indexer or activity feed, treat `ActivityPinged` as the unified "user was active" signal and use the function-specific events for the operation detail.
+
+**`RecoveryExecuted` and `RecoveryFailed` both carry the full `amount`.** In the failure case, the amount is the balance that was attempted but not transferred — the same value is restored to the vault. This lets you reconstruct vault balance history from events alone.
+
+**`RecoveryAbandoned` means the vault is permanently removed from monitoring.** The balance is NOT zero after abandonment — it remains in the config mapping and the user can still `withdrawAll()`. If you are building a monitoring dashboard, flag vaults that emit `RecoveryAbandoned` as requiring user attention.
+
+**Watching for Chainlink execution:** filter `RecoveryExecuted` and `RecoveryFailed` events from the contract address on Sepolia Etherscan to see live Chainlink activity. Each `performUpkeep` transaction may contain multiple events (up to 50 per batch).
