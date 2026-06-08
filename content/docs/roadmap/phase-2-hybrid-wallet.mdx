@@ -1,0 +1,82 @@
+---
+title: Phase 2 — Hybrid Wallet
+description: EIP-7702 hybrid accounts, multi-asset recovery, and passive activity detection — no manual pings required.
+badge: coming-soon
+---
+
+<Callout type="info" title="Coming soon">
+  Phase 2 is in active design. The architecture described here is planned — implementation begins after the Phase 1 mainnet deployment and external audit are complete.
+</Callout>
+
+## The Core Shift
+
+Phase 1 requires users to deposit ETH into an escrow-style vault contract. The assets move from your wallet into the AeternumVault contract's custody before recovery protection begins. This works well, but it introduces friction: a separate deposit step, a separate contract balance to track, and a mental model of "my vault" as a distinct place from "my wallet".
+
+Phase 2 eliminates this entirely. **Your assets never leave your own address.**
+
+Instead of depositing into a contract, users either create a new Aeternum wallet from scratch or import an existing Externally Owned Account (MetaMask, Coinbase Wallet, hardware wallet — anything). In either case, the address looks and behaves like a completely standard Ethereum wallet. The recovery infrastructure operates silently in the background, attached to the account without requiring any asset migration.
+
+This is made possible by **EIP-7702**, an Ethereum standard that allows a regular EOA to temporarily delegate execution authority to a smart contract without changing the underlying address or requiring a separate proxy deployment. The user maintains one address and one seed phrase, while the `AeternumRecoveryManager` contract gains the ability to execute recovery logic on their behalf when inactivity conditions are met.
+
+```
+Phase 1:         Your EOA  →  AeternumVault contract (escrow)
+Phase 2:         Your EOA  ←  AeternumRecoveryManager (sits on top, no custody)
+```
+
+From the outside, the Phase 2 wallet is indistinguishable from MetaMask. DeFi protocols, exchanges, and wallets all see a standard Ethereum address. Under the hood, the EOA has been upgraded into a programmable hybrid account.
+
+<Phase2ArchitectureDiagram />
+
+---
+
+## Multi-Asset Recovery
+
+Phase 1 supports native ETH only. Phase 2 expands to **ETH and any ERC-20 token** from launch.
+
+Each token balance is tracked independently per user in the `AeternumRecoveryManager`. When recovery triggers, the contract transfers all registered token balances alongside the ETH balance to the backup address in a single execution — the beneficiary receives everything the wallet held, not just the ETH.
+
+Key design properties:
+- **Partial failure isolation.** If a single token transfer fails during batch recovery (e.g. a frozen stablecoin), that token's failure is recorded and retried on the next `performUpkeep` cycle. The remaining assets transfer normally — one broken token cannot block recovery of everything else.
+- **Revocable allowances.** Token allowances granted to the `AeternumRecoveryManager` are revocable at any time. Revoking before recovery triggers causes that token to be skipped silently while all other assets recover normally.
+- **No custody transfer.** At no point do your tokens move to the `AeternumRecoveryManager` contract. The manager holds an allowance, not the assets.
+
+---
+
+## Activity Detection — No Ping Required
+
+Phase 1 requires users to manually call `ping()` to signal liveness when they are not otherwise transacting. If you go on a long trip and do not move any crypto for six months, you need to remember to ping before your timer expires.
+
+Phase 2 removes this requirement entirely. **Simply opening the Aeternum app resets your inactivity timer.**
+
+When you open the app, it sends a lightweight signed interaction to the `AeternumRecoveryManager` in the background, recording `block.timestamp` as the new `lastActivity` point. You do not need to approve a transaction or pay gas — the app handles the signature automatically.
+
+This has two important consequences:
+
+**Accidental recovery becomes much harder to trigger.** If your inactivity period is 365 days, you just need to open your wallet app once a year — the same natural behaviour expected of anyone who occasionally checks their crypto balance. Recovery is reserved for true absence, not scheduling oversight.
+
+**The recovery guarantee becomes more accurate.** The timer reflects genuine wallet engagement rather than artificial pings. A user who is alive and conscious will open their wallet at least once a year. A user who has been in a coma for 14 months, or has passed away, will not.
+
+The manual `ping()` function remains available on-chain for users who want to prove liveness from a separate interface or a scripted environment. It is no longer the primary mechanism — it is a power-user option.
+
+---
+
+## How Recovery Works in Phase 2
+
+The `AeternumRecoveryManager` monitors all registered Aeternum wallets using the same rolling cursor architecture from Phase 1. When a wallet's inactivity period expires, Chainlink Automation calls `performUpkeep()`, which calls `_executeRecovery()` on the wallet.
+
+ETH and all registered ERC-20 token balances move from the Aeternum wallet to the user's designated backup address — exactly as in Phase 1, but from a self-custodial address rather than a vault escrow.
+
+**Ownership rotation** — where control of the smart account itself transfers to the backup rather than assets moving — is reserved as a future opt-in feature once Aeternum wallets are common enough as backup addresses to make it meaningful. Asset transfer remains the default recovery execution path in Phase 2.
+
+---
+
+## What Carries Forward From Phase 1
+
+The following architecture elements are preserved unchanged in Phase 2:
+
+- The rolling cursor architecture and `MAX_RECOVERY_ATTEMPTS` abandonment handling
+- The Chainlink forwarder access control pattern
+- The stale data safety pattern in `performUpkeep`
+- The event schema (with additions for multi-asset events)
+
+The only thing that changes is **the source of assets** — from a vault escrow mapping to the user's self-custodial wallet.
