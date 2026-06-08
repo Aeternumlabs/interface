@@ -1,0 +1,158 @@
+---
+title: Frequently Asked Questions
+description: Common questions about custody guarantees, fees, Chainlink reliability, upgradeability, and the forwarder.
+---
+
+## Custody and Control
+
+### Can the protocol take my ETH?
+
+No. There is no mechanism of any kind that allows anyone — including the people who built this — to access your vault balance.
+
+Your ETH can only go to two addresses: your own connected wallet (via `withdrawAll()` or `send()`) or your designated backup address (via automated recovery after your inactivity period expires). The contract has no owner function, no admin key, no pause mechanism, and no upgrade path. The deployed bytecode is the permanent, immutable rule set.
+
+### Can Aeternum Labs access my funds?
+
+No. The team that built AeternumVault has no privileged role in the deployed contract. There is no `onlyOwner` modifier on any fund-handling function, and no address known to Aeternum Labs has any special capability over your vault.
+
+The only entity with elevated permissions is the Chainlink Automation forwarder, which is locked to a specific address by `setForwarder()`. Even that address cannot move funds arbitrarily — it can only call `performUpkeep()`, which re-validates every condition before any ETH moves.
+
+### Is the contract upgradeable?
+
+No. Each deployed version of AeternumVault is immutable and cannot be modified after deployment. There are no proxy contracts, no transparent upgrade patterns, and no governance mechanisms that could alter how an existing vault contract behaves once users deposit into it.
+
+This is intentional. The rules you agree to when registering remain fixed for the lifetime of that deployment. Aeternum Labs will develop new versions, but they are deployed as entirely new contracts. You choose whether to remain on your current version or migrate.
+
+### Is it non-custodial if my ETH is inside the contract?
+
+Yes, in the most meaningful sense of the term. The contract holds ETH **in escrow mapped to your address** — not in a shared pool, not as a loan to a protocol, not as collateral in a market. Your balance is yours, and it can only move on your instruction or after your inactivity period expires and recovery triggers.
+
+A bank also "holds" your money, but the bank can lend it, freeze it, or lose it. The AeternumVault contract cannot do any of those things. It is more accurate to think of it as a public lockbox than a bank account.
+
+---
+
+## Costs and Fees
+
+### How much does Aeternum cost?
+
+AeternumVault v1 is completely free. There are no subscription fees, no tiers, and no protocol-level charges.
+
+The only costs are:
+- **Standard Ethereum gas fees** for transactions you initiate (register, deposit, send, etc.)
+- **Nothing for monitoring** — the Chainlink Automation upkeep that watches your vault and executes recovery is funded by Aeternum Labs at the protocol level, not passed on to individual users
+
+This is a deliberate policy. Foundational wallet safety should be accessible to everyone without friction. The core protocol is, and will always remain, completely free to use.
+
+### Why is it free if Chainlink costs real LINK?
+
+Aeternum Labs funds the Chainlink Automation upkeep from its own resources as part of running the protocol. The `performUpkeep` transactions that execute recovery cost LINK, but those costs are absorbed at the infrastructure level rather than billed to users.
+
+Future value-added services (hosted watcher infrastructure, developer APIs, institutional tools) will generate revenue to sustain this model without monetising the core recovery mechanism.
+
+---
+
+## Timer and Recovery
+
+### What happens if I forget to ping and my timer expires?
+
+Your ETH is sent to your backup address automatically. If your backup address is another wallet you control, you can simply move the ETH back. If you want to continue using the vault, call `register()` again after recovery — your vault restarts fresh.
+
+There is no penalty for a triggered recovery. It is simply the protocol working as designed.
+
+### What if I interact with other dApps but not Aeternum specifically?
+
+Only on-chain interactions **with the AeternumVault contract** reset your timer. Swapping on Uniswap, voting in a DAO, minting an NFT — none of these interact with the AeternumVault contract, so none of them reset your inactivity timer.
+
+If you are active in DeFi but not touching your Aeternum vault directly, you still need to call `ping()` before your inactivity period elapses. In Phase 2, the Aeternum app will handle this automatically in the background when opened.
+
+### Can I interact with my vault after the timer expires but before recovery fires?
+
+Yes. There is always a window between when your vault becomes eligible for recovery and when Chainlink actually executes `performUpkeep`. Chainlink runs `checkUpkeep` every 12 seconds, so this window is typically short — but it exists.
+
+If you ping or deposit in that window, your timer resets and recovery is cancelled. The `performUpkeep` transaction re-validates every wallet before moving ETH. If your vault is no longer eligible (timer was reset), it is silently skipped and no ETH moves.
+
+### What if I want a shorter inactivity period on mainnet?
+
+The minimum on mainnet is 180 days (15,552,000 seconds). This floor is enforced immutably in the contract — it cannot be lowered. 
+
+On Sepolia testnet, the minimum is 5 minutes (300 seconds), which allows the full recovery cycle to be tested in a single session. See the [Testnet Walkthrough](/docs/user-guide/testnet-walkthrough) for a step-by-step guide.
+
+---
+
+## The Backup Address
+
+### What if I lose access to my backup address?
+
+If you still control your primary (registered) wallet, this is not a problem. Call `updateBackupAddress()` with a new, valid backup address. Your timer resets as a side effect. The new address takes effect immediately.
+
+The backup address only matters if recovery triggers — and recovery only triggers after your full inactivity period elapses with no interactions. As long as you can still interact with your vault, you control where recovery goes.
+
+### What if my backup address fails to receive ETH?
+
+If the backup address cannot accept ETH (for example, it is a smart contract that reverts on `receive()`), the recovery attempt fails. The contract:
+1. Restores your vault balance
+2. Increments the failed attempt counter
+3. Re-adds your vault to monitoring for retry
+4. Emits a `RecoveryFailed` event
+
+Chainlink will retry up to three times. After three consecutive failures, the vault is permanently abandoned — your balance remains accessible, but automatic monitoring stops and the backup address is blocked from future use. See [Automatic Recovery](/docs/how-it-works/automatic-recovery) for the full failure-handling lifecycle.
+
+### Can I use the same backup address for multiple vaults?
+
+Yes — the same backup address can receive funds from multiple different primary wallets. The restriction is one vault per primary address, not one backup address globally.
+
+The only limitation is that a backup address permanently blocked due to three failed recovery attempts cannot be used in any registration going forward, regardless of which primary wallet is trying to use it.
+
+---
+
+## Technical
+
+### Can I have multiple vaults?
+
+Each Ethereum address can register one vault. If you want to protect multiple wallets, each wallet registers its own vault independently with potentially different backup addresses and inactivity periods.
+
+### What is the Chainlink forwarder and why does it matter?
+
+When you register an upkeep with Chainlink Automation, Chainlink deploys a unique forwarder contract specifically for that upkeep. After `setForwarder()` is called on AeternumVault, only that forwarder address is permitted to call `performUpkeep()`.
+
+Without the forwarder check, anyone could craft a malicious `performData` payload and call `performUpkeep` directly, potentially attempting to manipulate which vaults get processed in a given batch. The forwarder lock eliminates this attack surface entirely — `performUpkeep` becomes a function that only Chainlink's infrastructure can trigger.
+
+### What if Chainlink Automation goes down?
+
+Chainlink Automation is a decentralised network with thousands of independent nodes distributed globally. A complete outage would require the vast majority of those nodes to fail simultaneously — an extremely unlikely scenario.
+
+If the network were somehow unavailable, your ETH would remain safely in your vault until service resumes. Recovery would be delayed, not lost. The worst-case outcome is that your backup plan fires later than expected, not that it fails to fire at all.
+
+### Does AeternumVault accept ETH sent directly to the contract address?
+
+No. The contract's `receive()` function reverts unconditionally:
+
+```solidity
+receive() external payable {
+    revert AeternumVault__DirectTransferNotAllowed();
+}
+```
+
+If you accidentally send ETH directly to the contract address without using `deposit()` or `register()`, the transaction fails and your ETH is returned. This prevents funds from becoming permanently stranded with no vault association.
+
+### What is the contract address on Sepolia?
+
+The AeternumVault contract on Ethereum Sepolia is deployed at:
+
+```
+0x33f81c1199732094744ee2efabe9adf8c4eff0db
+```
+
+You can explore it on [Sepolia Etherscan](https://sepolia.etherscan.io/address/0x33f81c1199732094744ee2efabe9adf8c4eff0db), including all transactions, events, and the verified source code.
+
+Mainnet deployment will be announced publicly after the external security audit is complete.
+
+### What is the difference between withdrawAll() and cancelRecovery()?
+
+Both functions return ETH to your wallet. The difference is what happens to your vault afterwards:
+
+- **`withdrawAll()`** — returns your entire balance but **keeps your vault active**. You remain registered and monitored. You can deposit again at any time. Your timer resets.
+
+- **`cancelRecovery()`** — returns your entire balance AND **deregisters your vault**. You are removed from monitoring entirely. To re-activate recovery protection, you must call `register()` again.
+
+Use `withdrawAll()` when you want your ETH back temporarily but plan to continue using the vault. Use `cancelRecovery()` when you want a clean exit.
