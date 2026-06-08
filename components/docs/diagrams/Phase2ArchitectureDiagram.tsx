@@ -114,144 +114,144 @@ export function Phase2ArchitectureDiagram() {
           <rect x="185" y="50" width="440" height="292" rx="15"
                 style={{ fill: C.cardDark }} />
 
-          {/* --- EOA BOX  (x=205, y=86, w=160, h=228 → bottom y=314) */}
+          {/* --- EOA BOX  (x=205, y=82, w=160, h=228 → bottom y=310) */}
           {/* Box */}
-          <rect x="205" y="86" width="160" height="228" rx="10"
+          <rect x="205" y="82" width="160" height="228" rx="10"
                 style={{ fill: C.card, stroke: C.border, strokeWidth: 1.5 }} />
 
           {/* Header — single path, top-rounded only (no rx=0 seam artefact)
-              y=86 → y=126, r=10 */}
-          <path d="M 205,126 L 205,96 Q 205,86 215,86 L 355,86 Q 365,86 365,96 L 365,126 Z"
+              y=82 → y=122, r=10 */}
+          <path d="M 205,122 L 205,92 Q 205,82 215,82 L 355,82 Q 365,82 365,92 L 365,122 Z"
                 style={{ fill: C.cardMid }} />
 
-          <text x="285" y="112" textAnchor="middle"
+          <text x="285" y="108" textAnchor="middle"
                 style={{ fill: C.fg, fontSize: 13, fontWeight: 700 }}>
             ◈  Your EOA
           </text>
 
           {/* Address pill */}
-          <rect x="224" y="133" width="122" height="18" rx="5"
+          <rect x="224" y="129" width="122" height="18" rx="5"
                 style={{ fill: 'hsl(0,0%,8%)', stroke: C.border, strokeWidth: 1 }} />
-          <text x="285" y="146" textAnchor="middle"
+          <text x="285" y="142" textAnchor="middle"
                 style={{ fill: C.dim, fontSize: 8.5, fontFamily: 'monospace' }}>
             0x1234…abcd
           </text>
 
-          <text x="285" y="165" textAnchor="middle" style={{ fill: C.muted, fontSize: 9 }}>
+          <text x="285" y="161" textAnchor="middle" style={{ fill: C.muted, fontSize: 9 }}>
             Unchanged address.
           </text>
-          <text x="285" y="179" textAnchor="middle" style={{ fill: C.muted, fontSize: 9 }}>
+          <text x="285" y="175" textAnchor="middle" style={{ fill: C.muted, fontSize: 9 }}>
             ETH + tokens live here.
           </text>
 
           {/* Divider */}
-          <line x1="223" y1="189" x2="347" y2="189"
+          <line x1="223" y1="185" x2="347" y2="185"
                 style={{ stroke: C.border, strokeWidth: 1 }} />
 
           {/* No custody badge */}
-          <rect x="222" y="197" width="126" height="22" rx="5"
+          <rect x="222" y="193" width="126" height="22" rx="5"
                 style={{ fill: C.greenDim, stroke: C.greenBorder, strokeWidth: 1 }} />
-          <text x="285" y="212" textAnchor="middle"
+          <text x="285" y="208" textAnchor="middle"
                 style={{ fill: C.greenText, fontSize: 9, fontWeight: 700 }}>
             ✓ No custody transfer
           </text>
 
-          <text x="285" y="238" textAnchor="middle" style={{ fill: C.muted, fontSize: 9 }}>
+          <text x="285" y="234" textAnchor="middle" style={{ fill: C.muted, fontSize: 9 }}>
             Import existing wallet
           </text>
-          <text x="285" y="252" textAnchor="middle" style={{ fill: C.muted, fontSize: 9 }}>
+          <text x="285" y="248" textAnchor="middle" style={{ fill: C.muted, fontSize: 9 }}>
             or create a new one
           </text>
 
           {/* Identical-to-MetaMask badge */}
-          <rect x="222" y="264" width="126" height="22" rx="5"
+          <rect x="222" y="260" width="126" height="22" rx="5"
                 style={{ fill: C.cardMid, stroke: C.border, strokeWidth: 1 }} />
-          <text x="285" y="279" textAnchor="middle"
+          <text x="285" y="275" textAnchor="middle"
                 style={{ fill: C.dim, fontSize: 9, fontWeight: 600 }}>
             ≡ Identical to MetaMask
           </text>
 
-          <text x="285" y="300" textAnchor="middle"
+          <text x="285" y="296" textAnchor="middle"
                 style={{ fill: C.muted, fontSize: 8.5, fontStyle: 'italic' }}>
             invisible from dApps
           </text>
 
           {/* --- EIP-7702 DELEGATION BRIDGE */}
           {/* Dashed line spanning the full gap */}
-          <line x1="365" y1="200" x2="420" y2="200"
+          <line x1="365" y1="196" x2="420" y2="196"
                 style={{ stroke: C.purple, strokeWidth: 2, strokeDasharray: '5,3' }} />
 
           {/* Left arrowhead — tip at EOA right edge (x=365), pointing ← */}
-          <polygon points="365,195 373,200 365,205" style={{ fill: C.purple }} />
+          <polygon points="365,191 373,196 365,201" style={{ fill: C.purple }} />
 
           {/* Right arrowhead — tip at ARM left edge (x=420), pointing → */}
-          <polygon points="420,195 412,200 420,205" style={{ fill: C.purple }} />
+          <polygon points="420,191 412,196 420,201" style={{ fill: C.purple }} />
 
           {/* Label pill — centred at x=393, perfectly between the two boxes */}
-          <rect x="371" y="184" width="44" height="16" rx="4"
+          <rect x="371" y="180" width="44" height="16" rx="4"
                 style={{ fill: C.purpleMed, stroke: C.purpleBorder, strokeWidth: 1 }} />
-          <text x="393" y="196" textAnchor="middle"
+          <text x="393" y="192" textAnchor="middle"
                 style={{ fill: C.purpleText, fontSize: 7.5, fontWeight: 700 }}>
             EIP-7702
           </text>
 
           {/* "delegation" sub-label — centred at x=393 */}
-          <text x="393" y="218" textAnchor="middle"
+          <text x="393" y="214" textAnchor="middle"
                 style={{ fill: C.muted, fontSize: 8 }}>
             delegation
           </text>
 
-          {/* --- ARM BOX  (x=420, y=86, w=160, h=228 → bottom y=314) */}
+          {/* --- ARM BOX  (x=420, y=82, w=160, h=228 → bottom y=310) */}
           {/* Box */}
-          <rect x="420" y="86" width="160" height="228" rx="10"
+          <rect x="420" y="82" width="160" height="228" rx="10"
                 style={{ fill: C.purpleDim, stroke: C.purpleBorder, strokeWidth: 1.5 }} />
 
-          {/* Header — single path, top-rounded only, 50px tall (y=86→y=136)
+          {/* Header — single path, top-rounded only, 50px tall (y=82→y=132)
               Both title lines live inside; no gap / no seam between them */}
-          <path d="M 420,136 L 420,96 Q 420,86 430,86 L 570,86 Q 580,86 580,96 L 580,136 Z"
+          <path d="M 420,132 L 420,92 Q 420,82 430,82 L 570,82 Q 580,82 580,92 L 580,132 Z"
                 style={{ fill: C.purpleMed }} />
 
-          <text x="500" y="110" textAnchor="middle"
+          <text x="500" y="106" textAnchor="middle"
                 style={{ fill: C.purpleText, fontSize: 12, fontWeight: 700 }}>
             Recovery Manager
           </text>
-          <text x="500" y="128" textAnchor="middle"
+          <text x="500" y="124" textAnchor="middle"
                 style={{ fill: C.purple, fontSize: 8 }}>
             AeternumRecoveryManager
           </text>
 
           {/* Divider — immediately below the header */}
-          <line x1="437" y1="140" x2="563" y2="140"
+          <line x1="437" y1="136" x2="563" y2="136"
                 style={{ stroke: C.purpleBorder, strokeWidth: 1 }} />
 
-          <text x="500" y="156" textAnchor="middle" style={{ fill: C.muted, fontSize: 9 }}>
+          <text x="500" y="152" textAnchor="middle" style={{ fill: C.muted, fontSize: 9 }}>
             Monitors inactivity timer
           </text>
-          <text x="500" y="170" textAnchor="middle" style={{ fill: C.muted, fontSize: 9 }}>
+          <text x="500" y="166" textAnchor="middle" style={{ fill: C.muted, fontSize: 9 }}>
             Executes recovery logic
           </text>
 
           {/* Inactivity progress bar */}
-          <rect x="434" y="180" width="132" height="10" rx="3"
+          <rect x="434" y="176" width="132" height="10" rx="3"
                 style={{ fill: 'hsl(0,0%,8%)', stroke: C.purpleBorder, strokeWidth: 1 }} />
-          <rect x="434" y="180" width="88"  height="10" rx="3"
+          <rect x="434" y="176" width="88"  height="10" rx="3"
                 style={{ fill: 'hsla(263,65%,62%,0.45)' }} />
-          <text x="500" y="204" textAnchor="middle" style={{ fill: C.muted, fontSize: 8.5 }}>
+          <text x="500" y="200" textAnchor="middle" style={{ fill: C.muted, fontSize: 8.5 }}>
             Inactivity countdown
           </text>
 
           {/* Auto-ping badge */}
-          <rect x="432" y="212" width="136" height="22" rx="5"
+          <rect x="432" y="208" width="136" height="22" rx="5"
                 style={{ fill: 'hsla(263,65%,62%,0.08)', stroke: C.purpleBorder, strokeWidth: 1 }} />
-          <text x="500" y="227" textAnchor="middle"
+          <text x="500" y="223" textAnchor="middle"
                 style={{ fill: C.purpleText, fontSize: 9, fontWeight: 700 }}>
             App open = auto-ping ↺
           </text>
 
-          <text x="500" y="248" textAnchor="middle" style={{ fill: C.muted, fontSize: 9 }}>
+          <text x="500" y="244" textAnchor="middle" style={{ fill: C.muted, fontSize: 9 }}>
             No manual ping() needed
           </text>
-          <text x="500" y="262" textAnchor="middle" style={{ fill: C.muted, fontSize: 9 }}>
+          <text x="500" y="258" textAnchor="middle" style={{ fill: C.muted, fontSize: 9 }}>
             ETH + ERC-20 recovery
           </text>
 
