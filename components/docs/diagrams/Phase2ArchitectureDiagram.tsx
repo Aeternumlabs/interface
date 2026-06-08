@@ -188,16 +188,16 @@ export function Phase2ArchitectureDiagram() {
           <polygon points="433,191 425,196 433,201" style={{ fill: C.purple }} />
 
           {/* Label pill — centred at x=393, perfectly between the two boxes */}
-          <rect x="384" y="180" width="44" height="16" rx="4"
+          <rect x="384" y="170" width="44" height="16" rx="4"
                 style={{ fill: C.purpleMed, stroke: C.purpleBorder, strokeWidth: 1 }} />
-          <text x="406" y="192" textAnchor="middle"
+          <text x="406" y="182" textAnchor="middle"
                 style={{ fill: C.purpleText, fontSize: 7.5, fontWeight: 700 }}>
             EIP-7702
           </text>
 
           {/* "delegation" sub-label — centred at x=393 */}
-                              <text x="406" y="214" textAnchor="middle"
-                style={{ fill: C.muted, fontSize: 8 }}>
+                              <text x="406" y="210" textAnchor="middle"
+                style={{ fill: C.muted, fontSize: 9 }}>
             delegation
           </text>
 
@@ -296,14 +296,14 @@ export function Phase2ArchitectureDiagram() {
 
           {/* --- Arrows: Standard Apps ↔ EOA */}
           {/* Apps → EOA */}
-          <line x1="155" y1="186" x2="197" y2="186"
+          <line x1="155" y1="186" x2="218" y2="186"
                 style={{ stroke: C.arrowGray, strokeWidth: 1.5 }}
                 markerEnd="url(#p2-gray)" />
-          <text x="176" y="178" textAnchor="middle" style={{ fill: C.dim, fontSize: 8.5 }}>
+          <text x="186" y="178" textAnchor="middle" style={{ fill: C.dim, fontSize: 8.5 }}>
             use
           </text>
           {/* EOA → Apps */}
-          <line x1="197" y1="210" x2="155" y2="210"
+          <line x1="218" y1="210" x2="155" y2="210"
                 style={{ stroke: C.arrowGray, strokeWidth: 1.5 }}
                 markerEnd="url(#p2-gray)" />
 
@@ -327,29 +327,29 @@ export function Phase2ArchitectureDiagram() {
 
           {/* --- Arrows: ARM ↔ Chainlink */}
           {/* ARM → Chainlink: checkUpkeep (off-chain, dashed) */}
-          <line x1="580" y1="116" x2="647" y2="116"
+          <line x1="593" y1="116" x2="655" y2="116"
                 style={{ stroke: C.purple, strokeWidth: 1.5, strokeDasharray: '5,4', opacity: 0.8 }}
                 markerEnd="url(#p2-purple)" />
-          <text x="614" y="107" textAnchor="middle"
-                style={{ fill: C.purple, fontSize: 8.5 }}>
+          <text x="624" y="107" textAnchor="middle"
+                style={{ fill: C.purple, fontSize: 7.5 }}>
             checkUpkeep
           </text>
-          <text x="614" y="99" textAnchor="middle"
+          <text x="624" y="99" textAnchor="middle"
                 style={{ fill: C.muted, fontSize: 7.5 }}>
-            off-chain · free
+            (off-chain)
           </text>
 
           {/* Chainlink → ARM: performUpkeep (on-chain, solid) */}
-          <line x1="647" y1="148" x2="580" y2="148"
+          <line x1="655" y1="148" x2="593" y2="148"
                 style={{ stroke: C.purple, strokeWidth: 1.5 }}
                 markerEnd="url(#p2-purple)" />
-          <text x="614" y="163" textAnchor="middle"
-                style={{ fill: C.purple, fontSize: 8.5 }}>
+          <text x="624" y="163" textAnchor="middle"
+                style={{ fill: C.purple, fontSize: 7.5 }}>
             performUpkeep
           </text>
-          <text x="614" y="172" textAnchor="middle"
+          <text x="624" y="172" textAnchor="middle"
                 style={{ fill: C.muted, fontSize: 7.5 }}>
-            on-chain · costs LINK
+            (on-chain)
           </text>
 
           {/* --- BACKUP ADDRESS BOX  (x=655, left edge gap from container=30px) */}
@@ -375,11 +375,11 @@ export function Phase2ArchitectureDiagram() {
           <path d="M 500,314 V 368 H 647"
                 style={{ stroke: C.green, strokeWidth: 2, fill: 'none' }}
                 markerEnd="url(#p2-green)" />
-          <text x="510" y="384" textAnchor="start"
+          <text x="525" y="384" textAnchor="start"
                 style={{ fill: C.greenText, fontSize: 10, fontWeight: 600 }}>
             Recovery Transfer
           </text>
-          <text x="510" y="397" textAnchor="start"
+          <text x="525" y="397" textAnchor="start"
                 style={{ fill: C.green, fontSize: 9 }}>
             ETH + ERC-20 tokens
           </text>
