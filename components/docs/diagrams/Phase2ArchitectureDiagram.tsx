@@ -245,7 +245,7 @@ export function Phase2ArchitectureDiagram() {
                 style={{ fill: 'hsla(263,65%,62%,0.08)', stroke: C.purpleBorder, strokeWidth: 1 }} />
           <text x="513" y="223" textAnchor="middle"
                 style={{ fill: C.purpleText, fontSize: 9, fontWeight: 700 }}>
-            App open = auto-ping ↺
+            App open = auto-ping
           </text>
 
                               <text x="513" y="244" textAnchor="middle" style={{ fill: C.muted, fontSize: 9 }}>
