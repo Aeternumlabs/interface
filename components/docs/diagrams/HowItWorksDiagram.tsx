@@ -131,7 +131,7 @@ export function HowItWorksDiagram() {
           </text>
           <text x="380" y="139" textAnchor="middle"
                 style={{ fill: C.muted, fontSize: 10 }}>
-            Smart Contract · Sepolia
+            Smart Contract
           </text>
 
           {/* Node: Chainlink Automation */}
@@ -165,7 +165,7 @@ export function HowItWorksDiagram() {
                 markerEnd="url(#hiw-arr-gray)" />
           <text x="229" y="94" textAnchor="middle"
                 style={{ fill: C.dim, fontSize: 10 }}>
-            deposit · register · ping
+            register · deposit · ping
           </text>
 
           {/* Arrow 2: Vault → User (withdraw / send) */}
@@ -189,9 +189,13 @@ export function HowItWorksDiagram() {
                   opacity: 0.7,
                 }}
                 markerEnd="url(#hiw-arr-purple)" />
-          <text x="522" y="94" textAnchor="middle"
-                style={{ fill: C.purple, fontSize: 10, opacity: 0.85 }}>
-            checkUpkeep (off-chain)
+          <text x="522" y="85" textAnchor="middle"
+                style={{ fill: C.purple, fontSize: 10 }}>
+            checkUpkeep
+          </text>
+          <text x="522" y="97" textAnchor="middle"
+                style={{ fill: C.purple, fontSize: 10 }}>
+            (off-chain)
           </text>
 
           {/* Arrow 4: Chainlink → Vault (performUpkeep, solid) */}
@@ -199,9 +203,13 @@ export function HowItWorksDiagram() {
           <path d="M 591,137 H 472"
                 style={{ stroke: C.purple, strokeWidth: 1.5, fill: 'none' }}
                 markerEnd="url(#hiw-arr-purple)" />
-          <text x="531" y="155" textAnchor="middle"
+          <text x="531" y="150" textAnchor="middle"
                 style={{ fill: C.purple, fontSize: 10 }}>
-            performUpkeep (on-chain)
+            performUpkeep
+          </text>
+          <text x="531" y="160" textAnchor="middle"
+                style={{ fill: C.purple, fontSize: 10 }}>
+            (on-chain)
           </text>
 
           {/* Arrow 5: Vault → Backup (recovery transfer, green) */}
