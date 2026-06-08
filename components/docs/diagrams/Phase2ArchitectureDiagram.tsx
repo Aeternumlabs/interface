@@ -258,14 +258,14 @@ export function Phase2ArchitectureDiagram() {
           {/* Multi-asset badge — 32px tall so both lines are vertically centred
               Badge: y=272, h=32 → centre y=288
               Line 1 at y=284 (above centre), Line 2 at y=299 (below centre) */}
-          <rect x="432" y="272" width="136" height="32" rx="5"
+          <rect x="445" y="269" width="136" height="32" rx="5"
                 style={{ fill: C.cardMid, stroke: C.border, strokeWidth: 1 }} />
-          <text x="500" y="285" textAnchor="middle"
+          <text x="513" y="282" textAnchor="middle"
                 style={{ fill: C.dim, fontSize: 9, fontWeight: 600 }}>
             Multi-asset support
           </text>
-          <text x="500" y="299" textAnchor="middle"
-                style={{ fill: C.muted, fontSize: 7.5, fontStyle: 'italic' }}>
+          <text x="513" y="295" textAnchor="middle"
+                style={{ fill: C.muted, fontSize: 8, fontStyle: 'italic' }}>
             token failures isolated
           </text>
 
@@ -296,14 +296,14 @@ export function Phase2ArchitectureDiagram() {
 
           {/* --- Arrows: Standard Apps ↔ EOA */}
           {/* Apps → EOA */}
-          <line x1="155" y1="186" x2="218" y2="186"
+          <line x1="155" y1="186" x2="217" y2="186"
                 style={{ stroke: C.arrowGray, strokeWidth: 1.5 }}
                 markerEnd="url(#p2-gray)" />
           <text x="186" y="178" textAnchor="middle" style={{ fill: C.dim, fontSize: 8.5 }}>
             use
           </text>
           {/* EOA → Apps */}
-          <line x1="218" y1="210" x2="155" y2="210"
+          <line x1="218" y1="210" x2="156" y2="210"
                 style={{ stroke: C.arrowGray, strokeWidth: 1.5 }}
                 markerEnd="url(#p2-gray)" />
 
@@ -327,7 +327,7 @@ export function Phase2ArchitectureDiagram() {
 
           {/* --- Arrows: ARM ↔ Chainlink */}
           {/* ARM → Chainlink: checkUpkeep (off-chain, dashed) */}
-          <line x1="593" y1="116" x2="655" y2="116"
+          <line x1="593" y1="116" x2="654" y2="116"
                 style={{ stroke: C.purple, strokeWidth: 1.5, strokeDasharray: '5,4', opacity: 0.8 }}
                 markerEnd="url(#p2-purple)" />
           <text x="624" y="107" textAnchor="middle"
@@ -340,7 +340,7 @@ export function Phase2ArchitectureDiagram() {
           </text>
 
           {/* Chainlink → ARM: performUpkeep (on-chain, solid) */}
-          <line x1="655" y1="148" x2="593" y2="148"
+          <line x1="655" y1="148" x2="594" y2="148"
                 style={{ stroke: C.purple, strokeWidth: 1.5 }}
                 markerEnd="url(#p2-purple)" />
           <text x="624" y="163" textAnchor="middle"
@@ -372,7 +372,7 @@ export function Phase2ArchitectureDiagram() {
 
 
           {/* --- Recovery arrow: ARM bottom-centre */}
-          <path d="M 500,314 V 368 H 647"
+          <path d="M 500,311 V 368 H 653"
                 style={{ stroke: C.green, strokeWidth: 2, fill: 'none' }}
                 markerEnd="url(#p2-green)" />
           <text x="525" y="384" textAnchor="start"
