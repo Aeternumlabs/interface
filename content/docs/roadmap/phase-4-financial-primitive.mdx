@@ -1,0 +1,113 @@
+---
+title: Phase 4 — Financial Primitive
+description: Self-custodial yield automation, programmable disbursements, and enterprise APIs — everything built on the recovery foundation.
+badge: coming-soon
+---
+
+<Callout type="info" title="Coming soon">
+  Phase 4 builds on a stable, audited Phase 3 deployment. The yield strategies and disbursement primitives described here are in research and design. No timeline is committed.
+</Callout>
+
+## The Premise
+
+Every feature in Phases 1–3 is about protecting what you already have. Phase 4 asks a different question: **what if the assets you are protecting could also be working for you?**
+
+Phase 4 transforms the Aeternum hybrid wallet from a custody and recovery tool into a fully programmable financial primitive. The inheritance guarantee from Phase 1 remains the bedrock — it is never weakened, never traded off. Everything in Phase 4 is **purely additive and entirely opt-in**. No core wallet behaviour changes, and no assets are ever touched unless the user explicitly authorises a strategy.
+
+---
+
+## Self-Custodial Yield Automation
+
+Users who want their capital productive can initialise yield strategies directly from their Aeternum wallet. There is no intermediary routing funds — the user's own wallet executes the on-chain logic to deposit into premier, audited DeFi protocols. The user holds the resulting yield-bearing positions natively in their own account.
+
+Three strategy tiers are planned:
+
+### Conservative — Lido Liquid Staking
+
+The account programmatically mints **stETH** via Lido's liquid staking contracts, earning native Ethereum staking rewards. stETH rebases daily — the user's balance grows automatically without any additional transactions.
+
+- Risk profile: low — stETH is backed 1:1 by ETH staked with Lido's node operators
+- Liquidity: high — stETH trades at near-parity with ETH on Curve and major DEXes
+- Expected yield: ~4–5% APY (tracks Ethereum validator rewards)
+
+### Moderate — Aave Lending Markets
+
+The account deposits assets directly into **Aave V3 lending markets**, accumulating variable lending yields in aWETH (the interest-bearing receipt token). Yield fluctuates with market borrow demand.
+
+- Risk profile: moderate — smart contract risk plus utilisation rate variability
+- Liquidity: high when pool utilisation is below 100%
+- Expected yield: 2–8% APY depending on market conditions
+
+### Optimised — Dynamic Multi-Protocol Allocation
+
+The account dynamically allocates capital across multiple verified protocols based on live yield spreads, orchestrated entirely on-chain via Chainlink Automation modules. The rebalancing logic is authorised by the user and executed without off-chain intervention.
+
+- Risk profile: moderate — additional complexity from multi-protocol exposure
+- Liquidity: depends on allocation mix
+- Expected yield: targets best available on-chain rate at any given time
+
+<Callout type="tip" title="All yield strategies are opt-in and reversible">
+  Users who want recovery-only protection with no yield involvement can ignore all of this entirely. The base Aeternum wallet — deposit, send, withdraw, recover — is unchanged in Phase 4. Yield is a layer on top.
+</Callout>
+
+---
+
+## Programmable Position Unwinding
+
+Because yield-bearing positions are held natively by the user's own address, they fall completely under Aeternum's recovery architecture. When recovery triggers on a wallet holding stETH or aWETH, the contract does not simply attempt to transfer those tokens — it first unwinds the positions into base ETH, then transfers the proceeds.
+
+This is necessary because yield-bearing and rebasing tokens have unique transfer mechanics that do not map cleanly to a simple "send to backup address" flow.
+
+### stETH Unwinding
+
+The `AeternumRecoveryManager` triggers a programmatic swap of stETH to ETH via the **Curve stETH/ETH liquidity pool**, prioritising immediate settlement and liquid distribution to the backup address. The user receives ETH at the current stETH/ETH exchange rate.
+
+### aWETH Unwinding
+
+The recovery script invokes **Aave Pool's `withdraw()` function** directly from the user's account context to redeem the underlying WETH plus all accrued interest. It then unwraps the WETH to native ETH and completes the recovery transfer.
+
+If an Aave pool hits 100% utilisation and temporarily restricts withdrawals, the system falls back to the `MAX_RECOVERY_ATTEMPTS` retry loop — gracefully retrying on subsequent Chainlink cycles rather than failing permanently.
+
+---
+
+## The Automated Disbursement Layer
+
+This is where Aeternum becomes genuinely novel as a financial primitive.
+
+Consider a user who holds 50 ETH in their Aeternum wallet. They choose to:
+- Keep 30 ETH in recovery-only mode, earning no yield
+- Route 20 ETH to Aave for yield
+- Configure a disbursement rule: send 0.5 ETH to their children's wallets on the first of every month
+- Set a recovery trigger: if inactive for 365 days, send everything to their designated backup address
+
+Chainlink Automation executes all of it. The monthly disbursements run on the same infrastructure as the recovery monitoring. The inheritance trigger and the disbursement triggers share the same underlying primitives — a monitored wallet with programmable execution rules.
+
+```
+User's Aeternum Wallet (50 ETH)
+│
+├── 30 ETH ─── Recovery-only (no yield)
+│
+├── 20 ETH ─── Aave lending (earning aWETH yield)
+│
+├── Monthly: 0.5 ETH → children's wallets  (Chainlink executes on schedule)
+│
+└── On inactivity: everything → backup address  (Chainlink executes on trigger)
+```
+
+---
+
+## Enterprise APIs
+
+Phase 4 exposes Aeternum's infrastructure as a programmatic API surface for institutions and developers building on top of it.
+
+Use cases being designed:
+
+**Treasury automation.** A company treasurer configures recurring payroll disbursements from a yield-bearing treasury account. The Aeternum recovery layer provides a fallback if the treasury becomes unmanaged — assets route to a designated succession address automatically.
+
+**DAO grant distribution.** A DAO configures automated grant payments with built-in inheritance fallback. If the DAO's governance becomes inactive, assets can route to a community-controlled multisig.
+
+**Custody tools.** Builders developing wallet products or custody solutions can integrate the recovery engine and disbursement infrastructure without building the monitoring layer from scratch.
+
+**Compliance and estate planning.** Institutional users can configure auditable recovery flows that satisfy legal requirements for digital asset succession.
+
+The API surface will be documented in full as Phase 4 contracts are designed and audited. The recovery guarantee — that the user's assets go where they configured, automatically — remains the foundation everything else is built on.
