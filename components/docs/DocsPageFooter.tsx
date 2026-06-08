@@ -49,9 +49,9 @@ function NavCard({ item, direction }: NavCardProps) {
       href={`/docs/${item.slug}`}
       className={cn(
         // Base layout
-        'group flex w-full flex-col gap-1',
+        'group flex w-full flex-col gap-0.5',
         'rounded-lg border border-border/50 bg-card',
-        'px-4 py-4',
+        'px-4 py-2',
         // Hover
         'transition-colors duration-150',
         'hover:border-border hover:bg-accent/40',
