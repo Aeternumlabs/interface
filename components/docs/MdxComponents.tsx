@@ -49,6 +49,7 @@ import { StepList, StepItem } from './StepList'
 import { FunctionCard } from './FunctionCard'
 import { HowItWorksDiagram } from './diagrams/HowItWorksDiagram'
 import { RollingCursorDiagram } from './diagrams/RollingCursorDiagram'
+import { Phase2ArchitectureDiagram } from './diagrams/Phase2ArchitectureDiagram'
 
 // --- Shared style constants ---
 // --chart-1: 263 65% 62% — used for links and tip accents
@@ -351,4 +352,5 @@ export const mdxComponents: MDXComponents = {
   FunctionCard,
   HowItWorksDiagram,
   RollingCursorDiagram,
+  Phase2ArchitectureDiagram,
 }
