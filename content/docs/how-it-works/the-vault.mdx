@@ -36,15 +36,15 @@ This is a deliberate design choice. The `s_configs` mapping gives each wallet it
 
 Your vault supports the full set of operations you would expect from a standard Ethereum wallet, plus the recovery-specific functions:
 
-| Function | What it does | Resets timer? |
-| --- | --- | --- |
-| `deposit()` | Add ETH to your vault | Yes |
-| `send(to, amount)` | Send ETH from your vault to any address | Yes |
-| `withdrawAll()` | Pull your entire balance back to your own wallet | Yes |
-| `ping()` | Prove liveness without moving funds | Yes |
-| `updateBackupAddress(newAddr)` | Change your backup address | Yes |
-| `updateInactivityPeriod(newPeriod)` | Change your inactivity timer | Yes |
-| `cancelRecovery()` | Withdraw everything and remove your vault from monitoring | — |
+| Function | What it does |
+| --- | --- |
+| `deposit()` | Add ETH to your vault |
+| `send(to, amount)` | Send ETH from your vault to any address |
+| `withdrawAll()` | Pull your entire balance back to your own wallet |
+| `ping()` | Prove liveness without moving funds |
+| `updateBackupAddress(newAddr)` | Change your backup address |
+| `updateInactivityPeriod(newPeriod)` | Change your inactivity timer |
+| `cancelRecovery()` | Withdraw everything and remove your vault from monitoring |
 
 Every function that touches the contract resets your inactivity timer — because any on-chain interaction is proof that you are alive and in control of your wallet. The only exception is `cancelRecovery()`, which closes your vault entirely.
 
@@ -87,7 +87,7 @@ The balance reduction and timer reset happen before the ETH transfer. This follo
   Once you call `cancelRecovery()`, you are no longer protected. Your ETH is returned to you, but the automatic backup plan is gone. If you want continued protection, you need to call `register()` again.
 </Callout>
 
-## Free in Version 1
+## Version 1 is free
 
 AeternumVault v1 has no subscription fees, no tiers, and no protocol-level charges. The only costs are standard Ethereum gas fees for the transactions you initiate (register, deposit, send, etc.). The Chainlink Automation upkeep — the service that watches your vault and triggers recovery — is funded separately and does not pass costs on to individual users.
 
