@@ -40,17 +40,21 @@ Request at least **0.05 Sepolia ETH** — enough to cover gas fees and fund your
   </StepItem>
 
   <StepItem step={3} title="Register your vault">
-    Click **Register** in the vault dashboard. You will be asked for two values:
+    Click **Register** in the vault dashboard. Provide the two required parameters and an optional initial deposit:
 
     **Backup address** — the Ethereum address that receives your ETH if recovery triggers. This should be a wallet you fully control (a separate MetaMask account, a hardware wallet, or a trusted address). It cannot be your own connected address.
 
-    **Inactivity period** — how long you need to be silent before recovery fires. For testing on Sepolia, enter **300 seconds (5 minutes)**. For real use, the minimum on mainnet is 180 days.
+    **Inactivity period** — how long you need to be silent before recovery fires. For testing on Sepolia, enter **5 minutes**. For real use, the minimum on mainnet is 180 days.
+
+    **Optional deposit** - the initial amount of ETH you want to secure in the vault right away. Leaving this empty is perfectly fine; you can easily deposit funds into your vault at any time after registration is complete.
 
     Confirm the registration transaction in your wallet. The `register()` call costs a small amount of gas.
   </StepItem>
 
-  <StepItem step={4} title="Deposit test ETH into your vault">
-    Once registered, click **Deposit** and enter an amount of Sepolia ETH to vault (e.g. `0.01`). Confirm the transaction. Your vault balance will update on the dashboard and the recovery countdown timer will begin.
+  <StepItem step={4} title="Deposit test ETH (If skipped in Step 3)">
+    If you chose not to make an initial deposit during registration, click **Deposit** on your dashboard now. Enter an amount of Sepolia ETH to secure (e.g., `0.02`) and confirm the transaction. 
+
+    Once the funds are deposited, your vault balance will update on the dashboard and the recovery countdown timer will begin active tracking.
   </StepItem>
 
   <StepItem step={5} title="Watch automatic recovery execute">
