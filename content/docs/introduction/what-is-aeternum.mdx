@@ -1,6 +1,6 @@
 ---
 title: What is Aeternum
-description: A trustless, non-custodial Ethereum vault with automated inactivity-based recovery — built for people who want self-custody without the risk of permanent loss.
+description: A trustless, non-custodial Ethereum vault with automated inactivity-based funds recovery — built for people who want self-custody without the risk of permanent loss.
 ---
 
 ## The Problem With Self-Custody
@@ -9,7 +9,9 @@ Self-custody is the right choice. When you hold your own private keys, no exchan
 
 But self-custody carries a risk that almost no one talks about openly: **if you ever lose access to your wallet — through a lost seed phrase, a destroyed hardware device, or simply being incapacitated — your ETH is gone forever.** There is no password reset, no customer support line, no recovery process. The blockchain does not know who you are; it only knows who controls the keys.
 
-This is a solved problem in traditional finance. Banks have account recovery, beneficiary designations, and estate processes. For self-custody Ethereum wallets, the equivalent has never existed — until now.
+Traditional finance solved this long ago through account recovery, beneficiary designations, and estate processes. In the Ethereum ecosystem, partial solutions like social recovery wallets and multisig configurations reduce single-point-of-failure risks. However, these tools share a critical flaw: they assume you are alive and capable of initiating the process. They solve for lost access, not permanent absence. Neither answers the harder question: what happens to your funds when you are no longer here to ask for help?
+
+Until now, a non-custodial, protocol-level dead man's switch that automatically transfers funds to a designated beneficiary — triggered by inactivity alone, with no human intermediary — has not existed as a deployable public primitive. **Aeternum is that primitive.**
 
 ## What Aeternum Does
 
@@ -41,7 +43,7 @@ The diagram above shows all four actors and the flow of interactions. Notice tha
 | --- | --- |
 | Custody | Non-custodial — the protocol holds funds on your behalf but cannot redirect them |
 | Admins | None — no owner key, no pause function, no upgrade mechanism |
-| Cost | Free in v1 — no subscription fees, no tiers, identical protection for every user |
+| Cost | AeternumVault V1 is free — no subscription fees, no tiers, identical protection for every user |
 | Network | Ethereum Sepolia (testnet) — mainnet pending external audit |
 | Recovery trigger | Purely time-based — only fires after your inactivity period fully elapses |
 | Minimum timer | 180 days (mainnet) · 5 minutes (Sepolia testnet) |
