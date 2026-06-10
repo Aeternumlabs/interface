@@ -21,7 +21,7 @@ struct RecoveryConfig {
     bool    isAbandoned;         // true if recovery failed 3 times
 }
 
-mapping(address => RecoveryConfig) private s_configs;
+mapping(address  => RecoveryConfig) private s_configs;
 ```
 
 Every field is per-wallet. There is no shared pool, no commingling, and no way for one user's vault state to affect another's.
