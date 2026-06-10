@@ -177,20 +177,24 @@ const LI = ({ children, ...props }: ComponentPropsWithoutRef<'li'>) => (
 
 /**
  * Code — two modes:
- *   Block code  → rendered inside <pre>, carries a language-* className
- *   Inline code → no className, rendered mid-sentence
+ * Block code  → transformed by rehype-pretty-code with tokens and styling
+ * Inline code → rendered mid-sentence, catches fallback styles
  */
 const Code = ({
   className,
   children,
   ...props
 }: ComponentPropsWithoutRef<'code'>) => {
-  const isBlock = Boolean(className?.startsWith('language-'))
+  // rehype-pretty-code attaches styling tokens; if they exist, or if it's explicitly block code
+  const isBlock = Boolean(className?.startsWith('language-')) || (props as any)['data-language']
 
   if (isBlock) {
     return (
       <code
-        className={cn('block font-mono text-sm text-foreground/90', className)}
+        className={cn(
+          'grid min-w-full overflow-x-auto font-mono text-sm py-2', 
+          className
+        )}
         {...props}
       >
         {children}
@@ -210,21 +214,15 @@ const Code = ({
 
 /**
  * Pre — code block wrapper.
- * Horizontally scrollable; uses the deepest background token (#050505 → 4%)
- * so it reads as recessed relative to the card background (#111111).
- *
- * Note: add rehype-pretty-code to the renderer's rehypePlugins array for
- * full syntax highlighting. The pre/code styling here provides a clean
- * fallback when no highlighter is configured.
+ * Receives specialized classes and themes directly from rehype-pretty-code.
  */
-const Pre = ({ children, ...props }: ComponentPropsWithoutRef<'pre'>) => (
+const Pre = ({ children, className, style, ...props }: ComponentPropsWithoutRef<'pre'>) => (
   <pre
     className={cn(
-      'my-6 overflow-x-auto rounded-lg',
-      'border border-border/50',
-      'bg-[hsl(0_0%_4%)]',
-      'p-5 font-mono text-sm leading-relaxed text-foreground/90',
+      'my-6 overflow-x-auto rounded-lg border border-border/50 bg-[hsl(0_0%_4%)] p-5 font-mono text-sm leading-relaxed',
+      className
     )}
+    style={style} 
     {...props}
   >
     {children}

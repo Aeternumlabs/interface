@@ -4,21 +4,21 @@
  * Dynamic MDX renderer — handles every content route under /docs.
  *
  * Route examples:
- *   /docs/introduction/what-is-aeternum  →  slug: ['introduction', 'what-is-aeternum']
- *   /docs/architecture/rolling-cursor    →  slug: ['architecture', 'rolling-cursor']
- *   /docs/faq                            →  slug: ['faq']
- *   /docs                                →  handled by app/docs/page.tsx (redirect)
+ * /docs/introduction/what-is-aeternum  →  slug: ['introduction', 'what-is-aeternum']
+ * /docs/architecture/rolling-cursor    →  slug: ['architecture', 'rolling-cursor']
+ * /docs/faq                            →  slug: ['faq']
+ * /docs                                →  handled by app/docs/page.tsx (redirect)
  *
  * Per-page lifecycle:
- *   1. Resolve slug segments → slug string
- *   2. Load + parse .mdx file via getDocContent()
- *   3. notFound() if slug is unregistered or file is missing
- *   4. Compile + render MDX via next-mdx-remote/rsc MDXRemote
- *   5. Wrap with DocsBreadcrumb + DocsPageFooter (prev / next)
+ * 1. Resolve slug segments → slug string
+ * 2. Load + parse .mdx file via getDocContent()
+ * 3. notFound() if slug is unregistered or file is missing
+ * 4. Compile + render MDX via next-mdx-remote/rsc MDXRemote
+ * 5. Wrap with DocsBreadcrumb + DocsPageFooter (prev / next)
  *
  * Build-time:
- *   generateStaticParams  — pre-renders every registered doc page as static HTML
- *   generateMetadata      — populates <title> and <meta description> per page
+ * generateStaticParams  — pre-renders every registered doc page as static HTML
+ * generateMetadata      — populates <title> and <meta description> per page
  *
  */
 
@@ -29,6 +29,7 @@ import type { PluggableList }     from 'unified'
 import remarkGfm                  from 'remark-gfm'
 import rehypeSlug                 from 'rehype-slug'
 import rehypeAutolinkHeadings     from 'rehype-autolink-headings'
+import rehypePrettyCode           from 'rehype-pretty-code'
 
 import { getDocContent, getAllDocSlugs, getDocMetadata } from '@/lib/docs'
 import { getAdjacentDocs }   from '@/config/docs-nav'
@@ -44,11 +45,19 @@ const remarkPlugins: PluggableList = [
   remarkGfm,
 ]
 
+// Configuration options for the syntax highlighter
+const prettyCodeOptions = {
+  theme: 'one-dark-pro', // Using a standard clean dark theme
+  keepBackground: false,  // Preserves Shiki's theme background color
+}
+
 const rehypePlugins: PluggableList = [
   rehypeSlug,
   // 'wrap' mode wraps the heading text in an <a> rather than prepending a
   // separate anchor element — cleaner markup and easier to style in MdxComponents
   [rehypeAutolinkHeadings, { behavior: 'wrap' }],
+  // Integrates syntax highlighting natively into the MDX compilation engine
+  [rehypePrettyCode, prettyCodeOptions],
 ]
 
 // --- Types ---
@@ -137,13 +146,13 @@ export default async function DocsPage({ params }: PageProps) {
       <hr className="my-8 border-border/50" />
 
       {/* MDX body */}
-      {/*                                                           */}
-      {/* min-w-0 prevents flex children (tables, code blocks)     */}
-      {/* from overflowing the article column.                     */}
-      {/*                                                           */}
+      {/* */}
+      {/* min-w-0 prevents flex children (tables, code blocks)    */}
+      {/* from overflowing the article column.                    */}
+      {/* */}
       {/* MDX files should start at h2 level — the h1 above is     */}
       {/* always rendered from frontmatter so headings in the MDX  */}
-      {/* source never duplicate the page title.                   */}
+      {/* source never duplicate the page title.                  */}
       <div className="min-w-0">
         <MDXRemote
           source={doc.content}
