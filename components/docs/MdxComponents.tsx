@@ -192,7 +192,7 @@ const Code = ({
     return (
       <code
         className={cn(
-          'grid min-w-full overflow-x-auto font-mono text-sm py-2', 
+          'grid min-w-full overflow-x-auto font-mono text-sm pb-2', 
           className
         )}
         {...props}
