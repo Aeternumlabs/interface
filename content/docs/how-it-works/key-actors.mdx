@@ -42,10 +42,9 @@ The backup address is the destination for your ETH if recovery triggers. You cho
 **What the backup address cannot do:** nothing else. It cannot initiate transfers, read your vault config, or interact with your vault in any way while you are active. It is purely a recipient.
 
 The backup address can be:
-- A second wallet you control (another MetaMask account, a hardware wallet)
-- A wallet held by a family member or trusted person
-- A multisig wallet shared with people you trust
-- Any Ethereum address that can receive ETH
+- A wallet controlled by your chosen heir or primary beneficiary.
+- A multisig wallet distributed among your heirs or estate trustees.
+- A backup wallet you control — a separate hardware wallet, cold storage, or a secondary EOA that acts as your own safety net
 
 <Callout type="warning" title="Test your backup address before you rely on it">
   If your backup address is a smart contract (like a multisig), make sure it is configured to accept plain ETH transfers. A contract that reverts on `receive()` will cause recovery to fail. After three failures, the vault is abandoned. Test the full cycle on Sepolia before setting up on mainnet.
@@ -98,7 +97,7 @@ if (s_forwarder != address(0) && msg.sender != s_forwarder) {
 }
 ```
 
-<Callout type="danger" title="Set the forwarder immediately after deployment on mainnet">
+<Callout type="warning" title="Set the forwarder immediately after deployment">
   Between contract deployment and calling `setForwarder()`, `performUpkeep` is open to any caller. On Sepolia this is acceptable for testing. On mainnet, `setForwarder()` must be called in the same deployment script, immediately after registration, to close this window.
 </Callout>
 
