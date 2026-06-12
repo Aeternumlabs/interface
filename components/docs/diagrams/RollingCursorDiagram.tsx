@@ -103,8 +103,8 @@ export function RollingCursorDiagram() {
     <figure className="not-prose my-8 overflow-x-auto rounded-xl border border-border/50 bg-card">
 
       {/* Caption bar */}
-      <figcaption className="border-b border-border/40 px-6 py-3 text-center text-[11px] font-semibold uppercase tracking-widest text-muted-foreground">
-        Rolling Cursor Architecture — One Upkeep, Unlimited Wallets
+      <figcaption className="border-b border-border/60 px-6 py-6 text-center text-[11px] font-semibold uppercase tracking-widest text-muted-foreground">
+        Rolling Cursor Architecture
       </figcaption>
 
       <div className="px-4 pb-6 pt-4">
@@ -402,19 +402,9 @@ export function RollingCursorDiagram() {
             )
           })}
 
-          {/* --- SECTION 4 — KEY STAT */}
           {/* Divider */}
-          <line x1="30" y1="342" x2="730" y2="342"
+          <line x1="30" y1="350" x2="730" y2="350"
                 style={{ stroke: C.border, strokeWidth: 1 }} />
-
-          <text x="380" y="360" textAnchor="middle"
-                style={{ fill: C.dim, fontSize: 9 }}>
-            500,000 wallets · 5,000 per window · ~4 days per full registry sweep
-          </text>
-          <text x="380" y="374" textAnchor="middle"
-                style={{ fill: C.muted, fontSize: 9 }}>
-            One Chainlink upkeep job · one rolling cursor · scales permanently
-          </text>
 
         </svg>
       </div>

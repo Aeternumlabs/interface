@@ -1,15 +1,15 @@
 ---
 title: Rolling Cursor
-description: How one Chainlink upkeep job monitors any number of registered wallets indefinitely without splitting jobs.
+description: How Aeternum uses a rolling cursor, horizontal partitioning, and off-chain indexing to scale wallet recovery monitoring to tens of millions of users via Chainlink Automation.
 ---
 
 ## The Scaling Challenge
 
 Chainlink Automation calls `checkUpkeep` every 12 seconds. Each call can only do so much work before hitting practical limits — Chainlink's off-chain simulation environment has a gas limit of roughly 6.5 million gas units, and each storage read during a scan costs around 800 gas.
 
-At maximum scan size (5,000 wallets), `checkUpkeep` uses approximately 4 million gas. That is fine. But a protocol with 500,000 registered users cannot scan all wallets in a single call — that would require 400 million gas, roughly 13 times the block gas limit.
+At maximum scan size (5,000 wallets), `checkUpkeep` uses approximately 4 million gas. That is fine. But a protocol with 5,000,000 registered users cannot scan all wallets in a single call — that would require 4 billion gas, roughly 133 times the block gas limit.
 
-The naive solution — registering more upkeep jobs as the user base grows — is expensive and operationally complex. AeternumVault solves this with a different approach: a **rolling cursor** that scans the registry in windows, one window at a time.
+Aeternum’s recovery architecture resolves this scaling constraint through an evolving strategy: initiating with a rolling cursor that scans the registry in discrete windows, expanding into horizontal partitioning, and ultimately using off-chain indexing to scale monitoring to tens of millions of active wallets.
 
 <RollingCursorDiagram />
 
@@ -82,21 +82,64 @@ if (total > MAX_CHECK_UPKEEP_SIZE
 
 The cursor is self-correcting in two ways:
 
-**Registry shrinkage.** If users cancel their vaults and the registry shrinks below the cursor position, the cursor automatically resets to zero on the next `checkUpkeep` call. This prevents the cursor from pointing past the end of the array.
+**Registry shrinkage.** If users cancel their recovery setup and the registry shrinks below the cursor position, the cursor automatically resets to zero on the next `checkUpkeep` call. This prevents the cursor from pointing past the end of the array.
 
 **Single-window registries.** If the entire registry fits within one scan window (`total <= MAX_CHECK_UPKEEP_SIZE`), the cursor is always pinned to zero. No LINK is spent on idle advancement — the full registry is covered every single call.
 
-## At Scale: What This Means
+---
 
-With the deployed constants (5,000 scan window, 1-hour cooldown):
+## Scaling Beyond the Current Architecture
 
-| Registered users | Windows required | Time for full sweep |
-| --- | --- | --- |
-| 5,000 | 1 | Instant (single-window, cursor pinned to 0) |
-| 50,000 | 10 | ~10 hours |
-| 500,000 | 100 | ~4 days |
-| 5,000,000 | 1,000 | ~41 days |
+The linear rolling cursor is highly effective for early-to-mid-stage protocol growth. However, as Aeternum scales toward becoming global internet-scale infrastructure, uniform linear scanning hits a clear technical and economic efficiency ceiling.
 
-At 500,000 users — the realistic medium-term target — every registered wallet is checked for recovery eligibility at least once every four days. For most users with timers measured in months or years, four days is entirely acceptable sweep latency.
+At a scale of 50 million users, a pure linear registry split into 5,000-wallet windows introduces an operational scaling constraint:
 
-One upkeep job handles all of this. No sharding, no coordination, no growth-related operational changes needed.
+- Without an advance cooldown: advancing through 10,000 idle windows would trigger 10,000 performUpkeep transactions — each one costing LINK despite doing no recovery work. The cursor would complete a full sweep in roughly 33 hours, but the LINK cost would be unsustainable.
+- With a 1-hour advance cooldown: Spanning the 10,000 separate windows required would push full sweep latency to over 416 days, rendering recovery timing completely ineffective.
+
+To scale fluidly past these boundaries, Aeternum’s architecture transitions across three distinct operational eras.
+
+### Today to ~1 million users — single job, current architecture
+
+A full sweep completing in roughly 8 days at 1 million users. For users with inactivity timers measured in months or years, that latency is imperceptible. The current deployment runs correctly without modification through this entire range.
+
+### 1 million to 10 million users — partitioned upkeep jobs
+
+The most direct solution to the cooldown bottleneck is horizontal partitioning: register multiple Chainlink Automation jobs, each responsible for a distinct slice of the registry. The Phase 2 contract is designed with this in mind — a `checkData` parameter tells each job which index range to operate over, and each job maintains its own cursor within that slice.
+
+```solidity
+// checkData encodes the slice this job is responsible for
+function checkUpkeep(bytes calldata checkData)
+    external view returns (bool upkeepNeeded, bytes memory performData)
+{
+    (uint256 sliceStart, uint256 sliceSize) = abi.decode(checkData, (uint256, uint256));
+    // cursor logic bounded to [sliceStart, sliceStart + sliceSize)
+}
+```
+
+With 10 jobs each covering 1 million wallets:
+
+```text
+1,000,000 / 5,000 = 200 windows per job
+200 windows × 1 hour cooldown = ~8 days per sweep per job
+```
+
+With 50 jobs covering 200,000 wallets each, that drops to under 2 days — restoring the performance profile of the early-stage single-job deployment. Each job funds its own LINK balance independently, distributing cost in proportion to the work it covers. New jobs are added as user growth warrants them, making this an additive operational change rather than a migration.
+
+The `CURSOR_ADVANCE_INTERVAL` can also be reduced in the Phase 2 contract. At larger user counts with more distributed LINK funding, a tighter cooldown (10–30 minutes rather than 1 hour) is economically viable.
+
+### 10M to 50M+ users: Off-Chain Computation with On-Chain Verification
+
+At extreme scale, the linear cursor becomes inefficient. Rather than forcing the smart contract to perform expensive on-chain re-indexing every time a user pings their wallet, the discovery logic is offloaded to the existing indexing infrastructure.
+
+In this model, the contract's `checkUpkeep` is reduced to a lightweight boundary check. The actual identification of due wallets happens off-chain: Ponder indexer maintains a real-time, sorted list of wallets ordered by deadline. A keeper layer — using decentralized infrastructure like Gelato or Chainlink Functions — queries the indexer and submits the batch of due wallets directly to `performUpkeep`.
+
+The contract re-validates every submitted wallet independently before executing: active status, non-zero balance, and elapsed inactivity period are all checked on-chain. Critically, the backup address is read from the contract's own state at execution time — not from the keeper-submitted calldata. No off-chain component can redirect funds to a different address. The worst-case outcome of a compromised keeper is a delayed recovery, never an incorrect one.
+
+<Callout type="info" title="Infrastructure Independence">
+By moving wallet discovery off-chain, checkUpkeep is reduced to a lightweight boundary check. Standard user interactions — pings, deposits, config updates — carry no additional indexing overhead. The on-chain contract remains the sole authority for verification and execution; the off-chain indexer handles discovery only.
+</Callout>
+
+### The core philosophy remains sound
+
+The evolution of Aeternum's scaling model does not abandon the principle of bounded, defensive batching; it simply deprecates the sequential on-chain index pointer (`s_checkCursor`) in favor of an off-chain virtual cursor. The fundamental security primitive of trustless on-chain inactivity verification remains identical across all eras. As a transition is made from thousands to tens of millions of users, the protocol shifts from broad linear discovery to pinpoint off-chain target identification, ensuring the platform remains highly performant, cost-effective, and fundamentally non-custodial at global scale.
