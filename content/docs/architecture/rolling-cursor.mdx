@@ -137,7 +137,7 @@ In this model, the contract's `checkUpkeep` is reduced to a lightweight boundary
 The contract re-validates every submitted wallet independently before executing: active status, non-zero balance, and elapsed inactivity period are all checked on-chain. Critically, the backup address is read from the contract's own state at execution time — not from the keeper-submitted calldata. No off-chain component can redirect funds to a different address. The worst-case outcome of a compromised keeper is a delayed recovery, never an incorrect one.
 
 <Callout type="info" title="Infrastructure Independence">
-By moving wallet discovery off-chain, checkUpkeep is reduced to a lightweight boundary check. Standard user interactions — pings, deposits, config updates — carry no additional indexing overhead. The on-chain contract remains the sole authority for verification and execution; the off-chain indexer handles discovery only.
+  By moving wallet discovery off-chain, checkUpkeep is reduced to a lightweight boundary check. Standard user interactions — pings, deposits, config updates — carry no additional indexing overhead. The on-chain contract remains the sole authority for verification and execution; the off-chain indexer handles discovery only.
 </Callout>
 
 ### The core philosophy remains sound

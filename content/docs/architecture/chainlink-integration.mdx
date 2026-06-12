@@ -125,13 +125,17 @@ function _executeRecovery(address wallet) internal {
 }
 ```
 
-If a wallet no longer qualifies, `_executeRecovery` returns early without moving any ETH. The rest of the batch continues executing normally. No gas is wasted reverting the entire transaction, and no incorrect recovery happens.
+If a wallet no longer qualifies, `_executeRecovery` returns early without moving any funds. The rest of the batch continues executing normally. No gas is wasted reverting the entire transaction, and no incorrect recovery happens.
 
 ---
 
 ## Setting Up Chainlink Automation
 
-If you are deploying AeternumVault on your own infrastructure (for testing, a fork, or a future chain deployment), follow these steps to connect Chainlink Automation.
+If you are deploying AeternumVault on your own local infrastructure, a development fork, or a public testnet for evaluation and testing purposes, follow these steps to connect Chainlink Automation.
+
+<Callout type="warning" title="Production Licensing Notice">
+  Production deployment of Aeternum Core infrastructure on any live mainnet network is restricted under the protocol's [BUSL-1.1 License](https://github.com/Aeternumlabs/aeternum-core/blob/main/LICENSE.md). Per our licensing parameters, the core architecture will automatically transition to a permanent, fully open-source GPL-3.0-or-later license on the Change Date.
+</Callout>
 
 <StepList>
   <StepItem step={1} title="Deploy the contract">
@@ -159,4 +163,4 @@ If you are deploying AeternumVault on your own infrastructure (for testing, a fo
   On mainnet, `setForwarder()` must be called immediately after deployment — ideally in the same script — to close the window where `performUpkeep` is callable by anyone. On Sepolia this is acceptable to skip during development. On mainnet it is not.
 </Callout>
 
-One upkeep registration is sufficient for any number of users. The rolling cursor handles full registry coverage automatically over time without any additional configuration.
+For the initial lifecycle of the protocol, a single upkeep registration is sufficient to achieve complete coverage. The rolling cursor automatically handles broad registry iteration over time, completely eliminating operational maintenance until macro-scale architectures become necessary.
