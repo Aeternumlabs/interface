@@ -5,7 +5,7 @@ description: Reentrancy protection, forwarder access control, the CEI pattern, a
 
 ## Non-Custodial by Design
 
-The foundation of Aeternum's security model is non-custody: the protocol never owns your ETH. The contract holds it in escrow on your behalf and executes only what you have configured. There is no admin key that can redirect funds, no pause mechanism that can freeze withdrawals, and no upgrade path that can rewrite the rules after you have deposited.
+The foundation of Aeternum's security model is non-custody: the protocol never owns your funds. The contract holds them in escrow on your behalf and executes only what you have configured. There is no admin key that can redirect funds, no pause mechanism that can freeze withdrawals, and no upgrade path that can rewrite the rules after you have deposited.
 
 This is not a promise from a team — it is a property of the code. AeternumVault has no `Ownable` inheritance, no `onlyOwner` modifier on any function, and no proxy pattern. The deployed bytecode is what runs, permanently.
 
@@ -25,13 +25,13 @@ function _executeRecovery(address wallet) internal {
 
     uint256 amount = config.balance;
 
-    // ── Effects (ALL before external call) ──────────────────────
+    // --- Effects (ALL before external call)
     config.balance = 0;               // zeroed before ETH moves
     config.isActive = false;          // removed from active state
     config.failedRecoveryAttempts = newAttempts;
     _removeFromRegistry(wallet);      // removed from registry
 
-    // ── Interaction (ETH transfer happens last) ──────────────────
+    // --- Interaction (ETH transfer happens last)
     (bool success,) = backupAddress.call{value: amount}("");
 
     if (!success) {
@@ -51,17 +51,19 @@ Every function that sends ETH is protected by OpenZeppelin's `ReentrancyGuard`:
 contract AeternumVault is IAeternumVault, ReentrancyGuard, AutomationCompatibleInterface {
 ```
 
-`ReentrancyGuard` uses a locked/unlocked mutex stored in contract storage. When a guarded function is executing, any attempt to re-enter another guarded function immediately reverts. This is a belt-and-suspenders defence — CEI alone is sufficient, but the guard provides a safety net against any future code path that might inadvertently violate CEI ordering.
+`ReentrancyGuard` maintains a locked/unlocked mutex in contract storage. Any attempt to invoke a guarded function while one is already executing immediately reverts — blocking reentrant calls at the function boundary, independently of how state is ordered inside the function.
+
+The two layers address different threat surfaces. CEI eliminates the economic incentive: `config.balance` is zeroed before any ETH transfer, so a reentrant call finds nothing left to steal. `ReentrancyGuard` provides a hard execution boundary that holds even on the failure-restore path — where some state writes unavoidably occur after the external call because the contract can only determine a transfer has failed after attempting it. A third layer closes the loop: after `MAX_RECOVERY_ATTEMPTS` consecutive failures, the vault is permanently abandoned and removed from monitoring, eliminating the retry surface entirely.
 
 <Callout type="info">
-  These two defences are independent. If CEI were accidentally violated in a future code change, ReentrancyGuard would still block the attack. If ReentrancyGuard were not present, CEI alone would still protect all current code paths. Neither layer depends on the other working correctly.
+  The internal security audit (AV-01) confirmed this architecture. Slither downgraded the failure-restore path finding from `reentrancy-eth` (Medium) to `reentrancy-benign` (Low) because `config.balance` is provably zeroed before the call — making double-spend impossible regardless of reentrant behaviour. No High severity findings were identified.
 </Callout>
 
 ---
 
 ## Forwarder Access Control
 
-`performUpkeep` is the most sensitive function in the contract — it is the only path through which ETH moves without an explicit user instruction. Without access control, a sophisticated attacker could craft a malicious `performData` payload and call `performUpkeep` directly, attempting to manipulate which wallets get processed.
+`performUpkeep` is the most sensitive function in the contract — it is the only path through which funds move without an explicit user instruction. Without access control, a sophisticated attacker could craft a malicious `performData` payload and call `performUpkeep` directly, attempting to manipulate which wallets get processed.
 
 The forwarder pattern eliminates this risk entirely. Once `setForwarder()` has been called, the contract permanently rejects any `performUpkeep` call from any address other than the registered Chainlink forwarder:
 
@@ -129,12 +131,53 @@ Aeternum Labs will continue developing new versions, deployed as entirely new co
 
 ## Testing and Audit Status
 
-AeternumVault has undergone comprehensive internal security testing:
+AeternumVault has completed a comprehensive internal security assessment (Revision 2, June 2026),
+superseding the initial pre-audit review from May 2026. The revised assessment reflects the
+current contract architecture — cursor-based rolling scan, no subscription or
+treasury logic.
 
-- **127+ tests** covering unit, fuzz, and invariant scenarios across 100% of contract functions and all identified branch conditions
-- **Static analysis** with Slither
-- **Property-based fuzzing** with Echidna across 50,000+ randomized call sequences
+The full report is available here:
+[Aeternum Internal Audit Report (June 2026)](https://github.com/Aeternumlabs/aeternum-core/blob/main/audits/2026-06-03_Aeternum_Smart_Contract_Audit_Report.pdf).
 
-<Callout type="warning" title="External audit pending">
-  An independent external audit by a professional security firm is required before mainnet deployment. The contract should not be used for real-value ETH until that audit is complete and its findings have been addressed.
+### Test Coverage
+
+| Test type | Detail | Result |
+| --- | --- | --- |
+| Unit tests | 135 tests — 100% line and function coverage on `AeternumVault.sol` | 135 passing, 0 failing |
+| Fuzz tests | 4 functions × 256 runs — inactivity period bounds, deposit amounts, partial sends, recovery timing | All passing |
+| Foundry invariant tests | 2 properties × 128,000+ calls — ETH balance solvency, registry active-status integrity | All passing |
+| Echidna property fuzzing | 11 properties × 50,057 randomised call sequences | All passing |
+| Static analysis | Slither v0.11.4 — 0 High findings | See finding summary below |
+| Linting | Solhint — project-tuned configuration | 0 errors, 0 warnings |
+
+### Internal Audit Finding Summary
+
+| Severity | Count | Status |
+| --- | --- | --- |
+| High | 0 | — |
+| Medium | 1 | Acknowledged — architecturally unavoidable, documented |
+| Low | 1 | Acknowledged — mitigated by three independent layers |
+| Informational | 3 | Acknowledged |
+
+**AV-01 (Low) — Reentrancy-benign in `_executeRecovery`:** On the failure-restore path, several
+state variables are written after the external ETH transfer call. These post-call writes are
+unavoidable — the contract can only determine a transfer has failed after making it. Slither
+downgraded this finding from `reentrancy-eth` (Medium, May 2026) to `reentrancy-benign` (Low)
+because `config.balance` is provably zeroed before the call. Three independent layers prevent
+exploitation: `nonReentrant` on `performUpkeep`, the pre-call balance zeroing, and permanent
+vault abandonment after `MAX_RECOVERY_ATTEMPTS` failures.
+
+**AV-02 (Medium) — External calls inside `performUpkeep` loop:** Batch ETH recovery to distinct
+backup addresses inherently requires a loop containing external calls. There is no architectural
+alternative that preserves automatic recovery without beneficiary action. Mitigated by
+`nonReentrant`, per-wallet CEI enforcement, per-wallet re-validation, the
+`MAX_PERFORM_UPKEEP_SIZE` gas cap, and graceful per-wallet failure handling that does not
+revert the batch.
+
+<Callout type="warning" title="External audit required before mainnet">
+  The internal assessment was conducted by the contract author. An independent external audit
+  by a professional security firm is required before mainnet deployment. The contract should not
+  be used for real-value ETH until that audit is complete and its findings have been addressed.
+  Mainnet gas cost estimates and Chainlink upkeep LINK funding requirements have not yet been
+  validated under production fork conditions.
 </Callout>
