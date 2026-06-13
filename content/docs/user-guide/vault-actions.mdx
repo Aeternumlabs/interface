@@ -5,7 +5,7 @@ description: Deposit, send, withdraw, ping, update config, and cancel recovery �
 
 ## Overview
 
-Once your vault is registered, six actions are available from the dashboard. All of them — except Ping — move ETH or change your vault configuration. Every action resets your inactivity timer, confirming that you are alive and actively controlling your wallet.
+Once your vault is registered, six actions are available from the dashboard. All actions except Ping also move ETH or change your vault configuration. Every action resets your inactivity timer, confirming that the wallet is still actively controlled.
 
 ---
 
@@ -15,7 +15,7 @@ Once your vault is registered, six actions are available from the dashboard. All
 
 **When to use it:** Any time you want to bring ETH under Aeternum's recovery protection. You can deposit as many times as you like after the initial registration.
 
-**Gas cost:** ~65,000 gas (~0.001 USD on mainnet at 20 gwei).
+**Gas cost:** ~65,000 gas.
 
 **How:** Click **Deposit** on the dashboard, enter the amount in ETH, and confirm the transaction. Your vault balance updates immediately after confirmation.
 
@@ -27,9 +27,18 @@ Once your vault is registered, six actions are available from the dashboard. All
 
 ## Send
 
-**What it does:** Transfers ETH from your vault to any Ethereum address — a normal wallet, a DeFi protocol, an exchange, another contract. Your vault acts as a sending wallet.
+**What it does:** Transfers a specified amount of ETH from your vault to any Ethereum
+address — a normal wallet, a DeFi protocol, an exchange, or another contract. This
+includes your own connected wallet, making `send()` the right tool for partial
+withdrawals. Your vault acts as a standard sending wallet.
 
-**When to use it:** When you want to use your vaulted ETH to pay for something without withdrawing to your primary wallet first.
+**When to use it:**
+- When you want to withdraw part of your vault balance to your own wallet. Unlike
+  `withdrawAll()`, which always withdraws your entire balance, `send()` lets you
+  specify any amount — use it whenever you need partial access to your funds.
+- When you want to pay a recipient, interact with a DeFi protocol, or move ETH to
+  any on-chain address directly from your vault without first withdrawing to your
+  primary wallet.
 
 **Gas cost:** ~80,000–100,000 gas (higher if the recipient is a contract that executes code on receipt).
 
@@ -45,7 +54,7 @@ Once your vault is registered, six actions are available from the dashboard. All
 
 **What it does:** Pulls your entire vault balance back to your connected wallet address in one transaction.
 
-**When to use it:** When you want your ETH back without cancelling your vault configuration. Your vault stays registered and active after a withdrawal — you can deposit again any time.
+**When to use it:** When you want your ETH back without cancelling your vault configuration. Your vault stays registered and active after a withdrawal — you can deposit again any time. Use send() if you want to withdraw a specific amount. withdrawAll() always withdraws your full balance.
 
 **Gas cost:** ~60,000 gas.
 
@@ -61,9 +70,9 @@ Once your vault is registered, six actions are available from the dashboard. All
 
 **What it does:** Resets your inactivity timer without moving any funds or changing any settings.
 
-**When to use it:** When your inactivity period is approaching and you do not need to transact but want to confirm you are still in control.
+**When to use it:** When you are not planning any vault transactions but want to reset your inactivity timer — whether as a regular routine or because your deadline is approaching.
 
-**Gas cost:** ~30,000 gas (~0.0005 USD on mainnet at 20 gwei) — the cheapest possible vault interaction.
+**Gas cost:** ~30,000 gas — the cheapest possible vault interaction.
 
 **How:** Click **Ping** on the dashboard and confirm the transaction. Your countdown timer resets to the full inactivity period.
 
@@ -85,36 +94,36 @@ It is intentionally minimal. There is no risk of accidentally moving funds or ch
 **What it does:** Changes your backup address, your inactivity period, or both. Resets your timer as a side effect.
 
 **When to use it:**
-- Your backup address wallet has been compromised or you no longer trust it
-- Your backup address person has changed (new family beneficiary, different trusted party)
-- Your interaction frequency has changed and you want a longer or shorter timer
+- Your beneficiary or heir has changed — a new primary beneficiary or an updated estate plan that designates a different recipient.
+- The designated backup address is no longer appropriate — it has been compromised,
+  the intended recipient has lost access to it, or you have moved to a more secure
+  arrangement such as a multisig held by trustees.
+- Your interaction frequency has changed and you want to adjust the inactivity period
+  to better reflect your current usage — longer if you expect extended periods of
+  inactivity, shorter if you want a tighter safety window.
 
 **Gas cost:** ~45,000 gas for backup address update; ~40,000 gas for inactivity period update.
 
 **How:** Click **Update config** in the sidebar. A modal opens with your current settings pre-filled. Change either or both values and confirm the transaction.
 
-<Callout type="danger" title="You cannot reuse an abandoned backup address">
-  If a backup address has been permanently blocked (after three consecutive failed recovery attempts), it cannot be set as a backup address in any vault — not even a fresh registration. If you previously used a broken backup address, you must choose a different one.
-</Callout>
-
 ---
 
 ## Cancel Recovery
 
-**What it does:** Withdraws your entire balance AND permanently removes your vault from the monitoring system — in a single transaction.
+**What it does:** Withdraws your entire balance AND removes your vault from the monitoring system — in a single transaction.
 
 **When to use it:** When you want to fully opt out of Aeternum protection and take your ETH back without any ongoing monitoring.
 
 **Gas cost:** ~70,000–100,000 gas.
 
-**How:** Click **Cancel recovery** in the sidebar. A confirmation modal warns that this removes your vault from monitoring. Confirm the transaction. Your ETH is sent to your connected wallet and your vault is deregistered.
+**How:** Click **Cancel recovery** in the sidebar. A confirmation modal warns that this removes your vault from monitoring. Confirm the transaction. Your ETH is returned to your connected wallet, your address is deregistered, and your vault is marked inactive.
 
 **After cancellation:** You can re-register at any time by clicking Register again. Your vault starts fresh with new settings.
 
 | Action | Balance change | Vault stays active? | Timer resets? |
 | --- | --- | --- | --- |
 | Deposit | +ETH | Yes | Yes |
-| Send | −ETH (to recipient) | Yes | Yes |
+| Send | −ETH (to any address, including your own wallet) | Yes | Yes |
 | Withdraw | −ETH (to you) | Yes | Yes |
 | Ping | None | Yes | Yes |
 | Update Config | None | Yes | Yes |
