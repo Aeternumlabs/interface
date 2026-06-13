@@ -139,6 +139,14 @@ treasury logic.
 The full report is available here:
 [Aeternum Internal Audit Report (June 2026)](https://github.com/Aeternumlabs/aeternum-core/blob/main/audits/2026-06-03_Aeternum_Smart_Contract_Audit_Report.pdf).
 
+<Callout type="warning" title="External audit required before mainnet">
+  The internal assessment was conducted by the contract author. An independent external audit
+  by a professional security firm is required before mainnet deployment. The contract should not
+  be used for real-value ETH until that audit is complete and its findings have been addressed.
+  Mainnet gas cost estimates and Chainlink upkeep LINK funding requirements have not yet been
+  validated under production fork conditions.
+</Callout>
+
 ### Test Coverage
 
 | Test type | Detail | Result |
@@ -173,11 +181,3 @@ alternative that preserves automatic recovery without beneficiary action. Mitiga
 `nonReentrant`, per-wallet CEI enforcement, per-wallet re-validation, the
 `MAX_PERFORM_UPKEEP_SIZE` gas cap, and graceful per-wallet failure handling that does not
 revert the batch.
-
-<Callout type="warning" title="External audit required before mainnet">
-  The internal assessment was conducted by the contract author. An independent external audit
-  by a professional security firm is required before mainnet deployment. The contract should not
-  be used for real-value ETH until that audit is complete and its findings have been addressed.
-  Mainnet gas cost estimates and Chainlink upkeep LINK funding requirements have not yet been
-  validated under production fork conditions.
-</Callout>
