@@ -5,7 +5,7 @@ description: How checkUpkeep and performUpkeep work, the stale data safety patte
 
 ## How Chainlink Automation Monitors Vaults
 
-Chainlink Automation is a decentralised network of nodes that evaluates conditions on-chain and triggers contract execution when those conditions are met. For AeternumVault, it provides the automation layer that watches every registered wallet and fires recovery when a vault becomes eligible.
+Chainlink Automation is a decentralised network of nodes that evaluates conditions off-chain and triggers on-chain contract execution when those conditions are met. For AeternumVault, it provides the automation layer that watches every registered wallet and triggers recovery when a vault becomes eligible.
 
 The integration uses two functions defined on the contract:
 
@@ -18,7 +18,7 @@ The integration uses two functions defined on the contract:
 
 ## checkUpkeep — Off-Chain, Free
 
-`checkUpkeep` is a `view` function that Chainlink nodes call as a simulation every ~12 seconds. Because it runs entirely in Chainlink's off-chain simulation environment, it consumes no actual gas and does not interact with the blockchain state.
+`checkUpkeep` is a `view` function that Chainlink nodes call as a simulation every ~12 seconds. Because it runs entirely in Chainlink's off-chain simulation environment, it consumes no actual gas and does not modify the blockchain state.
 
 ```solidity
 function checkUpkeep(
@@ -73,7 +73,7 @@ The return value `performData` is ABI-encoded as `(address[] candidates, uint256
 
 ## performUpkeep — On-Chain, Costs LINK
 
-When `checkUpkeep` returns `upkeepNeeded = true`, Chainlink's forwarder contract submits `performUpkeep` as a real on-chain transaction. This is where ETH actually moves.
+When `checkUpkeep` returns `upkeepNeeded = true`, Chainlink's forwarder contract submits `performUpkeep` as a real on-chain transaction. This is the on-chain transaction that executes recovery transfers and, in the idle case, advances the cursor to the next scan window.
 
 ```solidity
 function performUpkeep(bytes calldata performData) external nonReentrant {
@@ -125,7 +125,7 @@ function _executeRecovery(address wallet) internal {
 }
 ```
 
-If a wallet no longer qualifies, `_executeRecovery` returns early without moving any funds. The rest of the batch continues executing normally. No gas is wasted reverting the entire transaction, and no incorrect recovery happens.
+If a wallet no longer qualifies, `_executeRecovery` returns early without moving any funds. The rest of the batch continues executing normally. A stale entry does not cause the entire transaction to revert — it is skipped and the remaining batch executes normally.
 
 ---
 
@@ -134,7 +134,7 @@ If a wallet no longer qualifies, `_executeRecovery` returns early without moving
 If you are deploying AeternumVault on your own local infrastructure, a development fork, or a public testnet for evaluation and testing purposes, follow these steps to connect Chainlink Automation.
 
 <Callout type="warning" title="Production Licensing Notice">
-  Production deployment of Aeternum Core infrastructure on any live mainnet network is restricted under the protocol's [BUSL-1.1 License](https://github.com/Aeternumlabs/aeternum-core/blob/main/LICENSE.md). Per our licensing parameters, the core architecture will automatically transition to a permanent, fully open-source GPL-3.0-or-later license on the Change Date.
+  Production deployment of AeternumVault on any live mainnet network requires a commercial license from Aeternum Labs. Under the [BUSL-1.1 License](https://github.com/Aeternumlabs/aeternum-core/blob/main/LICENSE.md), the licensed work transitions automatically to GPL-3.0-or-later four years from the first mainnet deployment date.
 </Callout>
 
 <StepList>
@@ -159,8 +159,8 @@ If you are deploying AeternumVault on your own local infrastructure, a developme
   </StepItem>
 </StepList>
 
-<Callout type="danger" title="Mainnet: call setForwarder() in the deployment script">
+<Callout type="danger" title="setForwarder() Timing For Authorized Mainnet Deployments">
   On mainnet, `setForwarder()` must be called immediately after deployment — ideally in the same script — to close the window where `performUpkeep` is callable by anyone. On Sepolia this is acceptable to skip during development. On mainnet it is not.
 </Callout>
 
-For the initial lifecycle of the protocol, a single upkeep registration is sufficient to achieve complete coverage. The rolling cursor automatically handles broad registry iteration over time, completely eliminating operational maintenance until macro-scale architectures become necessary.
+For the initial lifecycle of the protocol, a single upkeep registration is sufficient to achieve complete coverage. The rolling cursor handles registry coverage automatically — the only ongoing operational requirement is keeping the upkeep balance funded with LINK. No structural changes to the upkeep configuration are needed through the early phases of protocol growth until the partitioned upkeep model described in [Rolling Cursor](/docs/architecture/rolling-cursor) becomes warranted
