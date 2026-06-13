@@ -14,19 +14,25 @@ Registration is a one-time on-chain transaction that creates your vault. Before 
 The backup address is the Ethereum wallet that receives your ETH if recovery triggers. Choose it carefully.
 
 **What makes a good backup address:**
-- A wallet you genuinely control independently from your primary wallet (separate seed phrase, separate device)
-- A hardware wallet in cold storage — air-gapped and unlikely to be compromised at the same time as your primary
-- A trusted family member's wallet address, if your goal is inheritance
-- A multisig wallet shared with people you trust
+- A wallet controlled by your chosen heir or primary beneficiary
+- A multisig wallet shared among your heirs or estate trustees
+- A backup wallet you control — a separate hardware wallet, cold storage, or a secondary EOA
 
 **What to avoid:**
-- Your own primary wallet as the backup — if you lose your primary, you lose both
-- An exchange deposit address — exchanges can reject ETH transfers from smart contracts or change deposit addresses
-- A wallet you have not verified recently — make sure you still control the backup address before registering
-
-<Callout type="warning" title="Test your backup address first">
-  Before registering with a backup address on mainnet, verify you can receive ETH at that address. Send a small test transaction from a different wallet and confirm receipt. If your backup is a smart contract (like a multisig or a Safe), also confirm it is configured to accept plain ETH — a contract that reverts on `receive()` will cause recovery to fail up to three times before your vault is abandoned.
-</Callout>
+- **An exchange deposit address.** Exchanges can reject ETH transfers originating from
+  smart contracts, change deposit addresses without notice, or credit funds to an
+  unlinked account. Never use an exchange address as a backup.
+- **An address that has not been tested to receive ETH.** Whether the backup is your
+  heir's wallet, a trusted party's address, or a wallet you control yourself, send a small
+  test transaction from a separate wallet and confirm receipt before registering. If the
+  address is a smart contract (like a multisig or a Safe), also confirm it is configured to accept 
+  plain ETH — a contract that reverts on receive() will cause recovery to fail up to three times 
+  before your vault is abandoned.
+- **An address the intended recipient may have lost access to.** A backup address is
+  only useful if someone can actually access it when recovery triggers. If you have
+  designated a family member or heir as your beneficiary, confirm with them that the
+  address is still accessible. Wallets can be lost, hardware devices destroyed, and seed
+  phrases forgotten.
 
 **Technical requirement:** the backup address cannot be:
 - The zero address (`0x000...000`)
@@ -43,7 +49,7 @@ The right period depends on how you actually use crypto:
 
 | Your situation | Suggested period |
 | --- | --- |
-| Active DeFi user — transacts weekly | 365 days |
+| Active DeFi user — transacts weekly | 180 days |
 | Occasional user — checks in a few times per year | 180–270 days |
 | Long-term holder — buys and holds for years | 365–730 days |
 | Cold storage vault — rarely touched | 1,095–1,825 days (3–5 years) |
@@ -60,15 +66,15 @@ Remember that **any interaction with your vault resets the timer** — deposits,
 
 <StepList>
   <StepItem step={1} title="Open the Register modal">
-    Connect your wallet and ensure you are on Sepolia. Click the **Register** button in the vault dashboard. A modal opens asking for your backup address and inactivity period.
+    Connect your wallet and ensure you are on Sepolia. Click the **Register** button in the vault dashboard. A modal opens asking for your backup address, inactivity period, and optional deposit.
   </StepItem>
 
   <StepItem step={2} title="Enter your backup address">
-    Paste the full Ethereum address of your chosen backup wallet. The form validates the address format in real time. If the address is your own connected address or a previously abandoned backup address, the form will show an error before you can submit.
+    Paste the full Ethereum address of your chosen backup wallet. The form validates the address format. If the address is your own connected address, a previously abandoned backup address, or is an invalid Ethereum address, the form will show an error on submit.
   </StepItem>
 
   <StepItem step={3} title="Set your inactivity period">
-    Enter the inactivity period in days (the app converts to seconds internally). On Sepolia testnet, you can enter a very short period (e.g. `0.003472` days = 5 minutes = 300 seconds) to test the recovery flow quickly.
+    Enter the inactivity period (the app converts to seconds internally). On Sepolia testnet, you can enter a very short period (e.g. 5 minutes = 300 seconds) to test the recovery flow quickly.
   </StepItem>
 
   <StepItem step={4} title="Optionally add an initial deposit">
@@ -95,4 +101,4 @@ Once registered, you can update any setting at any time while your vault is acti
 - **Add more ETH** → Deposit button on the dashboard
 - **Exit entirely** → Cancel Recovery in the sidebar — this withdraws your balance and deregisters your vault
 
-Each configuration update resets your inactivity timer, confirming that you are alive and in control. See [Vault Actions](/docs/user-guide/vault-actions) for a full breakdown of every available operation.
+Each configuration update resets your inactivity timer, confirming that the wallet is still actively controlled. See [Vault Actions](/docs/user-guide/vault-actions) for a full breakdown of every available operation.
