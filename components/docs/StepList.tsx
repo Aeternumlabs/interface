@@ -4,26 +4,19 @@
  * Sequential step components for the User Guide and Testnet Walkthrough.
  *
  * Two exports:
- *   StepList  — wrapper that arranges steps vertically and hides the
- *               connector line after the last step
- *   StepItem  — individual step with a numbered circle, title, and content
+ *   StepList  — wrapper that arranges steps vertically, initializes the CSS counter, 
+ *                and hides the connector line after the last step.
+ *   StepItem  — individual step that automatically displays its sequential number,
+ *                title, and content.
  *
- * Connector line:
- *   The vertical line between steps is a '.step-line' div inside each item.
- *   StepList uses the Tailwind arbitrary variant
- *   '[&>div:last-child_.step-line]:hidden' to suppress it on the last step —
- *   no JavaScript required.
- *
- * Usage in .mdx files:
+ * Usage in .mdx files (No 'step' prop required anymore!):
  *   <StepList>
- *     <StepItem step={1} title="Connect your wallet">
- *       Open the Aeternum app and click **Connect Wallet** in the top-right
- *       corner. Select your preferred wallet from the RainbowKit modal.
+ *     <StepItem title="Connect your wallet">
+ *       Open the Aeternum app and click **Connect Wallet**.
  *     </StepItem>
  *
- *     <StepItem step={2} title="Switch to Sepolia">
- *       The app will prompt you to switch networks. Confirm the switch
- *       to Ethereum Sepolia in your wallet.
+ *     <StepItem title="Switch to Sepolia">
+ *       Confirm the switch to Ethereum Sepolia in your wallet.
  *     </StepItem>
  *   </StepList>
  *
@@ -39,8 +32,8 @@ interface StepListProps {
 }
 
 export interface StepItemProps {
-  /** Step number displayed in the circle indicator */
-  step:     number
+  /** Optional step number override (CSS counters handle numbering automatically) */
+  step?:    number
   /** Bold step heading */
   title:    string
   children: ReactNode
@@ -49,14 +42,14 @@ export interface StepItemProps {
 // --- StepList — wrapper ---
 /**
  * Wraps a sequence of StepItem components.
- * The '[&>div:last-child_.step-line]:hidden' selector automatically hides
- * the connector line on the last step without any prop threading.
+ * '[counter-reset:step]' initializes an isolated CSS counter for this list.
+ * '[&>div:last-child_.step-line]:hidden' automatically hides the connector line on the last step.
  */
 export function StepList({ children }: StepListProps) {
   return (
     <div
       className={cn(
-        'my-6',
+        'my-6 [counter-reset:step]',
         // Hide the .step-line connector inside the last step child
         '[&>div:last-child_.step-line]:hidden',
       )}
@@ -67,14 +60,14 @@ export function StepList({ children }: StepListProps) {
 }
 
 // --- StepItem — individual step ---
-export function StepItem({ step, title, children }: StepItemProps) {
+export function StepItem({ title, children }: StepItemProps) {
   return (
     <div className="relative flex gap-4">
 
       {/* Left column: circle + connector line */}
       <div className="flex flex-col items-center">
 
-        {/* Numbered circle */}
+        {/* Numbered circle — Powered by auto-incrementing CSS counters */}
         <div
           aria-hidden="true"
           className={cn(
@@ -83,10 +76,10 @@ export function StepItem({ step, title, children }: StepItemProps) {
             'bg-accent',
             'text-xs font-bold text-foreground',
             'select-none',
+            // Increment the counter and inject it as pseudo-element content
+            '[counter-increment:step] before:content-[counter(step)]',
           )}
-        >
-          {step}
-        </div>
+        />
 
         {/* Vertical connector line — hidden on last child via StepList selector */}
         <div
