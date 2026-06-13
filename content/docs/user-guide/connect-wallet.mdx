@@ -9,12 +9,12 @@ Aeternum uses [RainbowKit](https://www.rainbowkit.com) for wallet connections. A
 
 | Wallet | Desktop | Mobile | Notes |
 | --- | --- | --- | --- |
-| MetaMask | ✓ | ✓ | Most widely tested |
-| Coinbase Wallet | ✓ | ✓ | |
+| MetaMask | ✓ | ✓ | Recommended for first-time users |
+| Coinbase Wallet | ✓ | ✓ | — |
 | Rainbow | — | ✓ | Mobile-first |
-| WalletConnect | ✓ | ✓ | Scan QR from any compatible wallet |
+| WalletConnect | ✓ | ✓ | Scan QR from your Mobile wallet |
 | Ledger | ✓ | — | Hardware wallet via WalletConnect |
-| Frame | ✓ | — | Desktop native; ideal for hardware wallets |
+| [Frame](https://frame.sh) | ✓ | — | Desktop native; ideal for hardware wallets |
 
 Ledger and other hardware wallets are fully supported through the WalletConnect bridge. If you are using a Ledger, make sure **blind signing** is enabled in the Ethereum app settings on the device — some vault interactions require signing transactions that Ledger's default firmware considers "blind".
 
@@ -32,7 +32,7 @@ Ledger and other hardware wallets are fully supported through the WalletConnect 
   </StepItem>
 
   <StepItem step={3} title="Approve the connection request">
-    Your wallet will prompt you to approve the connection to `aeternumvault.xyz`. This is a read-only permission — it does not grant the app any spending authority over your funds. Approve it.
+    Your wallet will prompt you to approve the connection to aeternumvault.xyz. This authorises the app to read your address and request transaction signatures — it does not grant the app any authority to sign or broadcast transactions without your explicit approval. Every transaction requires a separate confirmation in your wallet.
   </StepItem>
 
   <StepItem step={4} title="Confirm your address appears in the header">
@@ -53,7 +53,7 @@ Aeternum is currently deployed on **Ethereum Sepolia** testnet. If your wallet i
 **Manual switch in Coinbase Wallet:** tap the network icon in the top-left of the wallet → select **Sepolia**.
 
 <Callout type="info" title="No Sepolia ETH yet?">
-  You need Sepolia test ETH to pay for gas and to fund your vault. Get it free from [Google Cloud Web3](https://cloud.google.com/application/web3/faucet/ethereum/sepolia) or [sepoliafaucet.com](https://sepoliafaucet.com). Each faucet allows one claim per day. Request at least 0.05 Sepolia ETH to cover testing comfortably.
+  You need Sepolia test ETH to pay for gas and to fund your vault. Get it free from [sepoliafaucet.com](https://sepoliafaucet.com) or [Google Cloud Web3](https://cloud.google.com/application/web3/faucet/ethereum/sepolia). Each faucet allows one claim per day. Request at least 0.05 Sepolia ETH to cover testing comfortably.
 </Callout>
 
 ---

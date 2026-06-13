@@ -63,7 +63,7 @@ export function Providers({ children }: ProvidersProps) {
           modalSize="compact"
           appInfo={{
             appName: 'Aeternum',
-            learnMoreUrl: 'https://aeternumvault.xyz',
+            learnMoreUrl: 'https://www.aeternumvault.xyz',
           }}
         >
           {children}
