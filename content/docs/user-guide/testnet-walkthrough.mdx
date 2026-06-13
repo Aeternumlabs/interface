@@ -17,7 +17,7 @@ This walkthrough takes you through the complete Aeternum lifecycle on Sepolia te
 Before starting, prepare the following:
 
 - **Browser wallet** — MetaMask or any RainbowKit-supported wallet
-- **Sepolia ETH** — at least 0.05 SepoliaETH (get it free from [Google Cloud Web3](https://cloud.google.com/application/web3/faucet/ethereum/sepolia))
+- **Sepolia ETH** — at least 0.05 SepoliaETH (get it free from [sepoliafaucet.com](https://sepoliafaucet.com) or [Google Cloud Web3](https://cloud.google.com/application/web3/faucet/ethereum/sepolia))
 - **A second Ethereum address** — your "backup address" for this test. This can be a fresh MetaMask account, another wallet you control, or any address you can verify on Etherscan afterwards. You do not need Sepolia ETH in the backup address.
 
 ---
@@ -26,7 +26,7 @@ Before starting, prepare the following:
 
 <StepList>
   <StepItem step={1} title="Get Sepolia ETH">
-    Open [Google Cloud Web3](https://cloud.google.com/application/web3/faucet/ethereum/sepolia) in a new tab. Connect your wallet and switch to the Sepolia network in the faucet interface. Request Sepolia ETH — the faucet typically delivers 0.1 Sepolia ETH per claim. Wait for the transaction to confirm (usually under 30 seconds).
+    Open [sepoliafaucet.com](https://sepoliafaucet.com) or [Google Cloud Web3](https://cloud.google.com/application/web3/faucet/ethereum/sepolia) in a new tab. Enter your wallet address and switch to the Sepolia network in the faucet interface. Request Sepolia ETH — the faucet typically delivers 0.05 - 0.1 Sepolia ETH per claim. Wait for the transaction to confirm (usually under 30 seconds).
 
     Verify your balance in MetaMask or on [sepolia.etherscan.io/address/YOUR_ADDRESS](https://sepolia.etherscan.io). You should see at least 0.05 SepoliaETH.
   </StepItem>
@@ -42,37 +42,37 @@ Before starting, prepare the following:
 
     **Backup address:** enter the second Ethereum address you prepared. This is where your Sepolia ETH will be sent when recovery triggers.
 
-    **Inactivity period:** enter `300` seconds (5 minutes). This is far below the mainnet minimum of 180 days — Sepolia testnet allows short timers specifically for testing this flow.
+    **Inactivity period:** enter 5 minutes (`300` seconds). This is far below the mainnet minimum of 180 days — Sepolia testnet allows short timers specifically for testing this flow.
 
     Leave the optional deposit field empty for now — you will deposit separately in the next step.
 
-    Click **Register** and confirm the transaction in your wallet. Wait for the transaction to confirm (~15 seconds on Sepolia). Your vault is now live and the countdown timer appears on the dashboard.
+    Click **Register** and confirm the transaction in your wallet. Wait for the transaction to confirm (~15 seconds on Sepolia). Your vault is now live.
   </StepItem>
 
   <StepItem step={4} title="Deposit Sepolia ETH into your vault">
     Click **Deposit** on the dashboard. Enter `0.01` in the ETH field. Confirm the transaction.
 
-    After confirmation, your vault balance shows `0.01 SepoliaETH` and the countdown timer resets to 5 minutes. Chainlink Automation is now watching your vault — as soon as 5 minutes of silence elapses, it will trigger recovery.
+    After confirmation, your vault balance shows `0.01 SepoliaETH` and the countdown timer appears on the dashboard. Chainlink Automation is now watching your vault — as soon as 5 minutes of silence elapses, it will trigger recovery.
   </StepItem>
 
   <StepItem step={5} title="Do nothing — let the timer expire">
-    Wait **at least 5 minutes** without interacting with your vault. Do not click Ping, do not send any transactions from your connected wallet to the vault contract.
+    Wait **at least 5 minutes** without interacting with your vault. Do not interact with your vault in any way — no Ping, no Deposit, no Send. Any vault interaction resets the timer.
 
     You can watch the countdown timer on the dashboard tick down to zero. Once it reaches zero, your vault becomes eligible for recovery. The Chainlink node calls `checkUpkeep` every 12 seconds — it will detect your vault as due on its next scan.
   </StepItem>
 
   <StepItem step={6} title="Watch Chainlink execute the recovery">
-    Within a minute of the timer expiring, Chainlink's `performUpkeep` transaction will appear on-chain. You can observe it in two ways:
+    Typically within a few minutes of the timer expiring, Chainlink's `performUpkeep` transaction will appear on-chain. You can observe it in two ways:
 
-    **On the dashboard:** your vault balance drops to zero, the countdown timer disappears, and a "Recovery executed" entry appears in the vault history feed.
+    - **On the dashboard:** your vault balance drops to zero, the countdown timer disappears, and a "Recovery executed" entry appears in the vault history feed.
 
-    **On Sepolia Etherscan:** open your vault owner address on [sepolia.etherscan.io](https://sepolia.etherscan.io) and check the "Internal Transactions" tab. You will see an outgoing transfer from the AeternumVault contract address (`0x78B43d5058fa8A12227972DcE489AA36066c5E7b`) to your backup address.
+    - **On Sepolia Etherscan:** open your vault owner address on [sepolia.etherscan.io](https://sepolia.etherscan.io) and check the "Internal Transactions" tab. You will see an outgoing transfer from the AeternumVault contract address (`0x78B43d5058fa8A12227972DcE489AA36066c5E7b`) to your backup address.
   </StepItem>
 
   <StepItem step={7} title="Confirm the backup address received the ETH">
     Open your backup address on [sepolia.etherscan.io](https://sepolia.etherscan.io). Under the **Internal Txns** tab, you should see a credit of `0.01 SepoliaETH` from the AeternumVault contract. This confirms end-to-end recovery worked correctly.
 
-    The `RecoveryExecuted` event is also logged on the contract's event tab — search for the AeternumVault contract address and filter by `RecoveryExecuted` to see the exact log.
+    The `RecoveryExecuted` event is also logged on the [contract's event tab](https://sepolia.etherscan.io/address/0x78b43d5058fa8a12227972dce489aa36066c5e7b#events). Filter by `RecoveryExecuted` to see the exact log.
   </StepItem>
 </StepList>
 
@@ -110,5 +110,5 @@ This path is easier to observe in a local Foundry test than on Sepolia, where de
 
 Everything you experienced on Sepolia works identically on mainnet with two differences:
 
-- **Timer minimum is 180 days** — you cannot set a 5-minute timer on mainnet. The shortest allowed period is `15,552,000` seconds.
-- **Chainlink costs real LINK** — each `performUpkeep` call deducts LINK from the upkeep balance. The Aeternum Labs-maintained upkeep covers this cost; individual users pay no LINK fees.
+- **Timer minimum is 180 days** — you cannot set a 5-minute timer on mainnet. The shortest allowed period is approximately 6 months.
+- **Standard network gas fees** — Aeternum v1 charges absolutely no protocol fees, premium subscriptions, or hidden deployment cuts. The only cost you will ever incur is the usual, standard Ethereum network gas fee required to validate your own vault interactions — such as register, deposit, send, and ping.
