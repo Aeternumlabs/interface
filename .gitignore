@@ -42,3 +42,6 @@ next-env.d.ts
 
 # vscode
 .vscode
+
+# docs
+docs-folder-structure.md
