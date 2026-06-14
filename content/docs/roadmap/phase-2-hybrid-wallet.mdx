@@ -5,7 +5,7 @@ badge: coming-soon
 ---
 
 <Callout type="info" title="Coming soon">
-  Phase 2 is in active design. The architecture described here is planned — implementation begins after the Phase 1 mainnet deployment and external audit are complete.
+  The architecture described here reflects current design decisions — implementation begins after Phase 1 external audit and mainnet deployment.
 </Callout>
 
 ## The Core Shift
@@ -14,14 +14,9 @@ Phase 1 requires users to deposit ETH into an escrow-style vault contract. The a
 
 Phase 2 eliminates this entirely. **Your assets never leave your own address.**
 
-Instead of depositing into a contract, users either create a new Aeternum wallet from scratch or import an existing Externally Owned Account (MetaMask, Coinbase Wallet, hardware wallet — anything). In either case, the address looks and behaves like a completely standard Ethereum wallet. The recovery infrastructure operates silently in the background, attached to the account without requiring any asset migration.
+Instead of depositing into a contract, users either create a new Aeternum wallet from scratch or import an existing Externally Owned Account (MetaMask, Coinbase Wallet, hardware wallet — anything). In either case, the address looks and behaves like a completely standard Ethereum wallet. The recovery infrastructure operates on the account without requiring any asset migration.
 
-This is made possible by **EIP-7702**, an Ethereum standard that allows a regular EOA to temporarily delegate execution authority to a smart contract without changing the underlying address or requiring a separate proxy deployment. The user maintains one address and one seed phrase, while the `AeternumRecoveryManager` contract gains the ability to execute recovery logic on their behalf when inactivity conditions are met.
-
-```
-Phase 1:         Your EOA  →  AeternumVault contract (escrow)
-Phase 2:         Your EOA  ←  AeternumRecoveryManager (sits on top, no custody)
-```
+This is made possible by **EIP-7702**, an Ethereum standard that allows a regular EOA to delegate execution logic to a smart contract without changing the underlying address or requiring a separate proxy deployment. The user maintains one address and one seed phrase, while the `AeternumRecoveryManager` contract gains the ability to execute recovery logic on their behalf when inactivity conditions are met.
 
 From the outside, the Phase 2 wallet is indistinguishable from MetaMask. DeFi protocols, exchanges, and wallets all see a standard Ethereum address. Under the hood, the EOA has been upgraded into a programmable hybrid account.
 
@@ -48,13 +43,19 @@ Phase 1 requires users to manually call `ping()` to signal liveness when they ar
 
 Phase 2 removes this requirement entirely. **Simply opening the Aeternum app resets your inactivity timer.**
 
-When you open the app, it sends a lightweight signed interaction to the `AeternumRecoveryManager` in the background, recording `block.timestamp` as the new `lastActivity` point. You do not need to approve a transaction or pay gas — the app handles the signature automatically.
+When you open the app, it automatically sends a gasless, signed interaction to the `AeternumRecoveryManager` to update your lastActivity timestamp. You do not need to approve transactions or pay gas fees — the protocol handles this seamlessly via Paymaster sponsorship.
 
 This has two important consequences:
 
 **Accidental recovery becomes much harder to trigger.** If your inactivity period is 365 days, you just need to open your wallet app once a year — the same natural behaviour expected of anyone who occasionally checks their crypto balance. Recovery is reserved for true absence, not scheduling oversight.
 
-**The recovery guarantee becomes more accurate.** The timer reflects genuine wallet engagement rather than artificial pings. A user who is alive and conscious will open their wallet at least once a year. A user who has been in a coma for 14 months, or has passed away, will not.
+**The liveness signal becomes semantically stronger.** Phase 1's recovery guarantee is
+complete and unchanged — if the inactivity period elapses and your vault holds ETH,
+recovery executes without exception. What Phase 2 refines is the precision of the signal
+that drives the timer. A manual `ping()` call proves key control; opening the app proves
+genuine wallet engagement. The underlying trigger conditions, contract logic, and execution
+guarantees carry forward identically. The timer simply becomes a more meaningful proxy for
+the real question: is this person still actively using their wallet?
 
 The manual `ping()` function remains available on-chain for users who want to prove liveness from a separate interface or a scripted environment. It is no longer the primary mechanism — it is a power-user option.
 
@@ -72,11 +73,25 @@ ETH and all registered ERC-20 token balances move from the Aeternum wallet to th
 
 ## What Carries Forward From Phase 1
 
-The following architecture elements are preserved unchanged in Phase 2:
+The following architecture elements are preserved in Phase 2:
 
-- The rolling cursor architecture and `MAX_RECOVERY_ATTEMPTS` abandonment handling
-- The Chainlink forwarder access control pattern
-- The stale data safety pattern in `performUpkeep`
-- The event schema (with additions for multi-asset events)
+- **The rolling cursor architecture — extended, not replaced.** The core window-based
+  scanning logic, cursor hold/advance behaviour, and self-correction design carry forward
+  from Phase 1. Phase 2 extends it with a `checkData` parameter that allows multiple
+  partitioned Chainlink jobs to operate over distinct registry slices — the horizontal
+  scaling model described in the [Rolling Cursor](/docs/architecture/rolling-cursor)
+  architecture. A reduced `CURSOR_ADVANCE_INTERVAL` is also planned for Phase 2 given
+  the more distributed LINK cost across multiple jobs.
+- **`MAX_RECOVERY_ATTEMPTS` abandonment handling — with per-asset nuance.** The
+  three-attempt ceiling on per-wallet abandonment carries forward for ETH recovery. In
+  Phase 2's multi-asset model, individual ERC-20 token transfer failures are tracked
+  separately per token across retry cycles — a single failing token does not count
+  against the wallet-level abandonment counter. Abandonment applies when the ETH
+  recovery path itself has failed three consecutive times.
+- The stale data safety pattern in `performUpkeep` — every candidate wallet is
+  re-validated on-chain before any asset moves, regardless of what the off-chain
+  discovery layer submitted.
+- The Chainlink forwarder access control pattern.
+- The event schema (with additions for multi-asset transfer and per-token failure events).
 
-The only thing that changes is **the source of assets** — from a vault escrow mapping to the user's self-custodial wallet.
+These preserved mechanics form a battle-tested safety foundation. Phase 2 layers on top of this foundation by expanding the protocol's surface area — transitioning from a localized escrow contract to a comprehensive, multi-token recovery manager capable of securely retrieving assets straight from the user's self-custodial wallet.
