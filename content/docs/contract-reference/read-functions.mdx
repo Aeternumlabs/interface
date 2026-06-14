@@ -12,11 +12,7 @@ All functions on this page are `view` — they read state without modifying it a
   signature="isRegistered(address wallet) external view returns (bool)"
   modifier="view"
   description="Returns true if the given address currently has an active, registered vault. Returns false for unregistered addresses, abandoned vaults, and cancelled vaults."
-  params={[
-    { name: 'wallet', type: 'address', description: 'The address to check.' },
-  ]}
   returns="bool — true if the wallet has an active vault, false otherwise."
-  example={`const isActive = await vault.read.isRegistered([walletAddress])`}
 />
 
 ---
@@ -26,17 +22,7 @@ All functions on this page are `view` — they read state without modifying it a
   signature="getRecoveryConfig(address wallet) external view returns (RecoveryConfig memory)"
   modifier="view"
   description="Returns the full vault configuration for the given address. This is the primary data-fetch function for frontends — one call returns all vault state. Returns a zero-value struct (all fields at their default values) for unregistered addresses."
-  params={[
-    { name: 'wallet', type: 'address', description: 'The address to query.' },
-  ]}
   returns="RecoveryConfig struct: { backupAddress, inactivityPeriod, lastActivity, balance, isActive, failedRecoveryAttempts, isAbandoned }"
-  example={`const config = await vault.read.getRecoveryConfig([walletAddress])
-// config.balance          → vault ETH balance (wei)
-// config.lastActivity     → Unix timestamp of last interaction
-// config.inactivityPeriod → seconds until recovery is eligible
-// config.backupAddress    → recipient on recovery
-// config.isActive         → vault is live and monitored
-// config.isAbandoned      → true after 3 failed recovery attempts`}
 />
 
 ---
@@ -45,14 +31,8 @@ All functions on this page are `view` — they read state without modifying it a
   name="isRecoveryDue"
   signature="isRecoveryDue(address wallet) external view returns (bool)"
   modifier="view"
-  description="Returns true if a vault is currently eligible for recovery — meaning it is active, holds a non-zero ETH balance, and the inactivity period has fully elapsed since the last interaction. Chainlink uses this logic (inlined in checkUpkeep) to identify due wallets."
-  params={[
-    { name: 'wallet', type: 'address', description: 'The address to check.' },
-  ]}
+  description="Returns true if a vault is currently eligible for recovery — meaning it is active, holds a non-zero ETH balance, and the inactivity period has fully elapsed since the last interaction. This function exposes the same three-condition eligibility check that checkUpkeep evaluates internally — useful for frontends, dashboards, and monitoring tools to surface vault status without simulating the full upkeep logic."
   returns="bool — true if the vault is due for recovery, false otherwise."
-  example={`const isDue = await vault.read.isRecoveryDue([walletAddress])
-// true  → Chainlink will trigger recovery on the next performUpkeep call
-// false → vault is not eligible (timer running, zero balance, or inactive)`}
 />
 
 ---
@@ -62,12 +42,7 @@ All functions on this page are `view` — they read state without modifying it a
   signature="getTimeUntilRecovery(address wallet) external view returns (uint256)"
   modifier="view"
   description="Returns the number of seconds remaining before the vault becomes eligible for recovery. Returns 0 if recovery is already due or if the vault is not registered/has no balance. Used by the frontend to drive the countdown timer display."
-  params={[
-    { name: 'wallet', type: 'address', description: 'The address to query.' },
-  ]}
   returns="uint256 — seconds remaining until recovery eligibility. 0 if already due or vault is inactive/empty."
-  example={`const secondsLeft = await vault.read.getTimeUntilRecovery([walletAddress])
-const deadlineUnix = BigInt(Math.floor(Date.now() / 1000)) + secondsLeft`}
 />
 
 ---
@@ -77,12 +52,7 @@ const deadlineUnix = BigInt(Math.floor(Date.now() / 1000)) + secondsLeft`}
   signature="isBackupAbandoned(address backup) external view returns (bool)"
   modifier="view"
   description="Returns true if the given address has been permanently blocked as a backup address after failing to receive ETH across MAX_RECOVERY_ATTEMPTS consecutive recovery attempts. Any registration or backup update pointing to a blocked address will be rejected by the contract."
-  params={[
-    { name: 'backup', type: 'address', description: 'The backup address to check.' },
-  ]}
   returns="bool — true if permanently blocked, false if safe to use."
-  example={`const isBlocked = await vault.read.isBackupAbandoned([potentialBackupAddress])
-// Check before allowing a user to register with this address`}
 />
 
 ---
@@ -91,17 +61,8 @@ const deadlineUnix = BigInt(Math.floor(Date.now() / 1000)) + secondsLeft`}
   name="getRegisteredWallets"
   signature="getRegisteredWallets(uint256 start, uint256 end) external view returns (address[] memory)"
   modifier="view"
-  description="Returns a paginated slice of the registered wallets array. The end index is clamped to the array length if out of bounds, so passing a large end value safely returns everything from start to the last element. Used by off-chain tools and indexers to enumerate active vaults."
-  params={[
-    { name: 'start', type: 'uint256', description: 'Inclusive start index. Returns an empty array if start >= total registered.' },
-    { name: 'end', type: 'uint256', description: 'Exclusive end index. Clamped to array length if out of bounds.' },
-  ]}
+  description="Returns a paginated slice of the registered wallets array. The end index is clamped to the array length if out of bounds, so passing a large end value safely returns everything from start to the last element. Used by off-chain tools and indexers to enumerate all currently monitored vaults."
   returns="address[] — slice of registered wallet addresses from index start to end."
-  example={`// Fetch first 100 registered wallets
-const wallets = await vault.read.getRegisteredWallets([0n, 100n])
-
-// Fetch all (pass a large end value — it is clamped automatically)
-const all = await vault.read.getRegisteredWallets([0n, 1_000_000n])`}
 />
 
 ---
@@ -111,9 +72,7 @@ const all = await vault.read.getRegisteredWallets([0n, 1_000_000n])`}
   signature="getTotalRegistered() external view returns (uint256)"
   modifier="view"
   description="Returns the total number of wallets currently registered and active in the protocol. This is the length of the internal registry array."
-  params={[]}
   returns="uint256 — count of active registered vaults."
-  example={`const totalUsers = await vault.read.getTotalRegistered()`}
 />
 
 ---
@@ -122,12 +81,8 @@ const all = await vault.read.getRegisteredWallets([0n, 1_000_000n])`}
   name="getCheckCursor"
   signature="getCheckCursor() external view returns (uint256)"
   modifier="view"
-  description="Returns the current position of the rolling cursor — the registry index at which the next checkUpkeep scan window begins. Used by monitoring tools and the docs dashboard to show where in the registry Chainlink is currently scanning."
-  params={[]}
+  description="Returns the current position of the rolling cursor — the registry index at which the next checkUpkeep scan window begins. Used by frontends and monitoring tools to display the current scan progress across the registry."
   returns="uint256 — the current cursor index into the registered wallets array."
-  example={`const cursor = await vault.read.getCheckCursor()
-const total  = await vault.read.getTotalRegistered()
-const progress = Number(cursor) / Number(total) // scan progress as fraction`}
 />
 
 ---
@@ -137,10 +92,7 @@ const progress = Number(cursor) / Number(total) // scan progress as fraction`}
   signature="getLastCursorAdvance() external view returns (uint256)"
   modifier="view"
   description="Returns the Unix timestamp of the last time the cursor advanced during an idle window scan. Used with CURSOR_ADVANCE_INTERVAL to determine when the next cursor advance is eligible."
-  params={[]}
   returns="uint256 — Unix timestamp of the last cursor advance, or 0 if the cursor has never advanced."
-  example={`const lastAdvance = await vault.read.getLastCursorAdvance()
-const nextAdvance = lastAdvance + CURSOR_ADVANCE_INTERVAL`}
 />
 
 ---
@@ -150,8 +102,5 @@ const nextAdvance = lastAdvance + CURSOR_ADVANCE_INTERVAL`}
   signature="getForwarder() external view returns (address)"
   modifier="view"
   description="Returns the registered Chainlink Automation forwarder address. Returns the zero address (0x000...000) if setForwarder() has not yet been called. A non-zero return value confirms that performUpkeep is locked to the Chainlink forwarder only."
-  params={[]}
   returns="address — the registered forwarder, or address(0) if not yet set."
-  example={`const forwarder = await vault.read.getForwarder()
-const isLocked  = forwarder !== zeroAddress`}
 />
