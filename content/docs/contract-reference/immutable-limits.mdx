@@ -20,7 +20,7 @@ The table below shows the values for the live Sepolia deployment (`0x78B43d5058f
 | `MAX_CHECK_UPKEEP_SIZE` | 5,000 | 5,000 | Wallets scanned per `checkUpkeep` simulation (off-chain) |
 | `MAX_PERFORM_UPKEEP_SIZE` | 50 | 50 | Recoveries executed per `performUpkeep` transaction (on-chain) |
 | `MAX_RECOVERY_ATTEMPTS` | 3 | 3 | Consecutive failures before a vault is abandoned |
-| `CURSOR_ADVANCE_INTERVAL` | 1 hour | 1 hour | Minimum cooldown between cursor advances when registry is clear |
+| `CURSOR_ADVANCE_INTERVAL` | 30 sec | 1 hour | Minimum cooldown between cursor advances when registry is clear |
 
 ---
 
@@ -28,7 +28,7 @@ The table below shows the values for the live Sepolia deployment (`0x78B43d5058f
 
 ### MIN_INACTIVITY_PERIOD: 180 days
 
-The 180-day floor exists to prevent accidental recovery. A trip, a hospitalisation, or an unusually busy period could easily produce a gap of a few months in someone's blockchain activity. Below 180 days, the risk of unintended recovery becomes meaningful for real-world users.
+The 180-day floor exists to prevent accidental recovery. A trip or an unusually busy period could easily produce a gap of a few months in someone's blockchain activity. Below 180 days, the risk of unintended recovery becomes meaningful for real-world users.
 
 On Sepolia, the minimum is set to 5 minutes (300 seconds) specifically to allow developers and testers to observe the full recovery cycle within a single session.
 
@@ -52,6 +52,8 @@ Three attempts give a broken backup address a fair chance to be fixed (perhaps t
 
 One hour means the cursor sweeps at a maximum of 24 windows per day. At 5,000 wallets per window and 500,000 total users, the full registry is covered in ~4 days. This pacing keeps Chainlink costs reasonable — if the interval were 1 second, idle advancement would cost significant LINK even when no recoveries are pending.
 
+On Sepolia, the interval is set to 30 seconds specifically to ensure the cursor sweeps through all windows fast enough to catch and process recoveries for testers utilizing accelerated inactivity periods (like 5 minutes).
+
 ---
 
 ## Reading These Values On-Chain
@@ -60,12 +62,12 @@ All immutable constants are publicly accessible as `public immutable` Solidity v
 
 ```solidity
 // Read all immutable limits
-const min  = await vault.read.MIN_INACTIVITY_PERIOD()    // 300 (Sepolia) / 15552000 (mainnet)
-const max  = await vault.read.MAX_INACTIVITY_PERIOD()    // 315360000
-const scan = await vault.read.MAX_CHECK_UPKEEP_SIZE()    // 5000
-const exec = await vault.read.MAX_PERFORM_UPKEEP_SIZE()  // 50
-const att  = await vault.read.MAX_RECOVERY_ATTEMPTS()    // 3
-const int_ = await vault.read.CURSOR_ADVANCE_INTERVAL()  // 3600
+const minInactivityPeriod  = await vault.read.MIN_INACTIVITY_PERIOD()    // 300 (Sepolia) / 15552000 (mainnet)
+const maxInactivityPeriod  = await vault.read.MAX_INACTIVITY_PERIOD()    // 315360000
+const maxCheckUpkeepSize = await vault.read.MAX_CHECK_UPKEEP_SIZE()    // 5000
+const maxPerformUpkeepSize = await vault.read.MAX_PERFORM_UPKEEP_SIZE()  // 50
+const maxRecoveryAttempts = await vault.read.MAX_RECOVERY_ATTEMPTS()    // 3
+const cursorAdvanceInterval = await vault.read.CURSOR_ADVANCE_INTERVAL()  // 30 (Sepolia) / 3600 (mainnet)
 ```
 
 Frontends and integrators should read these values from the contract rather than hardcoding them, since different deployments (Sepolia vs mainnet vs future chains) use different values.
