@@ -5,14 +5,14 @@ badge: coming-soon
 ---
 
 <Callout type="info" title="Coming soon">
-  Phase 3 begins after Phase 2 is stable and audited. Network selection and deployment order will be driven by where the Aeternum user base holds assets at that time.
+  Phase 3 begins after Phase 2 has completed its external security audit and reached production deployment.
 </Callout>
 
 ## The Problem Phase 3 Solves
 
-After Phase 2, a user holding ETH on Ethereum mainnet is fully protected — their hybrid wallet monitors inactivity and recovers assets automatically. But most active crypto users do not live on one chain. They hold ETH on Arbitrum for DeFi, bridge to Base for lower fees, keep BNB on BNB Chain, and hold stablecoins on Polygon.
+After Phase 2, a user holding ETH on Ethereum mainnet is fully protected — their hybrid wallet monitors inactivity and recovers assets automatically. But most active crypto users do not confine their holdings to a single chain. They hold ETH on Arbitrum for DeFi, bridge to Base for lower fees, keep BNB on BNB Chain, hold stablecoins on Polygon, and so on.
 
-Each of those positions is currently an orphan from a recovery perspective. If the user becomes incapacitated, the Ethereum mainnet recovery fires and moves their mainnet ETH to the backup address. Their Arbitrum, Base, and BNB positions sit unprotected — subject to the same original problem that Aeternum was built to solve.
+Each of those positions sits outside Aeternum's protection after Phase 2. If the user becomes incapacitated, the Ethereum mainnet recovery fires and moves their mainnet ETH to the backup address. Their Arbitrum, Base, BNB positions sit unprotected — subject to the same original problem that Aeternum was built to solve.
 
 Phase 3 closes that gap by expanding the Aeternum hybrid wallet and `AeternumRecoveryManager` to every major EVM-compatible network.
 
@@ -23,11 +23,11 @@ Phase 3 closes that gap by expanding the Aeternum hybrid wallet and `AeternumRec
 Phase 3 does **not** use cross-chain messaging or bridge infrastructure. Every supported network gets its own fully independent deployment:
 
 - Its own `AeternumRecoveryManager` contract
-- Its own Chainlink Automation upkeep, funded with the network's native LINK
+- Its own Chainlink Automation upkeep, funded with LINK tokens on that network
 - Its own rolling cursor registry covering all users on that chain
 - Its own `setForwarder()` call, locking execution to the chain-specific Chainlink forwarder
 
-This design is intentional. Cross-chain recovery — where a trigger on Ethereum causes a transfer on Arbitrum — introduces bridge dependency risk, oracle latency, and message-passing attack surfaces. By running independently per chain, each deployment inherits the same trust properties as the Phase 1 Ethereum vault: no cross-chain message can interfere with recovery execution, and a failure on one chain does not block recovery on any other.
+This design is intentional. Cross-chain recovery — where a trigger on Ethereum causes a transfer on Arbitrum — introduces bridge dependency risk, oracle latency, and message-passing attack surfaces. By running independently per chain, each deployment inherits the same trust properties as the Phase 2 AeternumRecoveryManager — no cross-chain message can interfere with recovery execution, and a failure on one chain does not affect any other.
 
 Assets on each chain recover independently to the designated backup address **on that same chain**.
 
@@ -35,15 +35,15 @@ Assets on each chain recover independently to the designated backup address **on
 
 ## Supported Networks
 
-| Network | Native asset recovered | Chainlink Automation |
-| --- | --- | --- |
-| Ethereum | ETH | ✓ Live |
-| Base | ETH | ✓ Live |
-| Arbitrum One | ETH | ✓ Live |
-| Optimism | ETH | ✓ Live |
-| BNB Chain | BNB | ✓ Live |
-| Polygon | POL | ✓ Live |
-| zkSync Era | ETH | ✓ Live |
+| Network | Native asset recovered |
+| --- | --- |
+| Ethereum | ETH |
+| Base | ETH |
+| Arbitrum One | ETH |
+| Optimism | ETH |
+| BNB Chain | BNB |
+| Polygon | POL |
+| zkSync Era | ETH |
 
 All networks listed have active Chainlink Automation support, which is a hard requirement for Aeternum deployment. Future chains will be added as Chainlink Automation expands its coverage.
 
@@ -55,8 +55,8 @@ Users protecting assets across multiple chains register separately on each chain
 
 **The backup address is configured per deployment.** A user can choose a different backup address for each chain, or use the same address everywhere. Common patterns:
 
-- **Same backup everywhere** — simplest setup, one address receives everything across all chains on recovery
-- **Chain-specific backups** — different trusted parties per chain, or a chain-specific multisig for each network's asset
+- **Same backup everywhere** — simplest setup, the primary beneficiary's address receives everything across all chains on recovery
+- **Chain-specific backups** — different estate trustees per chain, or a chain-specific multisig for each network's assets
 - **Hardware wallet as universal backup** — a single Ledger address designated everywhere, receiving all multi-chain assets
 
 **The inactivity period is also per-chain.** A user might want a shorter timer on their active DeFi chains (Base, Arbitrum) and a longer timer on cold-storage chains (Ethereum mainnet). This flexibility is fully supported.
@@ -65,7 +65,7 @@ Users protecting assets across multiple chains register separately on each chain
 
 ## Activity Synchronisation
 
-In Phase 2, opening the Aeternum app resets the timer on the connected chain. In Phase 3, the app sends activity pings to **all chains where the user has a registered vault** simultaneously, using a batched background signature flow.
+In Phase 2, opening the Aeternum app resets the timer on the connected chain. In Phase 3, The app submits a separate, gas-sponsored activity ping to each chain's `AeternumRecoveryManager` independently. No cross-chain message passing occurs — each ping is a fully independent on-chain interaction on its respective network, coordinated by the app layer rather than any bridging infrastructure.
 
 This means a user who opens their Aeternum app on any device automatically extends their inactivity deadline across every protected chain — without needing to manually interact on each network individually.
 
@@ -73,11 +73,19 @@ For users who prefer a more hands-on approach, the manual `ping()` function rema
 
 ---
 
-## What Does Not Change
+## What Carries Forward From Phase 2
 
-The rolling cursor architecture, `MAX_RECOVERY_ATTEMPTS` abandonment handling, stale data safety, and the Chainlink forwarder access control pattern are deployed identically across all chains. Each chain's deployment is a direct copy of the Phase 2 contract, parameterised for that network's Chainlink environment.
+Every Phase 2 capability extends to each Phase 3 deployment unchanged:
 
-The only chain-specific configuration is:
-- The Chainlink Automation forwarder address (assigned per-upkeep by Chainlink on each network)
-- `CURSOR_ADVANCE_INTERVAL` — tuned per network based on block times and gas economics
-- `MIN_INACTIVITY_PERIOD` — may be adjusted per network based on ecosystem expectations
+- **Hybrid wallet architecture** — the EIP-7702 account model, with ETH and ERC-20 assets
+  remaining in the user's self-custodial address on each chain
+- **Multi-asset recovery** — ETH and all registered ERC-20 balances on each chain
+  transfer to the designated backup address on that same chain when recovery triggers
+- **Passive activity detection** — opening the app triggers a background ping on every
+  chain where the user has a registered vault, with no manual interaction required
+- **Per-token failure isolation** — individual ERC-20 transfer failures are retried
+  independently without blocking recovery of other assets on the same chain
+- **The rolling cursor and `MAX_RECOVERY_ATTEMPTS` abandonment handling** — each
+  chain's deployment runs its own independent cursor with the same three-attempt ceiling
+
+Phase 3 is not about re-engineering the wheel, but rather taking a mature asset-protection engine and expanding its footprint globally across networks.
