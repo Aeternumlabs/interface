@@ -73,6 +73,10 @@ Open `http://localhost:3000` in your browser.
 - `vault/layout.tsx` — layout grid for desktop and mobile
 - `vault/page.tsx` — renders the main vault dashboard
 - `vault/activity/page.tsx` — vault activity and history view
+- `docs/` — documentation pages
+  - `layout.tsx` — docs layout with sidebar
+  - `page.tsx` — docs landing page
+  - `[...slug]/page.tsx` — dynamic doc pages
 
 ### `components/`
 
@@ -88,6 +92,16 @@ Open `http://localhost:3000` in your browser.
 - `components/chart/` — balance chart and range selector
 - `components/common/` — shared UI pieces used throughout the app
 - `components/ui/` — shadcn/ui primitives used by the interface
+- `components/docs/` — documentation-specific components
+  - `Callout.tsx` — callout boxes for docs
+  - `DocsBreadcrumb.tsx` — breadcrumb navigation
+  - `DocsHeader.tsx` — doc page headers
+  - `DocsPageFooter.tsx` — doc page footer with navigation
+  - `DocsSidebar.tsx` — sidebar navigation
+  - `FunctionCard.tsx` — function reference cards
+  - `MdxComponents.tsx` — MDX component mappings
+  - `StepList.tsx` — step-by-step lists
+  - `diagrams/` — diagram components
 
 ### `hooks/`
 
@@ -113,6 +127,7 @@ Open `http://localhost:3000` in your browser.
 - `lib/constants.ts` — application constants and timing values
 - `lib/eventLogs.ts` — event log parsing utilities
 - `lib/indexer.ts` — indexer integration helpers
+- `lib/docs.ts` — documentation navigation and structure
 
 ### `types/`
 
@@ -123,6 +138,17 @@ Open `http://localhost:3000` in your browser.
 
 - `config/chains.ts` — chain configuration for wagmi
 - `config/site.ts` — site metadata and external links
+
+### `content/`
+
+- `content/docs/` — documentation content in MDX format
+  - `architecture/` — architecture documentation
+  - `contract-reference/` — contract API reference
+  - `faq.mdx` — frequently asked questions
+  - `how-it-works/` — how the protocol works
+  - `introduction/` — introduction to Aeternum
+  - `roadmap/` — project roadmap
+  - `user-guide/` — user guides
 
 ## Folder structure
 
@@ -137,6 +163,11 @@ aeternum-app/
 │   ├── icon.png
 │   ├── providers.tsx
 │   ├── page.tsx
+│   ├── docs/
+│   │   ├── layout.tsx
+│   │   ├── page.tsx
+│   │   └── [...slug]/
+│   │       └── page.tsx
 │   └── vault/
 │       ├── layout.tsx
 │       ├── page.tsx
@@ -177,7 +208,17 @@ aeternum-app/
 │   │       ├── TransactionList.tsx
 │   │       └── TransactionRow.tsx
 │   ├── chart/
-│   └── common/
+│   ├── common/
+│   └── docs/
+│       ├── Callout.tsx
+│       ├── DocsBreadcrumb.tsx
+│       ├── DocsHeader.tsx
+│       ├── DocsPageFooter.tsx
+│       ├── DocsSidebar.tsx
+│       ├── FunctionCard.tsx
+│       ├── MdxComponents.tsx
+│       ├── StepList.tsx
+│       └── diagrams/
 │
 ├── graphql/
 │   └── queries.ts
@@ -200,7 +241,8 @@ aeternum-app/
 │   ├── formatters.ts
 │   ├── constants.ts
 │   ├── eventLogs.ts
-│   └── indexer.ts
+│   ├── indexer.ts
+│   └── docs.ts
 │
 ├── types/
 │   ├── vault.ts
@@ -210,9 +252,22 @@ aeternum-app/
 │   ├── chains.ts
 │   └── site.ts
 │
+├── content/
+│   └── docs/
+│       ├── architecture/
+│       ├── contract-reference/
+│       ├── faq.mdx
+│       ├── how-it-works/
+│       ├── introduction/
+│       ├── roadmap/
+│       └── user-guide/
+│
 ├── public/
 ├── .env.example
+├── .hintrc
+├── eslint.config.mjs
 ├── next.config.ts
+├── postcss.config.mjs
 ├── tailwind.config.ts
 ├── tsconfig.json
 ├── components.json
