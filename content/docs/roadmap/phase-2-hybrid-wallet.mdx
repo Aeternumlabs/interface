@@ -47,7 +47,7 @@ When you open the app, it automatically sends a gasless, signed interaction to t
 
 This has two important consequences:
 
-**Accidental recovery becomes much harder to trigger.** If your inactivity period is 365 days, you just need to open your wallet app once a year — the same natural behaviour expected of anyone who occasionally checks their crypto balance. Recovery is reserved for true absence, not scheduling oversight.
+**Accidental recovery becomes much harder to trigger.** If your inactivity period is 365 days, you just need to open your wallet app once a year — the same natural behavior expected of anyone who occasionally checks their crypto balance. Recovery is reserved for true absence, not scheduling oversight.
 
 **The liveness signal becomes semantically stronger.** Phase 1's recovery guarantee is
 complete and unchanged — if the inactivity period elapses and your vault holds ETH,
@@ -76,7 +76,7 @@ ETH and all registered ERC-20 token balances move from the Aeternum wallet to th
 The following architecture elements are preserved in Phase 2:
 
 - **The rolling cursor architecture — extended, not replaced.** The core window-based
-  scanning logic, cursor hold/advance behaviour, and self-correction design carry forward
+  scanning logic, cursor hold/advance behavior, and self-correction design carry forward
   from Phase 1. Phase 2 extends it with a `checkData` parameter that allows multiple
   partitioned Chainlink jobs to operate over distinct registry slices — the horizontal
   scaling model described in the [Rolling Cursor](/docs/architecture/rolling-cursor)

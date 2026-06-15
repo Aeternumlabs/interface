@@ -33,7 +33,7 @@ uint256 end = cursor + MAX_CHECK_UPKEEP_SIZE;
 if (end > total) end = total;
 ```
 
-The cursor has two behaviours:
+The cursor has two behaviors:
 
 **Holds position** when due wallets are found. The same window is re-scanned on the next call until all due wallets in that window have been processed. This ensures no wallet is missed in a dense recovery period.
 

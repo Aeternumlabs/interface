@@ -13,7 +13,7 @@ This is not a promise from a team — it is a property of the code. AeternumVaul
 
 ## Reentrancy Protection: Two Independent Layers
 
-A reentrancy attack occurs when a malicious contract calls back into an ETH-sending function before the first call completes — exploiting the window between "send ETH" and "update state" to steal funds multiple times. AeternumVault uses two independent defences.
+A reentrancy attack occurs when a malicious contract calls back into an ETH-sending function before the first call completes — exploiting the window between "send ETH" and "update state" to steal funds multiple times. AeternumVault uses two independent defenses.
 
 ### Layer 1 — Checks-Effects-Interactions (CEI)
 
@@ -56,7 +56,7 @@ contract AeternumVault is IAeternumVault, ReentrancyGuard, AutomationCompatibleI
 The two layers address different threat surfaces. CEI eliminates the economic incentive: `config.balance` is zeroed before any ETH transfer, so a reentrant call finds nothing left to steal. `ReentrancyGuard` provides a hard execution boundary that holds even on the failure-restore path — where some state writes unavoidably occur after the external call because the contract can only determine a transfer has failed after attempting it. A third layer closes the loop: after `MAX_RECOVERY_ATTEMPTS` consecutive failures, the vault is permanently abandoned and removed from monitoring, eliminating the retry surface entirely.
 
 <Callout type="info">
-  The internal security audit (AV-01) confirmed this architecture. Slither downgraded the failure-restore path finding from `reentrancy-eth` (Medium) to `reentrancy-benign` (Low) because `config.balance` is provably zeroed before the call — making double-spend impossible regardless of reentrant behaviour. No High severity findings were identified.
+  The internal security audit (AV-01) confirmed this architecture. Slither downgraded the failure-restore path finding from `reentrancy-eth` (Medium) to `reentrancy-benign` (Low) because `config.balance` is provably zeroed before the call — making double-spend impossible regardless of reentrant behavior. No High severity findings were identified.
 </Callout>
 
 ---

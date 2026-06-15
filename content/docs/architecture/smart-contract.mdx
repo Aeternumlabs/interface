@@ -90,6 +90,6 @@ There is no upgrade mechanism. Each deployed version of AeternumVault is immutab
 
 ## Registered Wallets: Current Scope
 
-The registry (`s_registeredWallets`) only contains **currently active** vaults. Wallets that have cancelled their vault, been abandoned, or never registered are not in the array. This keeps the array compact and keeps Chainlink scan costs proportional to the active user base.
+The registry (`s_registeredWallets`) only contains **currently active** vaults. Wallets that have canceled their vault, been abandoned, or never registered are not in the array. This keeps the array compact and keeps Chainlink scan costs proportional to the active user base.
 
 When a user cancels via `cancelRecovery()`, or when abandonment occurs after three failed recovery attempts, `_removeFromRegistry()` is called immediately — the wallet leaves the registry and is no longer scanned on subsequent upkeep calls.
