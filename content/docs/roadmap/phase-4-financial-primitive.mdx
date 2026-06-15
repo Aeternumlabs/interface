@@ -102,3 +102,50 @@ Use cases being designed:
 **Compliance and estate planning.** Institutional users can configure auditable recovery flows that satisfy legal requirements for digital asset succession.
 
 The API surface will be documented in full as Phase 4 contracts are designed and audited. The recovery guarantee — that the user's assets go where they configured, automatically — remains the foundation everything else is built on.
+
+---
+
+## What Carries Forward From Phase 3
+
+Phase 4 builds on the complete Phase 3 stack. Every multichain capability carries forward
+unchanged:
+
+- **Independent per-chain deployments** — each supported network continues to run
+  its own `AeternumRecoveryManager` with fully independent Chainlink Automation
+  monitoring, cursor-based registry traversal, and forwarder access control. Phase 4
+  introduces no cross-chain dependencies between these deployments.
+- **Multi-asset recovery with yield position unwinding** — ETH and all registered
+  ERC-20 balances remain recoverable on every chain. Phase 4 extends this by adding
+  programmatic unwinding of yield-bearing positions (stETH, aWETH) at recovery time,
+  so beneficiaries receive settled assets rather than positions they may not know how
+  to manage.
+- **Activity synchronisation across chains** — opening the Aeternum app continues to
+  reset the inactivity timer across all registered vaults via the independent
+  per-chain background signature flow established in Phase 3.
+- **Per-chain beneficiary configuration** — backup addresses and inactivity periods
+  remain independently configurable per chain.
+
+### Chainlink Automation — The Natural Transition Point
+
+Phase 4 marks the scaling inflection point where the rolling cursor model transitions
+from partitioned upkeep jobs to [Off-Chain Computation with On-Chain Verification](/docs/architecture/rolling-cursor#10m-to-50m-users-off-chain-computation-with-on-chain-verification).
+
+By Phase 3, each chain runs its own independent cursor, distributing the total
+monitoring load across networks. Phase 4's growth drivers — institutional TVL through
+yield routing, enterprise API adoption, and multi-chain retail users — are likely to
+push individual chain registries into the range where the off-chain computation model
+becomes the most efficient production architecture.
+
+In this model, the `aeternum-indexer` — already running in production as an activity
+history service — transitions into the primary wallet discovery layer: maintaining a
+real-time sorted list of all registered wallets ordered by their recovery deadline. A
+decentralised keeper layer, via Gelato or Chainlink Functions, queries the indexer and
+submits due wallets directly to `performUpkeep`. The on-chain contract re-validates
+every submitted wallet independently before executing any recovery — the trust model
+is preserved. The worst-case outcome of a compromised keeper layer is a delayed
+recovery, never an incorrect one.
+
+Partitioned upkeep jobs remain functional at this scale and do not need to be retired.
+The off-chain model is adopted where it produces meaningful efficiency gains — primarily
+on chains where the registry has grown large enough that linear cursor traversal
+generates significant idle `performUpkeep` calls.
