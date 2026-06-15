@@ -9,7 +9,7 @@ description: Common questions about custody guarantees, fees, Chainlink reliabil
 
 No. There is no mechanism of any kind that allows anyone — including the people who built this — to access your vault balance.
 
-Your ETH can only go to two addresses: your own connected wallet (via `withdrawAll()` or `send()`) or your designated backup address (via automated recovery after your inactivity period expires). The contract has no owner function, no admin key, no pause mechanism, and no upgrade path. The deployed bytecode is the permanent, immutable rule set.
+Your ETH can only move in two ways: on your direct instruction — through withdrawAll() (which returns your full balance to your connected wallet) or send() (which transfers any amount to any address you choose) — or to your pre-configured backup address via automated recovery after your inactivity period expires. No other path exists. The contract has no owner function, no admin key, no pause mechanism, and no upgrade path. The deployed bytecode is the permanent, immutable rule set.
 
 ### Can Aeternum Labs access my funds?
 
@@ -47,7 +47,7 @@ This is a deliberate policy. Foundational wallet safety should be accessible to 
 
 Aeternum Labs funds the Chainlink Automation upkeep from its own resources as part of running the protocol. The `performUpkeep` transactions that execute recovery cost LINK, but those costs are absorbed at the infrastructure level rather than billed to users.
 
-Future value-added services (hosted watcher infrastructure, developer APIs, institutional tools) will generate revenue to sustain this model without monetising the core recovery mechanism.
+Future value-added services (In-app financial services, Yield routing revenue share, Enterprise and developer APIs, institutional tools) will generate revenue to sustain this model without monetizing the core recovery mechanism.
 
 ---
 
@@ -57,7 +57,7 @@ Future value-added services (hosted watcher infrastructure, developer APIs, inst
 
 Your ETH is sent to your backup address automatically. If your backup address is another wallet you control, you can simply move the ETH back. If you want to continue using the vault, call `register()` again after recovery — your vault restarts fresh.
 
-There is no penalty for a triggered recovery. It is simply the protocol working as designed.
+There is no protocol-level penalty, though recovery means your ETH has moved to your backup address. If this was unintended — you were merely inactive — you will need to coordinate with your designated beneficiary to move the ETH back, then call register() to restart protection.
 
 ### What if I interact with other dApps but not Aeternum specifically?
 
@@ -69,7 +69,7 @@ If you are active in DeFi but not touching your Aeternum vault directly, you sti
 
 Yes. There is always a window between when your vault becomes eligible for recovery and when Chainlink actually executes `performUpkeep`. Chainlink runs `checkUpkeep` every 12 seconds, so this window is typically short — but it exists.
 
-If you ping or deposit in that window, your timer resets and recovery is cancelled. The `performUpkeep` transaction re-validates every wallet before moving ETH. If your vault is no longer eligible (timer was reset), it is silently skipped and no ETH moves.
+If you ping or deposit in that window, your timer resets and recovery is canceled. The `performUpkeep` transaction re-validates every wallet before moving ETH. If your vault is no longer eligible (timer was reset), it is silently skipped and no ETH moves.
 
 ### What if I want a shorter inactivity period on mainnet?
 
@@ -79,29 +79,59 @@ On Sepolia testnet, the minimum is 5 minutes, which allows the full recovery cyc
 
 ---
 
-## The Backup Address
+## Your Beneficiary
 
-### What if I lose access to my backup address?
+### What if my beneficiary loses access to their address?
 
-If you still control your primary (registered) wallet, this is not a problem. Call `updateBackupAddress()` with a new, valid backup address. Your timer resets as a side effect. The new address takes effect immediately.
+As long as your own primary wallet is still accessible, you can update the backup
+address at any time by calling `updateBackupAddress()`. Your inactivity timer resets
+as a side effect.
 
-The backup address only matters if recovery triggers — and recovery only triggers after your full inactivity period elapses with no interactions. As long as you can still interact with your vault, you control where recovery goes.
+If your designated beneficiary has changed — a new primary heir or an update to your estate plan — the same function handles it. There
+is no limit to how many times you can update your beneficiary address.
 
-### What if my backup address fails to receive ETH?
+The backup address only matters if recovery actually triggers — and recovery only
+triggers after your full inactivity period elapses with no interactions. As long as
+you remain active and in control of your primary wallet, you control who receives your
+assets and when.
 
-If the backup address cannot accept ETH (for example, it is a smart contract that reverts on `receive()`), the recovery attempt fails. The contract:
+### What if my beneficiary's address fails to receive ETH?
+
+If the backup address cannot accept ETH — for example, a multisig or smart contract
+that is misconfigured to reject plain ETH transfers — the recovery attempt fails.
+The contract:
+
 1. Restores your vault balance
 2. Increments the failed attempt counter
 3. Re-adds your vault to monitoring for retry
 4. Emits a `RecoveryFailed` event
 
-Chainlink will retry up to three times. After three consecutive failures, the vault is permanently abandoned — your balance remains accessible, but automatic monitoring stops and the backup address is blocked from future use. See [Automatic Recovery](/docs/how-it-works/automatic-recovery) for the full failure-handling lifecycle.
+Chainlink will retry up to three times. After three consecutive failures, the vault
+is permanently abandoned — your balance remains accessible via `withdrawAll()`, but
+automatic monitoring stops and that backup address is permanently blocked from future
+use. See [Automatic Recovery](/docs/how-it-works/automatic-recovery) for the full
+failure-handling lifecycle.
 
-### Can I use the same backup address for multiple vaults?
+This is why testing your beneficiary's address before registering matters. Send a
+small test transaction and confirm receipt. If your backup is a multisig, confirm it
+is configured to accept plain ETH before relying on it for recovery.
 
-Yes — the same backup address can receive funds from multiple different primary wallets. The restriction is one vault per primary address, not one backup address globally.
+### Can I designate different beneficiaries across chains?
 
-The only limitation is that a backup address permanently blocked due to three failed recovery attempts cannot be used in any registration going forward, regardless of which primary wallet is trying to use it.
+Yes. In Phase 3, each chain deployment is independently configured. You can designate
+a different backup address — and therefore a different beneficiary — on each chain.
+Common approaches: the same beneficiary across all chains for simplicity, or
+chain-specific multisigs held by estate trustees for different asset classes.
+
+### Can multiple people designate the same beneficiary?
+
+Yes. The same backup address can be designated as the beneficiary for multiple
+different primary wallets. The restriction is one vault per primary address — there
+is no limit on how many primary wallets can point to the same backup.
+
+The only restriction is that a backup address permanently blocked due to three
+consecutive failed recovery attempts cannot be used in any new registration, regardless
+of which primary wallet is attempting it.
 
 ---
 
@@ -119,7 +149,7 @@ Without the forwarder check, anyone could craft a malicious `performData` payloa
 
 ### What if Chainlink Automation goes down?
 
-Chainlink Automation is a decentralised network with thousands of independent nodes distributed globally. A complete outage would require the vast majority of those nodes to fail simultaneously — an extremely unlikely scenario.
+Chainlink Automation is a decentralized network with thousands of independent nodes distributed globally. A complete outage would require the vast majority of those nodes to fail simultaneously — an extremely unlikely scenario.
 
 If the network were somehow unavailable, your ETH would remain safely in your vault until service resumes. Recovery would be delayed, not lost. The worst-case outcome is that your backup plan fires later than expected, not that it fails to fire at all.
 
@@ -156,3 +186,22 @@ Both functions return ETH to your wallet. The difference is what happens to your
 - **`cancelRecovery()`** — returns your entire balance AND **deregisters your vault**. You are removed from monitoring entirely. To re-activate recovery protection, you must call `register()` again.
 
 Use `withdrawAll()` when you want all your ETH back temporarily but plan to continue using the vault. Use `cancelRecovery()` when you want a clean exit.
+
+### Can I deploy AeternumVault to mainnet myself?
+
+Not without a commercial license from Aeternum Labs.
+
+AeternumVault is published under the
+[Business Source License 1.1 (BUSL-1.1)](https://github.com/Aeternumlabs/aeternum-core/blob/main/LICENSE.md).
+The BUSL permits non-production use — local development, testing, academic research,
+and deployment on public testnets like Sepolia — without restriction. Production
+deployment on any mainnet blockchain is not permitted under the base license.
+
+**The Change Date:** The license converts automatically to
+[GNU GPL v3.0 or later](https://www.gnu.org/licenses/gpl-3.0.en.html) on the earlier
+of (a) four years from the date of the first official Aeternum mainnet deployment, or
+(b) January 1, 2031. After the Change Date, anyone may deploy, fork, and build on
+AeternumVault freely under the terms of GPL-3.0.
+
+If you want to deploy AeternumVault in a production environment before the Change Date,
+contact Aeternum Labs to discuss a commercial license.
