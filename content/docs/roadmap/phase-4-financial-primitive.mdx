@@ -139,7 +139,7 @@ becomes the most efficient production architecture.
 In this model, the `aeternum-indexer` — already running in production as an activity
 history service — transitions into the primary wallet discovery layer: maintaining a
 real-time sorted list of all registered wallets ordered by their recovery deadline. A
-decentralised keeper layer, via Gelato or Chainlink Functions, queries the indexer and
+decentralized keeper layer, via Gelato or Chainlink Functions, queries the indexer and
 submits due wallets directly to `performUpkeep`. The on-chain contract re-validates
 every submitted wallet independently before executing any recovery — the trust model
 is preserved. The worst-case outcome of a compromised keeper layer is a delayed

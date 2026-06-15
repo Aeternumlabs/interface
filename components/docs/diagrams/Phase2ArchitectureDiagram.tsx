@@ -322,7 +322,7 @@ export function Phase2ArchitectureDiagram() {
             Checks every ~12 seconds
           </text>
           <text x="733" y="164" textAnchor="middle" style={{ fill: C.muted, fontSize: 9 }}>
-            Decentralised · Off-chain
+            decentralized · Off-chain
           </text>
 
           {/* --- Arrows: ARM ↔ Chainlink */}

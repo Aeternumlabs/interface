@@ -56,7 +56,7 @@ The backup address can be:
 
 ## Chainlink Automation
 
-Chainlink Automation is a decentralised network of independent nodes that evaluates on-chain conditions and triggers contract execution when those conditions are met. In Aeternum, it is the automated engine that watches your vault.
+Chainlink Automation is a decentralized network of independent nodes that evaluates on-chain conditions and triggers contract execution when those conditions are met. In Aeternum, it is the automated engine that watches your vault.
 
 The network interacts with AeternumVault through two functions:
 
@@ -65,7 +65,7 @@ The network interacts with AeternumVault through two functions:
 **`performUpkeep(performData)`** — called on-chain only when `checkUpkeep` returns `upkeepNeeded = true`. This is the real transaction that transfers ETH to backup addresses. It costs LINK tokens, which are deposited in the upkeep registration.
 
 <Callout type="info" title="What if Chainlink goes down?">
-  Chainlink Automation is a decentralised network with thousands of independent nodes. A complete outage is extremely unlikely. If it were unavailable, your ETH would remain in your vault until the service resumed. The worst-case outcome is a delay in recovery, not loss of funds.
+  Chainlink Automation is a decentralized network with thousands of independent nodes. A complete outage is extremely unlikely. If it were unavailable, your ETH would remain in your vault until the service resumed. The worst-case outcome is a delay in recovery, not loss of funds.
 </Callout>
 
 The key property is that Chainlink nodes are **permissionless monitors** — they observe and execute, but they cannot override the contract logic, redirect funds, or skip the trigger conditions. The contract's `_executeRecovery()` function re-validates every condition before any ETH moves. Chainlink only provides the scheduling; the rules are in the contract.
