@@ -41,7 +41,7 @@ The only costs are:
 - **Standard Ethereum gas fees** for transactions you initiate (register, deposit, send, etc.)
 - **Nothing for monitoring** — the Chainlink Automation upkeep that watches your vault and executes recovery is funded by Aeternum Labs at the protocol level, not passed on to individual users
 
-This is a deliberate policy. Foundational wallet safety should be accessible to everyone without friction. The core protocol is, and will always remain, completely free to use.
+This is a deliberate policy. Foundational wallet safety should be accessible to everyone without friction. The core v1 protocol is, and will always remain, completely free to use.
 
 ### Why is it free if Chainlink costs real LINK?
 
@@ -63,7 +63,7 @@ There is no penalty for a triggered recovery. It is simply the protocol working 
 
 Only on-chain interactions **with the AeternumVault contract** reset your timer. Swapping on Uniswap, voting in a DAO, minting an NFT — none of these interact with the AeternumVault contract, so none of them reset your inactivity timer.
 
-If you are active in DeFi but not touching your Aeternum vault directly, you still need to call `ping()` before your inactivity period elapses. In Phase 2, the Aeternum app will handle this automatically in the background when opened.
+If you are active in DeFi but not touching your Aeternum vault directly, you still need to call `ping()` before your inactivity period elapses. In Phase 2 and later versions, the Aeternum app will handle this automatically in the background when opened.
 
 ### Can I interact with my vault after the timer expires but before recovery fires?
 
@@ -73,9 +73,9 @@ If you ping or deposit in that window, your timer resets and recovery is cancell
 
 ### What if I want a shorter inactivity period on mainnet?
 
-The minimum on mainnet is 180 days (15,552,000 seconds). This floor is enforced immutably in the contract — it cannot be lowered. 
+The minimum on mainnet is 180 days. This floor is enforced immutably in the contract — it cannot be lowered. 
 
-On Sepolia testnet, the minimum is 5 minutes (300 seconds), which allows the full recovery cycle to be tested in a single session. See the [Testnet Walkthrough](/docs/user-guide/testnet-walkthrough) for a step-by-step guide.
+On Sepolia testnet, the minimum is 5 minutes, which allows the full recovery cycle to be tested in a single session. See the [Testnet Walkthrough](/docs/user-guide/testnet-walkthrough) for a step-by-step guide.
 
 ---
 
@@ -155,4 +155,4 @@ Both functions return ETH to your wallet. The difference is what happens to your
 
 - **`cancelRecovery()`** — returns your entire balance AND **deregisters your vault**. You are removed from monitoring entirely. To re-activate recovery protection, you must call `register()` again.
 
-Use `withdrawAll()` when you want your ETH back temporarily but plan to continue using the vault. Use `cancelRecovery()` when you want a clean exit.
+Use `withdrawAll()` when you want all your ETH back temporarily but plan to continue using the vault. Use `cancelRecovery()` when you want a clean exit.
