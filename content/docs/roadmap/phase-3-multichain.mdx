@@ -27,7 +27,7 @@ Phase 3 does **not** use cross-chain messaging or bridge infrastructure. Every s
 - Its own rolling cursor registry covering all users on that chain
 - Its own `setForwarder()` call, locking execution to the chain-specific Chainlink forwarder
 
-This design is intentional. Cross-chain recovery — where a trigger on Ethereum causes a transfer on Arbitrum — introduces bridge dependency risk, oracle latency, and message-passing attack surfaces. By running independently per chain, each deployment inherits the same trust properties as the Phase 2 AeternumRecoveryManager — no cross-chain message can interfere with recovery execution, and a failure on one chain does not affect any other.
+This design is intentional. Cross-chain recovery — where a trigger on Ethereum causes a transfer on Arbitrum — introduces bridge dependency risk, oracle latency, and message-passing attack surfaces. By running independently per chain, each deployment inherits the same trust properties as the Phase 2 `AeternumRecoveryManager` — no cross-chain message can interfere with recovery execution, and a failure on one chain does not affect any other.
 
 Assets on each chain recover independently to the designated backup address **on that same chain**.
 
