@@ -5,20 +5,23 @@ badge: coming-soon
 ---
 
 <Callout type="info" title="Coming soon">
-  Phase 4 builds on a stable, audited Phase 3 deployment. The yield strategies and disbursement primitives described here are in research and design. No timeline is committed.
+  Phase 4 builds on audited Phase 3 deployment. The yield strategies and disbursement primitives described here are in research and design.
 </Callout>
 
 ## The Premise
 
-Every feature in Phases 1–3 is about protecting what you already have. Phase 4 asks a different question: **what if the assets you are protecting could also be working for you?**
+Every feature in Phases 1–3 is about protecting what you already have. Phase 4 asks a different question: **what if self-custody and on-chain capital efficiency
+weren't a trade-off — what if your own smart account could permissionlessly execute yield
+strategies and automate payments without delegating custody to anyone?**
 
-Phase 4 transforms the Aeternum hybrid wallet from a custody and recovery tool into a fully programmable financial primitive. The inheritance guarantee from Phase 1 remains the bedrock — it is never weakened, never traded off. Everything in Phase 4 is **purely additive and entirely opt-in**. No core wallet behaviour changes, and no assets are ever touched unless the user explicitly authorises a strategy.
+Phase 4 transforms the Aeternum hybrid wallet from a recovery tool into a fully programmable financial primitive. The inheritance guarantee from Phase 1 remains the bedrock — it is never weakened, never traded off. Everything in Phase 4 is **purely additive and entirely opt-in**. No core wallet behaviour changes, and assets always remain entirely within the user's
+own custody. Activating a yield strategy does not transfer control to any third party — it instructs the user's own smart account to execute pre-authorized on-chain logic autonomously.
 
 ---
 
 ## Self-Custodial Yield Automation
 
-Users who want their capital productive can initialise yield strategies directly from their Aeternum wallet. There is no intermediary routing funds — the user's own wallet executes the on-chain logic to deposit into premier, audited DeFi protocols. The user holds the resulting yield-bearing positions natively in their own account.
+Users who want their capital productive can initialize yield strategies directly from their Aeternum wallet. There is no intermediary routing funds — the user's own wallet executes the on-chain logic to deposit into established, independently audited DeFi protocols. The user holds the resulting yield-bearing positions natively in their own account.
 
 Three strategy tiers are planned:
 
@@ -30,7 +33,7 @@ The account programmatically mints **stETH** via Lido's liquid staking contracts
 - Liquidity: high — stETH trades at near-parity with ETH on Curve and major DEXes
 - Expected yield: ~4–5% APY (tracks Ethereum validator rewards)
 
-### Moderate — Aave Lending Markets
+### Balanced — Aave Lending Markets
 
 The account deposits assets directly into **Aave V3 lending markets**, accumulating variable lending yields in aWETH (the interest-bearing receipt token). Yield fluctuates with market borrow demand.
 
@@ -40,7 +43,7 @@ The account deposits assets directly into **Aave V3 lending markets**, accumulat
 
 ### Optimised — Dynamic Multi-Protocol Allocation
 
-The account dynamically allocates capital across multiple verified protocols based on live yield spreads, orchestrated entirely on-chain via Chainlink Automation modules. The rebalancing logic is authorised by the user and executed without off-chain intervention.
+The account dynamically allocates capital across multiple verified protocols based on live yield spreads, orchestrated entirely on-chain via Chainlink Automation modules. The rebalancing logic is authorized by the user and executed without off-chain intervention.
 
 - Risk profile: moderate — additional complexity from multi-protocol exposure
 - Liquidity: depends on allocation mix
@@ -60,11 +63,11 @@ This is necessary because yield-bearing and rebasing tokens have unique transfer
 
 ### stETH Unwinding
 
-The `AeternumRecoveryManager` triggers a programmatic swap of stETH to ETH via the **Curve stETH/ETH liquidity pool**, prioritising immediate settlement and liquid distribution to the backup address. The user receives ETH at the current stETH/ETH exchange rate.
+The `AeternumRecoveryManager` either routes through the Curve stETH/ETH pool for immediate settlement or initiates a Lido native withdrawal — the execution path is determined at recovery time based on liquidity conditions and speed requirements.
 
 ### aWETH Unwinding
 
-The recovery script invokes **Aave Pool's `withdraw()` function** directly from the user's account context to redeem the underlying WETH plus all accrued interest. It then unwraps the WETH to native ETH and completes the recovery transfer.
+The `AeternumRecoveryManager` invokes **Aave Pool's `withdraw()` function** directly from the user's account context to redeem the underlying WETH plus all accrued interest. It then unwraps the WETH to native ETH and completes the recovery transfer.
 
 If an Aave pool hits 100% utilisation and temporarily restricts withdrawals, the system falls back to the `MAX_RECOVERY_ATTEMPTS` retry loop — gracefully retrying on subsequent Chainlink cycles rather than failing permanently.
 
@@ -72,27 +75,15 @@ If an Aave pool hits 100% utilisation and temporarily restricts withdrawals, the
 
 ## The Automated Disbursement Layer
 
-This is where Aeternum becomes genuinely novel as a financial primitive.
+This is where Aeternum's recovery infrastructure becomes a general-purpose programmable execution layer — disbursement and inheritance triggering through the same underlying primitives.
 
 Consider a user who holds 50 ETH in their Aeternum wallet. They choose to:
 - Keep 30 ETH in recovery-only mode, earning no yield
 - Route 20 ETH to Aave for yield
-- Configure a disbursement rule: send 0.5 ETH to their children's wallets on the first of every month
-- Set a recovery trigger: if inactive for 365 days, send everything to their designated backup address
+- Configure a disbursement rule: send 0.1 ETH to their children's wallets on the first of every month
+- Set a recovery trigger: if inactive for 365 days, send everything to their designated beneficiary
 
 Chainlink Automation executes all of it. The monthly disbursements run on the same infrastructure as the recovery monitoring. The inheritance trigger and the disbursement triggers share the same underlying primitives — a monitored wallet with programmable execution rules.
-
-```
-User's Aeternum Wallet (50 ETH)
-│
-├── 30 ETH ─── Recovery-only (no yield)
-│
-├── 20 ETH ─── Aave lending (earning aWETH yield)
-│
-├── Monthly: 0.5 ETH → children's wallets  (Chainlink executes on schedule)
-│
-└── On inactivity: everything → backup address  (Chainlink executes on trigger)
-```
 
 ---
 
@@ -106,7 +97,7 @@ Use cases being designed:
 
 **DAO grant distribution.** A DAO configures automated grant payments with built-in inheritance fallback. If the DAO's governance becomes inactive, assets can route to a community-controlled multisig.
 
-**Custody tools.** Builders developing wallet products or custody solutions can integrate the recovery engine and disbursement infrastructure without building the monitoring layer from scratch.
+**Custody tools.** Builders can integrate the recovery engine and disbursement infrastructure without developing their own Chainlink Automation registry, cursor-based wallet monitoring system, or upkeep funding infrastructure.
 
 **Compliance and estate planning.** Institutional users can configure auditable recovery flows that satisfy legal requirements for digital asset succession.
 
