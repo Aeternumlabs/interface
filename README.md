@@ -152,73 +152,145 @@ Open `http://localhost:3000` in your browser.
 
 ## Folder structure
 
-The repository is organized around a component-driven dashboard architecture.
+The repository is organized around a Next.js app router, modular vault components, contract hooks, and MDX documentation.
 
 ```text
 aeternum-app/
 │
 ├── app/
-│   ├── layout.tsx
+│   ├── api/
+│   │   └── sentry-example-api/
+│   │       └── route.ts
+│   ├── docs/
+│   │   ├── [...slug]/
+│   │   │   └── page.tsx
+│   │   ├── layout.tsx
+│   │   └── page.tsx
+│   ├── global-error.tsx
 │   ├── globals.css
 │   ├── icon.png
-│   ├── providers.tsx
+│   ├── layout.tsx
 │   ├── page.tsx
-│   ├── docs/
-│   │   ├── layout.tsx
-│   │   ├── page.tsx
-│   │   └── [...slug]/
-│   │       └── page.tsx
+│   ├── providers.tsx
 │   └── vault/
+│       ├── activity/
+│       │   └── page.tsx
 │       ├── layout.tsx
-│       ├── page.tsx
-│       └── activity/
-│           └── page.tsx
+│       └── page.tsx
 │
 ├── components/
-│   ├── ui/
-│   ├── layout/
-│   ├── vault/
-│   │   ├── VaultDashboard.tsx
-│   │   ├── actions/
-│   │   │   ├── ActionButtonRow.tsx
-│   │   │   ├── DepositButton.tsx
-│   │   │   ├── PingButton.tsx
-│   │   │   ├── RegisterButton.tsx
-│   │   │   ├── SendButton.tsx
-│   │   │   └── VaultActions.tsx
-│   │   ├── balance/
-│   │   │   ├── AssetRow.tsx
-│   │   │   └── BalanceDisplay.tsx
-│   │   ├── cards/
-│   │   │   ├── BalanceCard.tsx
-│   │   │   ├── TopAssetsCard.tsx
-│   │   │   └── VaultHistoryCard.tsx
-│   │   ├── countdown/
-│   │   │   ├── CountdownBox.tsx
-│   │   │   └── CountdownDisplay.tsx
-│   │   ├── modals/
-│   │   │   ├── CancelRecoveryModal.tsx
-│   │   │   ├── DepositModal.tsx
-│   │   │   ├── RegisterModal.tsx
-│   │   │   ├── SendModal.tsx
-│   │   │   ├── UpdateConfigModal.tsx
-│   │   │   └── WithdrawModal.tsx
-│   │   └── transactions/
-│   │       ├── EmptyTransactionState.tsx
-│   │       ├── TransactionList.tsx
-│   │       └── TransactionRow.tsx
 │   ├── chart/
+│   │   ├── BalanceChart.tsx
+│   │   ├── ChartLegend.tsx
+│   │   ├── ChartPanel.tsx
+│   │   └── TimeRangeSelector.tsx
 │   ├── common/
+│   │   ├── AddressDisplay.tsx
+│   │   ├── AeternumLogo.tsx
+│   │   ├── ConfirmDialog.tsx
+│   │   ├── ETHAmount.tsx
+│   │   ├── LoadingSkeleton.tsx
+│   │   ├── PriceChange.tsx
+│   │   ├── USDAmount.tsx
+│   │   └── WalletButton.tsx
+│   ├── docs/
+│   │   ├── diagrams/
+│   │   │   ├── HowItWorksDiagram.tsx
+│   │   │   ├── Phase2ArchitectureDiagram.tsx
+│   │   │   └── RollingCursorDiagram.tsx
+│   │   ├── Callout.tsx
+│   │   ├── DocsBreadcrumb.tsx
+│   │   ├── DocsHeader.tsx
+│   │   ├── DocsPageFooter.tsx
+│   │   ├── DocsSidebar.tsx
+│   │   ├── FunctionCard.tsx
+│   │   ├── MdxComponents.tsx
+│   │   └── StepList.tsx
+│   ├── layout/
+│   │   ├── CommunityLinks.tsx
+│   │   ├── DashboardGrid.tsx
+│   │   ├── Header.tsx
+│   │   ├── MobileDrawer.tsx
+│   │   ├── Sidebar.tsx
+│   │   ├── SidebarNavGroup.tsx
+│   │   └── SidebarNavItem.tsx
+│   ├── ui/
+│   │   ├── button.tsx
+│   │   ├── card.tsx
+│   │   ├── dialog.tsx
+│   │   ├── input.tsx
+│   │   ├── label.tsx
+│   │   ├── select.tsx
+│   │   ├── separator.tsx
+│   │   ├── skeleton.tsx
+│   │   ├── sonner.tsx
+│   │   └── tooltip.tsx
+│   └── vault/
+│       ├── actions/
+│       │   ├── ActionButtonRow.tsx
+│       │   ├── DepositButton.tsx
+│       │   ├── PingButton.tsx
+│       │   ├── RegisterButton.tsx
+│       │   ├── SendButton.tsx
+│       │   └── VaultActions.tsx
+│       ├── balance/
+│       │   ├── AssetRow.tsx
+│       │   └── BalanceDisplay.tsx
+│       ├── cards/
+│       │   ├── BalanceCard.tsx
+│       │   ├── TopAssetsCard.tsx
+│       │   └── VaultHistoryCard.tsx
+│       ├── countdown/
+│       │   ├── CountdownBox.tsx
+│       │   └── CountdownDisplay.tsx
+│       ├── modals/
+│       │   ├── CancelRecoveryModal.tsx
+│       │   ├── DepositModal.tsx
+│       │   ├── RegisterModal.tsx
+│       │   ├── SendModal.tsx
+│       │   ├── UpdateConfigModal.tsx
+│       │   └── WithdrawModal.tsx
+│       ├── transactions/
+│       │   ├── EmptyTransactionState.tsx
+│       │   ├── TransactionList.tsx
+│       │   └── TransactionRow.tsx
+│       └── VaultDashboard.tsx
+│
+├── config/
+│   ├── chains.ts
+│   ├── docs-nav.ts
+│   └── site.ts
+│
+├── content/
 │   └── docs/
-│       ├── Callout.tsx
-│       ├── DocsBreadcrumb.tsx
-│       ├── DocsHeader.tsx
-│       ├── DocsPageFooter.tsx
-│       ├── DocsSidebar.tsx
-│       ├── FunctionCard.tsx
-│       ├── MdxComponents.tsx
-│       ├── StepList.tsx
-│       └── diagrams/
+│       ├── architecture/
+│       │   ├── chainlink-integration.mdx
+│       │   ├── rolling-cursor.mdx
+│       │   ├── security.mdx
+│       │   └── smart-contract.mdx
+│       ├── contract-reference/
+│       │   ├── events.mdx
+│       │   ├── immutable-limits.mdx
+│       │   ├── read-functions.mdx
+│       │   └── user-functions.mdx
+│       ├── faq.mdx
+│       ├── how-it-works/
+│       │   ├── automatic-recovery.mdx
+│       │   ├── inactivity-timer.mdx
+│       │   ├── key-actors.mdx
+│       │   └── the-vault.mdx
+│       ├── introduction/
+│       │   ├── quick-start.mdx
+│       │   └── what-is-aeternum.mdx
+│       ├── roadmap/
+│       │   ├── phase-2-hybrid-wallet.mdx
+│       │   ├── phase-3-multichain.mdx
+│       │   └── phase-4-financial-primitive.mdx
+│       └── user-guide/
+│           ├── connect-wallet.mdx
+│           ├── register-vault.mdx
+│           ├── testnet-walkthrough.mdx
+│           └── vault-actions.mdx
 │
 ├── graphql/
 │   └── queries.ts
@@ -226,52 +298,60 @@ aeternum-app/
 ├── hooks/
 │   ├── contracts/
 │   │   ├── reads/
+│   │   │   ├── useIsRegistered.ts
+│   │   │   ├── useTimeUntilRecovery.ts
+│   │   │   └── useVaultConfig.ts
 │   │   └── writes/
+│   │       ├── useCancelRecovery.ts
+│   │       ├── useDeposit.ts
+│   │       ├── usePing.ts
+│   │       ├── useRegister.ts
+│   │       ├── useSend.ts
+│   │       ├── useUpdateBackupAddress.ts
+│   │       ├── useUpdateInactivityPeriod.ts
+│   │       └── useWithdrawAll.ts
+│   ├── useBalanceHistory.ts
+│   ├── useCountdown.ts
 │   ├── useEthPrice.ts
 │   ├── useMounted.ts
-│   ├── useVaultTransactions.ts
-│   ├── useBalanceHistory.ts
-│   └── useCountdown.ts
+│   └── useVaultTransactions.ts
 │
 ├── lib/
-│   ├── wagmi.ts
-│   ├── contracts.ts
 │   ├── abi.ts
-│   ├── utils.ts
-│   ├── formatters.ts
 │   ├── constants.ts
+│   ├── contracts.ts
+│   ├── docs.ts
 │   ├── eventLogs.ts
+│   ├── formatters.ts
 │   ├── indexer.ts
-│   └── docs.ts
-│
-├── types/
-│   ├── vault.ts
-│   └── index.ts
-│
-├── config/
-│   ├── chains.ts
-│   └── site.ts
-│
-├── content/
-│   └── docs/
-│       ├── architecture/
-│       ├── contract-reference/
-│       ├── faq.mdx
-│       ├── how-it-works/
-│       ├── introduction/
-│       ├── roadmap/
-│       └── user-guide/
+│   ├── utils.ts
+│   └── wagmi.ts
 │
 ├── public/
+│   ├── assets/
+│   │   └── ethereum.png
+│   └── logo.png
+│
+├── types/
+│   ├── index.ts
+│   └── vault.ts
+│
 ├── .env.example
+├── .gitignore
 ├── .hintrc
-├── eslint.config.mjs
-├── next.config.ts
-├── postcss.config.mjs
-├── tailwind.config.ts
-├── tsconfig.json
 ├── components.json
-└── package.json
+├── eslint.config.mjs
+├── instrumentation-client.ts
+├── instrumentation.ts
+├── next.config.ts
+├── package-lock.json
+├── package.json
+├── postcss.config.mjs
+├── README.md
+├── sentry.edge.config.ts
+├── sentry.server.config.ts
+├── tailwind.config.ts
+└── tsconfig.json
 ```
 
 ## Notes
