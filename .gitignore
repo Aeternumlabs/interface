@@ -45,3 +45,8 @@ next-env.d.ts
 
 # docs
 docs-folder-structure.md
+
+# sentry
+.sentryclirc
+# Sentry Config File
+.env.sentry-build-plugin
