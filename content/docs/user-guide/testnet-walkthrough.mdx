@@ -7,7 +7,7 @@ badge: new
 This walkthrough takes you through the complete Aeternum lifecycle on Sepolia testnet — from connecting your wallet all the way to watching Chainlink automatically transfer your ETH to a backup address. It uses a **5-minute inactivity timer** so you can observe the full recovery cycle in a single session rather than waiting months.
 
 <Callout type="info" title="Sepolia testnet — no real ETH">
-  Everything in this walkthrough uses Sepolia test ETH, which has no monetary value. You can view the contract address and verify all transactions at [Sepolia Etherscan](https://sepolia.etherscan.io/address/0x78B43d5058fa8A12227972DcE489AA36066c5E7b).
+  Everything in this walkthrough uses Sepolia test ETH, which has no monetary value. You can view the contract address and verify all transactions at [Sepolia Etherscan](https://sepolia.etherscan.io/address/0x3Ad0EF2FFBaf08F0B33b36861d26b6d4A4E24E6B).
 </Callout>
 
 ---
@@ -66,13 +66,13 @@ Before starting, prepare the following:
 
     - **On the dashboard:** your vault balance drops to zero, the countdown timer disappears, and a "Recovery executed" entry appears in the vault history feed.
 
-    - **On Sepolia Etherscan:** open your vault owner address on [sepolia.etherscan.io](https://sepolia.etherscan.io) and check the "Internal Transactions" tab. You will see an outgoing transfer from the AeternumVault contract address (`0x78B43d5058fa8A12227972DcE489AA36066c5E7b`) to your backup address.
+    - **On Sepolia Etherscan:** open your vault owner address on [sepolia.etherscan.io](https://sepolia.etherscan.io) and check the "Internal Transactions" tab. You will see an outgoing transfer from the AeternumVault contract address (`0x3Ad0EF2FFBaf08F0B33b36861d26b6d4A4E24E6B`) to your backup address.
   </StepItem>
 
   <StepItem step={7} title="Confirm the backup address received the ETH">
     Open your backup address on [sepolia.etherscan.io](https://sepolia.etherscan.io). Under the **Internal Txns** tab, you should see a credit of `0.01 SepoliaETH` from the AeternumVault contract. This confirms end-to-end recovery worked correctly.
 
-    The `RecoveryExecuted` event is also logged on the [contract's event tab](https://sepolia.etherscan.io/address/0x78b43d5058fa8a12227972dce489aa36066c5e7b#events). Filter by `RecoveryExecuted` to see the exact log.
+    The `RecoveryExecuted` event is also logged on the [contract's event tab](https://sepolia.etherscan.io/address/0x3Ad0EF2FFBaf08F0B33b36861d26b6d4A4E24E6B#events). Filter by `RecoveryExecuted` to see the exact log.
   </StepItem>
 </StepList>
 
