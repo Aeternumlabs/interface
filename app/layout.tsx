@@ -15,6 +15,7 @@ import { cn } from '@/lib/utils'
 import { Providers } from './providers'
 import { Toaster } from '@/components/ui/sonner'
 import { siteConfig } from '@/config/site'
+import { Analytics } from '@vercel/analytics/next'
 
 const inter = Inter({
   subsets: ['latin'],
@@ -69,6 +70,7 @@ export default function RootLayout({
           {/* flex-1 chain lets app/vault/layout fill the viewport below the header */}
           <div className="flex min-h-0 flex-1 flex-col">{children}</div>
           <Toaster />
+          <Analytics />
         </Providers>
       </body>
     </html>
