@@ -6,8 +6,8 @@
  * selected time range for the BalanceChart.
  */
 
-import { useMemo } from 'react'
-import { useQuery } from '@tanstack/react-query'
+import { useMemo, useEffect } from 'react'
+import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { parseEventLogs } from 'viem'
 import { usePublicClient, useAccount, useChainId } from 'wagmi'
 import { getVaultAddress } from '@/lib/contracts'
@@ -137,6 +137,14 @@ export function useBalanceHistory(timeRange: TimeRange): UseBalanceHistoryReturn
   const publicClient = usePublicClient()
   const contractAddress = getVaultAddress(chainId)
   const { usdPrice } = useEthPrice()
+  const queryClient = useQueryClient()
+
+  // Clear cached data when wallet disconnects to revert UI to pre-connected state
+  useEffect(() => {
+    if (!isConnected) {
+      queryClient.removeQueries({ queryKey: ['balanceHistory', address, chainId] })
+    }
+  }, [isConnected, address, chainId, queryClient])
 
   // --- Layer 1: Fetch events and reconstruct chronological balance
   const { data: rawPoints, dataUpdatedAt, isLoading, isError } = useQuery<RawBalancePoint[]>({
@@ -262,7 +270,7 @@ export function useBalanceHistory(timeRange: TimeRange): UseBalanceHistoryReturn
 
     enabled: isConnected && !!address,
     refetchInterval: EVENTS_POLL_INTERVAL_MS,
-    placeholderData: (prev: RawBalancePoint[] | undefined) => prev,
+    staleTime: 0, // Clear data immediately when wallet disconnects
   })
 
   // --- Layer 2: Filter by range & apply fresh market price

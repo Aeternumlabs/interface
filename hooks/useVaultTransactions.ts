@@ -18,9 +18,10 @@
  *   Alchemy/Infura paid tiers allow larger ranges — raise the constant if needed.
  */
 
-import { useInfiniteQuery }               from '@tanstack/react-query'
+import { useInfiniteQuery, useQueryClient } from '@tanstack/react-query'
 import { parseEventLogs }                  from 'viem'
 import { usePublicClient, useAccount, useChainId } from 'wagmi'
+import { useEffect } from 'react'
 import { getVaultAddress }                 from '@/lib/contracts'
 import { AETERNUM_VAULT_ABI }              from '@/lib/abi'
 import { fetchIndexer }                    from '@/lib/indexer'
@@ -222,6 +223,14 @@ export function useVaultTransactions(limit?: number): UseVaultTransactionsReturn
   const chainId                  = useChainId()
   const publicClient             = usePublicClient()
   const contractAddress          = getVaultAddress(chainId)
+  const queryClient              = useQueryClient()
+
+  // Clear cached data when wallet disconnects to revert UI to pre-connected state
+  useEffect(() => {
+    if (!isConnected) {
+      queryClient.removeQueries({ queryKey: ['vaultTransactions', address, chainId, limit] })
+    }
+  }, [isConnected, address, chainId, limit, queryClient])
 
   const {
     data,
@@ -298,6 +307,7 @@ export function useVaultTransactions(limit?: number): UseVaultTransactionsReturn
     enabled: isConnected && !!address,
     refetchInterval: limit ? EVENTS_POLL_INTERVAL_MS : false, // Poll on dashboard, let manual/scroll govern large tables
     retry: 2,
+    staleTime: 0, // Clear data immediately when wallet disconnects
   })
 
   // Flatten all query pages into a single continuous transaction array
