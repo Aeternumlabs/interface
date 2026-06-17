@@ -60,7 +60,7 @@ export function CommunityLinks() {
 
         {/* Discord */}
         <a 
-          href="https://discord.com" 
+          href="https://discord.gg/VdrZr36JR" 
           target="_blank" 
           rel="noopener noreferrer"
           className={linkClass}
