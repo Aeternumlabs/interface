@@ -88,7 +88,7 @@ export function TransactionList({ className, limit }: TransactionListProps) {
               "disabled:opacity-50 disabled:cursor-not-allowed"
             )}
           >
-            {isFetchingNextPage ? "Loading more history..." : "Load Older Transactions"}
+            {isFetchingNextPage ? "Loading more history..." : "Load older activities"}
           </button>
         </div>
       )}
