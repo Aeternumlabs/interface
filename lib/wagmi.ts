@@ -49,7 +49,7 @@ const alchemySepoliaRpcUrl = process.env.NEXT_PUBLIC_ALCHEMY_SEPOLIA_RPC_URL
 export const wagmiConfig = getDefaultConfig({
   appName:     'Aeternum',
   appDescription:
-    'Trustless smart wallet vault with automated ETH recovery.',
+    'A non-custodial, automated inheritance protocol for Ethereum assets.',
   appUrl:      'https://www.aeternumvault.xyz',
   appIcon:     'https://www.aeternumvault.xyz/logo.png',
 
