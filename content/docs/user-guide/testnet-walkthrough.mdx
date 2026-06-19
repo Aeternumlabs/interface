@@ -44,15 +44,15 @@ Before starting, prepare the following:
 
     **Inactivity period:** enter 5 minutes (`300` seconds). This is far below the mainnet minimum of 180 days — Sepolia testnet allows short timers specifically for testing this flow.
 
-    Leave the optional deposit field empty for now — you will deposit separately in the next step.
+    **Optional deposit:** enter the initial amount of ETH you want to secure in the vault. Leaving this empty is perfectly fine; you can easily deposit funds into your vault at any time after registration is complete.
 
     Click **Register** and confirm the transaction in your wallet. Wait for the transaction to confirm (~15 seconds on Sepolia). Your vault is now live.
   </StepItem>
 
-  <StepItem step={4} title="Deposit Sepolia ETH into your vault">
-    Click **Deposit** on the dashboard. Enter `0.01` in the ETH field. Confirm the transaction.
+  <StepItem step={4} title="Deposit Sepolia ETH into your vault (If skipped in Step 3)">
+    If you chose not to make an initial deposit during registration, click **Deposit** on the dashboard. Enter `0.02` in the ETH field. Confirm the transaction.
 
-    After confirmation, your vault balance shows `0.01 SepoliaETH` and the countdown timer appears on the dashboard. Chainlink Automation is now watching your vault — as soon as 5 minutes of silence elapses, it will trigger recovery.
+    After confirmation, your vault balance shows `0.02 SepoliaETH` and the countdown timer appears on the dashboard. Chainlink Automation is now watching your vault — as soon as 5 minutes of silence elapses, it will trigger recovery.
   </StepItem>
 
   <StepItem step={5} title="Do nothing — let the timer expire">
@@ -70,7 +70,7 @@ Before starting, prepare the following:
   </StepItem>
 
   <StepItem step={7} title="Confirm the backup address received the ETH">
-    Open your backup address on [sepolia.etherscan.io](https://sepolia.etherscan.io). Under the **Internal Txns** tab, you should see a credit of `0.01 SepoliaETH` from the AeternumVault contract. This confirms end-to-end recovery worked correctly.
+    Open your backup address on [sepolia.etherscan.io](https://sepolia.etherscan.io). Under the **Internal Txns** tab, you should see a credit of `0.02 SepoliaETH` from the AeternumVault contract. This confirms end-to-end recovery worked correctly.
 
     The `RecoveryExecuted` event is also logged on the [contract's event tab](https://sepolia.etherscan.io/address/0x3Ad0EF2FFBaf08F0B33b36861d26b6d4A4E24E6B#events). Filter by `RecoveryExecuted` to see the exact log.
   </StepItem>
