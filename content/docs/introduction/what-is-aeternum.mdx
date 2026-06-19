@@ -19,17 +19,17 @@ Aeternum is a non-custodial smart wallet vault deployed on Ethereum. It gives yo
 
 **A normal wallet experience.** You can deposit ETH, send it anywhere, withdraw it at will, and interact with it exactly like a standard Ethereum address. Your funds sit in the contract mapped to your address — no pooling, no lending, no exposure to anyone else's actions.
 
-**An automatic backup plan.** You designate a backup address (a trusted wallet, a family member's address, a hardware wallet in cold storage) and set an inactivity timer. If you go completely silent for that entire period — no transactions, no pings, nothing — Chainlink Automation automatically transfers your ETH to your backup address.
+**An automatic backup plan.** You designate a backup address — a beneficiary, trusted family member, or heir — or a separate wallet you control as your own safety net, and set an inactivity timer. If you go completely silent for that entire period — no transactions, no pings, nothing — Chainlink Automation automatically transfers your ETH to your backup address.
 
 If you are active, nothing ever happens. You just have a safer wallet.
 
-<Callout type="info" title="No admin, no backdoors">
-There is no privileged role in AeternumVault — no owner function, no pause mechanism, no upgrade key. The contract is immutable from the moment it is deployed. The only addresses that can ever touch your funds are your own wallet and the backup address you choose.
+<Callout type="info" title="Trustless by design">
+There is no privileged role in AeternumVault — no owner function, no pause mechanism, no upgrade key. The contract is immutable — once deployed, its rules cannot change. The only addresses that can ever touch your funds are your own wallet and the backup address you choose.
 </Callout>
 
 ## The Core Mechanism
 
-The entire system rests on a single idea: **an on-chain inactivity timer**. Every time you interact with your vault — deposit, send, withdraw, or even just call the `ping()` function — the timer resets to zero. The protocol watches from the outside.
+The entire system rests on a single idea: **an on-chain inactivity timer**. Every time you interact with your vault — deposit, send, withdraw, or even just call the `ping()` function — the elapsed counter resets, and the full countdown restarts from the configured period.
 
 If your timer reaches zero (meaning you have been completely inactive for your chosen period), [Chainlink Automation](/docs/architecture/chainlink-integration) detects this and executes the transfer automatically. No human being makes the call. No one decides when or whether to send your funds. The contract logic does exactly what you configured it to do.
 
@@ -43,9 +43,9 @@ The diagram above shows all four actors and the flow of interactions. Notice tha
 | --- | --- |
 | Custody | Non-custodial — the protocol holds funds on your behalf but cannot redirect them |
 | Admins | None — no owner key, no pause function, no upgrade mechanism |
-| Cost | AeternumVault v1 is free — no subscription fees, no tiers, identical protection for every user |
+| Cost | AeternumVault v1 is free — no subscription fees, no tiers, identical protection for every user. Source-available under [BUSL-1.1](/docs/faq#can-i-deploy-aeternumvault-to-mainnet) |
 | Network | Ethereum Sepolia (testnet) — mainnet pending external audit |
-| Recovery trigger | Purely time-based — only fires after your inactivity period fully elapses |
+| Recovery trigger | Purely time-based — only fires after your inactivity period fully elapses (and vault holds a non-zero balance) |
 | Minimum timer | 180 days (mainnet) · 5 minutes (Sepolia testnet) |
 | Maximum timer | 3,650 days (~10 years) |
 
@@ -55,7 +55,7 @@ Understanding the boundaries is as important as understanding the capabilities.
 
 Aeternum is **not a yield product**. Your ETH does not earn interest in v1. It sits in the contract exactly as you deposited it.
 
-Aeternum is **not a multisig**. Your backup address has no access to your funds while you are active. It can only receive them if recovery triggers.
+Aeternum is **not a multisig**. Your designated beneficiary cannot access your vault while you are active. Funds only move to that address if recovery triggers.
 
 Aeternum is **not a social recovery system**. There are no guardians, no voting, no time delays on recovery confirmation. Recovery is fully autonomous — configured by you, executed by Chainlink.
 
@@ -63,4 +63,4 @@ Aeternum is **not custodial**. The team that built this contract cannot access y
 
 ## Ready to Get Started?
 
-The fastest path is the [Quick Start](/docs/introduction/quick-start) guide — you can have a live vault on Sepolia in under five minutes. To understand the recovery process in depth before committing to any settings, read [The Vault](/docs/how-it-works/the-vault) and [The Inactivity Timer](/docs/how-it-works/inactivity-timer) first.
+The fastest way to see it working is the [Quick Start](/docs/introduction/quick-start) — the full recovery cycle takes under five minutes on Sepolia. If you want to understand the mechanics before committing to any settings, start with [The Vault](/docs/how-it-works/the-vault) and [The Inactivity Timer](/docs/how-it-works/inactivity-timer).
