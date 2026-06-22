@@ -222,6 +222,20 @@ export const docsNavSections: DocsNavSection[] = [
     label: 'Roadmap',
     items: [
       {
+        label: 'Incentivized Testnet',
+        slug: 'roadmap/incentivized-testnet',
+        description:
+          'A structured, rewarded testing phase on Sepolia — validating the protocol under realistic multi-user load before mainnet deployment.',
+        badge: 'coming-soon',
+      },
+      {
+        label: 'Phase 1 — Mainnet Deployment',
+        slug: 'roadmap/phase-1-mainnet-deployment',
+        description:
+          'The prerequisites, deployment sequence, and operational changes when AeternumVault goes live on Ethereum mainnet with real ETH.',
+        badge: 'coming-soon',
+      },
+      {
         label: 'Phase 2 — Hybrid Wallet',
         slug: 'roadmap/phase-2-hybrid-wallet',
         description:
@@ -239,7 +253,7 @@ export const docsNavSections: DocsNavSection[] = [
         label: 'Phase 4 — Financial Primitive',
         slug: 'roadmap/phase-4-financial-primitive',
         description:
-          'Self-custodial yield automation via Aave, Lido, and Compound, programmable disbursements, and enterprise APIs.',
+          'Self-custodial yield automation, programmable disbursements, and enterprise APIs — everything built on the recovery foundation.',
         badge: 'coming-soon',
       },
     ],

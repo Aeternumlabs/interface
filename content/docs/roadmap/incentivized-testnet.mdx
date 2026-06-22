@@ -1,0 +1,189 @@
+---
+title: Incentivized Testnet
+description: A structured, rewarded testing phase on Sepolia — validating the protocol under realistic multi-user load before mainnet deployment.
+badge: coming-soon
+---
+
+<Callout type="info" title="Next phase">
+  The incentivized testnet follows the current open testnet. Participation details and
+  reward structures will be published before the phase opens. No real ETH is at risk —
+  the contract remains on Ethereum Sepolia throughout.
+</Callout>
+
+## Purpose
+
+The open testnet lets any individual explore AeternumVault on Sepolia at their own pace.
+The incentivized testnet is different in scope: it is a structured, rewarded campaign
+designed to validate the protocol under conditions that resemble mainnet — multiple
+concurrent users, diverse wallet configurations, simultaneous recovery executions, and
+sustained Chainlink Automation activity.
+
+Single-user testing on Sepolia cannot surface a class of issues that only emerge at
+scale: cursor behaviour when many vaults become eligible simultaneously, Ponder indexer
+throughput under a dense event stream, gas estimation accuracy on real recovery batches,
+and edge cases in the failure-handling path that require specific wallet configurations
+to trigger.
+
+The incentivized testnet is the mechanism for gathering that evidence before real ETH
+is ever at stake.
+
+---
+
+## What It Validates
+
+### Chainlink Automation Under Realistic Load
+
+The rolling cursor architecture is designed to handle registries of any size, but its
+behaviour with many concurrent vaults — some actively pinging, some approaching their
+timer, some mid-recovery — has not been tested at scale on the open testnet. The
+incentivized phase creates that condition deliberately.
+
+Specific properties under observation:
+
+- `checkUpkeep` gas consumption as the registry grows toward the scan window ceiling
+- Cursor hold-and-advance behaviour when multiple wallets become eligible in the same
+  window simultaneously
+- `performUpkeep` batch execution timing and gas accuracy at varying batch sizes
+- LINK cost per unit of monitoring work at realistic user counts
+
+### Ponder Indexer and Frontend Performance
+
+The `aeternum-indexer` subscribes to all events emitted by the AeternumVault 
+contract — every deposit, withdrawal, recovery execution, failure, and config update — and 
+indexes the complete vault history for the dashboard's activity feed and monitoring tools. Under 
+single-user testing, the indexer processes a sparse event stream. Under the 
+incentivized testnet, it will face:
+
+- Concurrent `RecoveryRegistered`, `Deposited`, `RecoveryExecuted`, and
+  `RecoveryFailed` events from many wallets
+- Concurrent API requests from many active dashboard sessions
+- Edge cases in event ordering and reorg handling on Sepolia
+
+Any indexer performance or correctness issues discovered here are correctable before
+mainnet. After mainnet, reindexing from the contract's deployment block is the only remediation path for indexer schema errors.
+
+### Recovery Lifecycle Edge Cases
+
+The open testnet primarily exercises the happy path: register, deposit, wait, recover.
+The incentivized phase specifically rewards participants who test less common paths:
+
+- The three-attempt failure cycle using a contract backup address that reverts on
+  `receive()` — requiring deployment of a custom rejection contract on Sepolia
+- Re-registration after abandonment, including carried-balance behaviour
+- A vault registered without an initial deposit, or whose balance has been zeroed via
+  withdrawAll(), is not recovery due if the balance remains zero — confirming that
+  Chainlink correctly detects it as ineligible and that config.balance > 0 is
+  enforced as an independent recovery condition
+- `cancelRecovery()` called on a vault that holds a zero balance — confirming that
+  deregistration completes and the wallet is removed from the monitoring registry
+  without any ETH transfer and without reverting
+- Config updates in the window between timer expiry and `performUpkeep` execution
+
+These paths exist in the contract and are covered by the Foundry test suite, but
+live on-chain confirmation under real network conditions is a different standard of
+evidence.
+
+### UI and UX Validation Across Wallet Configurations
+
+The frontend dashboard has been tested against MetaMask and Coinbase Wallet during
+development. The incentivized phase will surface compatibility issues across the full
+range of RainbowKit-supported wallets, hardware wallet configurations, and mobile
+environments that cannot be replicated in development.
+
+---
+
+## Participation
+
+### Who Can Participate
+
+The incentivized testnet is open to anyone with a browser wallet and Sepolia ETH.
+No application, whitelist, or prior involvement with the protocol is required.
+
+Participants need:
+- A browser wallet supported by RainbowKit (MetaMask, Coinbase Wallet, WalletConnect,
+  Ledger via WalletConnect, or Frame)
+- Sepolia test ETH — available free from [sepoliafaucet.com](https://sepoliafaucet.com)
+  or the [Google Cloud Web3 faucet](https://cloud.google.com/application/web3/faucet/ethereum/sepolia)
+- A second Ethereum address to use as the backup address for testing
+
+### Rewarded Activities
+
+Participation rewards are earned by completing verifiable on-chain actions during the
+incentivized phase window. Reward structures and the specific reward mechanism will be
+published before the phase opens.
+
+The following activity categories will be tracked:
+
+**Core recovery cycle.** Completing the full lifecycle — register, deposit, wait for
+timer expiry, confirm Chainlink execution, verify receipt at backup address — on Sepolia
+with the 5-minute testnet timer.
+
+**Edge case reproduction.** Triggering documented edge-case paths such as the
+three-attempt failure cycle, recovery cancellation within the pre-execution window, or
+re-registration after abandonment. These require more setup and carry higher reward weight
+than the standard recovery cycle.
+
+**Bug reports.** Verifiable bugs submitted with reproduction steps, transaction hashes,
+and expected versus actual behaviour. Severity determines the reward tier. The security
+contact for vulnerabilities in the contract itself is
+[aeternumlabs@proton.me](mailto:aeternumlabs@proton.me) — contract vulnerabilities are
+never reported via GitHub issues.
+
+**UI feedback.** Structured feedback on the dashboard UX submitted via the designated
+feedback channel during the incentivized phase. This includes wallet compatibility
+issues, confusing UI states, missing error messages, and accessibility concerns.
+
+**Social tasks.** A small set of social participation tasks — following
+[@AeternumXYZ](https://x.com/AeternumXYZ) on X, retweeting the incentivized testnet
+announcement, joining the [Aeternum Discord](https://discord.gg/VdrZr36JR), and sharing your unique referral link —
+will carry nominal reward weight. These are verified through the campaign platform and
+represent a small fraction of total rewards relative to on-chain activity.
+
+### What Is Not Rewarded
+
+On-chain activity that cannot be independently verified on-chain is not eligible.
+Submissions without transaction hashes or reproducible steps are not reviewed.
+
+Social tasks are verified through the campaign platform rather than on-chain — only
+the tasks explicitly listed above qualify. Unsolicited social actions do not count.
+
+Gaming of reward mechanics — for example, repeatedly registering and cancelling vaults
+to inflate transaction counts — is detectable on-chain and will be filtered from the
+reward calculation.
+
+---
+
+## What Is Different From the Open Testnet
+
+The contract on Sepolia is identical to the one currently deployed for the open testnet.
+No contract changes are introduced during the incentivized phase. The differences are:
+
+- **A defined time window.** The incentivized phase runs for a fixed period, announced
+  in advance. Actions completed before or after the window are not counted.
+- **A tracking layer.** On-chain activity is indexed and attributed to participant
+  addresses. The same Ponder indexer that powers the vault dashboard provides the data
+  layer for reward calculation.
+- **A public leaderboard.** Participation rankings are visible during the phase, based
+  entirely on verifiable on-chain activity.
+- **A feedback channel.** A structured channel for UI and UX feedback is opened for
+  the duration of the phase and monitored by the Aeternum Labs team.
+
+The contract address, the Sepolia test ETH requirement, and the 5-minute minimum timer
+on testnet all remain unchanged.
+
+---
+
+## What Comes Next
+
+The incentivized testnet feeds directly into the external security audit engagement.
+Audit firms require a stable, well-tested codebase — the incentivized phase produces
+the on-chain evidence and expanded test coverage that demonstrates stability at scale.
+
+Any contract-level findings surfaced during the incentivized phase are addressed before
+the audit engagement begins. The audit itself then operates on the same contract version
+that ran through the incentivized testnet, ensuring the audited code matches what was
+live and tested.
+
+Mainnet deployment follows audit completion. See
+[Phase 1 Mainnet Deployment](/docs/roadmap/phase-1-mainnet-deployment) for the full
+deployment sequence and what changes when real ETH is at stake.
