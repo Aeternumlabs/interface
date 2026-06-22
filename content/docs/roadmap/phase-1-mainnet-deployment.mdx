@@ -99,21 +99,32 @@ to reduce the window during which the contract is live but not fully configured.
     Labs's documentation. The audit report is published alongside the verification.
   </StepItem>
 
-  <StepItem step={3} title="Register a Chainlink Automation upkeep on mainnet">
-    A new upkeep is registered at [automation.chain.link](https://automation.chain.link)
-    pointing to the deployed mainnet contract address. The upkeep is funded with mainnet
-    LINK. The gas limit is set to accommodate the worst-case `performUpkeep` execution:
-    50 wallets × ~100,000 gas per recovery = ~5,000,000 gas, plus overhead.
+  <StepItem step={3} title="Register the Chainlink Automation upkeep programmatically">
+    The upkeep is registered directly via Chainlink's `AutomationRegistrar` contract
+    from within the Foundry deployment script — not through the Chainlink Automation UI.
+    Programmatic registration is required because it returns the upkeep ID in the same
+    script execution, which is needed to retrieve the forwarder address and call
+    `setForwarder()` atomically in Step 4.
+
+    The script approves a LINK transfer to the registrar, calls `registerUpkeep()` with
+    the deployed contract address and gas parameters, and reads the assigned upkeep ID
+    from the return value. The gas limit is set to accommodate the worst-case
+    `performUpkeep` execution: 50 wallets × ~100,000 gas per recovery = ~5,000,000 gas,
+    plus overhead. The upkeep balance is funded with mainnet LINK in the same call.
   </StepItem>
 
-  <StepItem step={4} title="Call setForwarder() — the most time-sensitive step">
-    Immediately after the Chainlink upkeep is registered, the forwarder address shown
-    in the Chainlink Automation UI is passed to `setForwarder()` on the deployed
-    contract. This permanently locks `performUpkeep` to Chainlink's forwarder and closes
-    the window during which any address could call it with a crafted `performData`
-    payload. This call must happen in the same deployment script execution — not as a
-    manual follow-up step. See [AV-04](/docs/architecture/security) in the internal
-    audit for the full rationale.
+  <StepItem step={4} title="Call setForwarder() atomically — no gap permitted">
+    Using the upkeep ID from Step 3, the script queries the Chainlink registry via
+    `IAutomationRegistry.getUpkeep(upkeepId)` to retrieve the forwarder address assigned
+    to this upkeep. It immediately passes that address to `setForwarder()` on the deployed
+    AeternumVault contract in the same script execution.
+
+    `setForwarder()` has no access control — it is callable by any external address
+    before it has been set. Any block that elapses between contract deployment and this
+    call is a window in which a front-runner could call `setForwarder()` with an address
+    they control, permanently locking Chainlink out of the contract. Completing Steps 3
+    and 4 in one uninterrupted script execution eliminates this window. Using the UI for
+    upkeep registration is not acceptable on mainnet for this reason.
   </StepItem>
 
   <StepItem step={5} title="Update the frontend to point at the mainnet contract">
