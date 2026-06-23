@@ -42,30 +42,38 @@ Request at least **0.05 Sepolia ETH** — enough to cover gas fees and fund your
   <StepItem step={3} title="Register your vault">
     Click **Register** in the vault dashboard. Provide the two required parameters and an optional initial deposit:
 
-    **Backup address** — the Ethereum address that receives your ETH if recovery triggers (a separate MetaMask account or a hardware wallet). It cannot be your own connected address.
+    **Backup address** — the Ethereum address that receives your ETH if recovery triggers. For this test, use a second wallet you control; on mainnet this would typically be a trusted beneficiary or heir. It cannot be your own connected address.
 
-    **Inactivity period** — how long you need to be silent before recovery fires. For testing on Sepolia, enter **5 minutes**. For real use, the minimum on mainnet is 180 days.
+    **Inactivity period** — how long you need to be silent before recovery fires. For the test, enter **5 minutes**. For real use, the minimum on mainnet is 180 days.
 
     **Optional deposit** - the initial amount of ETH you want to secure in the vault right away. Leaving this empty is perfectly fine; you can easily deposit funds into your vault at any time after registration is complete.
 
     Confirm the registration transaction in your wallet. The `register()` call costs a small amount of gas.
   </StepItem>
 
-  <StepItem step={4} title="Deposit test ETH (If skipped in Step 3)">
+  <StepItem step={4} title="Deposit test ETH (if skipped in Step 3)">
     If you chose not to make an initial deposit during registration, click **Deposit** on your dashboard now. Enter an amount of Sepolia ETH to secure (e.g., `0.02`) and confirm the transaction. 
 
-    Once the funds are deposited, your vault balance will update on the dashboard and the recovery countdown timer will begin active tracking.
+    Once the funds are deposited, your vault balance will update and the recovery countdown timer will start.
   </StepItem>
 
   <StepItem step={5} title="Watch automatic recovery execute">
-    With a 5-minute timer, Chainlink Automation will detect your vault as eligible roughly **5 minutes after your last interaction**. You can confirm by doing nothing — the Chainlink node calls `checkUpkeep` every 12 seconds. When it finds your vault due, it calls `performUpkeep` on-chain and your Sepolia ETH moves to your backup address automatically.
+    With a 5-minute timer, simply do nothing after your deposit confirms. Chainlink calls
+    `checkUpkeep` every 12 seconds — within moments of the timer elapsing, it detects your
+    vault as eligible and submits `performUpkeep` on-chain. Your Sepolia ETH moves to your
+    backup address automatically, with no action required from you.
 
-    Check your backup address balance on [Sepolia Etherscan](https://sepolia.etherscan.io) to confirm the transfer arrived.
+    Allow a few minutes from timer expiry for the transaction to confirm on Sepolia, then
+    open your backup address on [Sepolia Etherscan](https://sepolia.etherscan.io) and check
+    the **Internal Txns** tab to confirm the transfer arrived.
+
+    Once recovery executes, your vault is deregistered. Click **Register** to start a fresh
+    cycle whenever you are ready.
   </StepItem>
 </StepList>
 
 <Callout type="tip" title="Reset the timer any time">
-  While waiting, you can test the `Ping` button in the dashboard — it resets your countdown timer without moving any funds. This is how you would signal liveness on mainnet if you go on holiday and don't need to move funds for a while.
+  While waiting, you can test the `Ping` button in the dashboard — it resets your countdown timer without moving any funds. This is how you would signal liveness on mainnet if you go on holiday and do not need to move funds for a while.
 </Callout>
 
 ---
@@ -77,4 +85,4 @@ Now that you have seen the full cycle on testnet, explore the rest of the docume
 - [The Vault](/docs/how-it-works/the-vault) — how funds are held and what operations are available
 - [Inactivity Timer](/docs/how-it-works/inactivity-timer) — what counts as activity, and what to do if you need to stay quiet
 - [Automatic Recovery](/docs/how-it-works/automatic-recovery) — the full recovery lifecycle including failure handling
-- [Testnet Walkthrough](/docs/user-guide/testnet-walkthrough) — the step-by-step guide with annotated screenshots
+- [Testnet Walkthrough](/docs/user-guide/testnet-walkthrough) — the step-by-step guide
