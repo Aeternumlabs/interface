@@ -6,7 +6,7 @@
  * production database without heavy third-party dependencies.
  */
 
-const INDEXER_URL = process.env.NEXT_PUBLIC_INDEXER_URL || "https://aeternum-indexer-production.up.railway.app/";
+const INDEXER_URL = process.env.NEXT_PUBLIC_INDEXER_URL || "https://aeternum-indexer.onrender.com/";
 
 export async function fetchIndexer<T>(query: string, variables: Record<string, any> = {}): Promise<T> {
   try {
