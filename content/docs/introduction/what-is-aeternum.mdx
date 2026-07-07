@@ -19,7 +19,7 @@ Aeternum is a non-custodial smart wallet vault deployed on Ethereum. It gives yo
 
 **A normal wallet experience.** You can deposit ETH, send it anywhere, withdraw it at will, and interact with it exactly like a standard Ethereum address. Your funds sit in the contract mapped to your address — no pooling, no lending, no exposure to anyone else's actions.
 
-**An automatic backup plan.** You designate a backup address — a beneficiary, trusted family member, or heir — or a separate wallet you control as your own safety net, and set an inactivity timer. If you go completely silent for that entire period — no transactions, no pings, nothing — Chainlink Automation automatically transfers your ETH to your backup address.
+**An automatic backup plan.** You designate a backup address — a beneficiary, trusted family member, or heir — or a separate wallet you control as your own safety net, and set an inactivity timer. If you go completely silent for that entire period — no transactions, no pings, nothing — a permissionless network of keepers detects it and automatically transfers your ETH to your backup address.
 
 If you are active, nothing ever happens. You just have a safer wallet.
 
@@ -31,11 +31,13 @@ There is no privileged role in AeternumVault — no owner function, no pause mec
 
 The entire system rests on a single idea: **an on-chain inactivity timer**. Every time you interact with your vault — deposit, send, withdraw, or even just call the `ping()` function — the elapsed counter resets, and the full countdown restarts from the configured period.
 
-If your timer reaches zero (meaning you have been completely inactive for your chosen period), [Chainlink Automation](/docs/architecture/chainlink-integration) detects this and executes the transfer automatically. No human being makes the call. No one decides when or whether to send your funds. The contract logic does exactly what you configured it to do.
+If your timer reaches zero (meaning you have been completely inactive for your chosen period), any [keeper](/docs/architecture/keeper-network) watching the chain detects this and calls `triggerRecovery()` to execute the transfer automatically. No human being makes the call. No one decides when or whether to send your funds. The contract logic does exactly what you configured it to do.
+
+Recovery is not gated to a single privileged automation service. `triggerRecovery()` is a permissionless function — any address can call it once your inactivity period has elapsed, including Aeternum Labs' own keeper bot, an independent third-party keeper, your backup address itself, or you. This means recovery does not depend on any one company's infrastructure staying online.
 
 <HowItWorksDiagram />
 
-The diagram above shows all four actors and the flow of interactions. Notice that the `checkUpkeep` call from Chainlink to the vault is **dashed** — it runs entirely off-chain as a simulation and costs nothing. The `performUpkeep` call is solid — it is an actual on-chain transaction that LINK tokens pay for.
+The diagram above shows the actors and flow of interactions. The `getTriggerableVaultsBatch()` call from a keeper to the vault is **dashed** — it runs entirely off-chain as a free read and costs nothing. The `triggerRecovery()` call is solid — it is an actual on-chain transaction, paid for in ETH gas by whichever keeper submits it.
 
 ## Key Properties
 
@@ -57,7 +59,7 @@ Aeternum is **not a yield product**. Your ETH does not earn interest in v1. It s
 
 Aeternum is **not a multisig**. Your designated beneficiary cannot access your vault while you are active. Funds only move to that address if recovery triggers.
 
-Aeternum is **not a social recovery system**. There are no guardians, no voting, no time delays on recovery confirmation. Recovery is fully autonomous — configured by you, executed by Chainlink.
+Aeternum is **not a social recovery system**. There are no guardians, no voting, no time delays on recovery confirmation. Recovery is fully autonomous — configured by you, executed permissionlessly by the Aeternum keeper network.
 
 Aeternum is **not custodial**. The team that built this contract cannot access your funds. There is no mechanism of any kind for that.
 

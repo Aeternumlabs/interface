@@ -5,10 +5,14 @@
  * the directional flow of interactions between them.
  *
  * Actors:
- *   User (Wallet Owner)      — deposits, withdraws, pings
- *   AeternumVault Contract   — central protocol, holds funds
- *   Aeternum Keeper          — scans for due vaults off-chain, executes on-chain
- *   Backup Address           — receives funds when recovery triggers
+ *   User (Wallet Owner)          — deposits, withdraws, pings
+ *   AeternumVault Contract       — central protocol, holds funds
+ *   Permissionless Keeper Network — scans for due vaults off-chain, executes
+ *                                   on-chain. Any address may call
+ *                                   triggerRecovery(); Aeternum Labs runs the
+ *                                   first keeper (Phase 1), with additional
+ *                                   independent keepers planned.
+ *   Backup Address                — receives funds when recovery triggers
  *
  * Arrow types:
  *   ─────►  Gray solid    — standard user ↔ vault interactions
@@ -58,7 +62,7 @@ export function HowItWorksDiagram() {
         <svg
           viewBox="0 0 760 390"
           className="mx-auto w-full max-w-2xl"
-          aria-label="Aeternum protocol flow: User interacts with AeternumVault smart contract. The Aeternum keeper scans for due vaults off-chain via getTriggerableVaultsBatch and executes recovery via triggerRecovery when the inactivity timer expires. ETH is then transferred to the Backup Address."
+          aria-label="Aeternum protocol flow: User interacts with AeternumVault smart contract. A permissionless keeper network — Aeternum Labs' keeper bot today, with additional independent keepers planned — scans for due vaults off-chain via getTriggerableVaultsBatch and executes recovery via triggerRecovery when the inactivity timer expires. ETH is then transferred to the Backup Address."
           role="img"
         >
 
@@ -102,7 +106,7 @@ export function HowItWorksDiagram() {
           </text>
           <text x="668" y="72" textAnchor="middle"
                 style={{ fill: C.muted, fontSize: 9, fontWeight: 600, letterSpacing: '0.1em' }}>
-            KEEPER
+            KEEPER NETWORK
           </text>
 
           {/* Node: User */}
@@ -134,16 +138,23 @@ export function HowItWorksDiagram() {
             Smart Contract
           </text>
 
-          {/* Node: Aeternum Keeper */}
+          {/* Node: Permissionless Keeper Network */}
+          {/* Represents the category of caller, not a single privileged actor.
+              Aeternum Labs runs the first keeper (Phase 1); Gelato / Chainlink
+              CRE keepers are planned as independent additions in Phase 2. */}
           <rect x="591" y="82" width="154" height="76" rx="10"
                 style={{ fill: C.purpleDim, stroke: C.purpleBorder, strokeWidth: 1.5 }} />
-          <text x="668" y="115" textAnchor="middle"
-                style={{ fill: C.purpleText, fontSize: 13, fontWeight: 700 }}>
-            Aeternum
+          <text x="668" y="106" textAnchor="middle"
+                style={{ fill: C.purpleText, fontSize: 12, fontWeight: 700 }}>
+            Permissionless
           </text>
-          <text x="668" y="133" textAnchor="middle"
-                style={{ fill: C.purple, fontSize: 11 }}>
-            Keeper
+          <text x="668" y="123" textAnchor="middle"
+                style={{ fill: C.purpleText, fontSize: 12, fontWeight: 700 }}>
+            Keeper Network
+          </text>
+          <text x="668" y="141" textAnchor="middle"
+                style={{ fill: C.purple, fontSize: 9, opacity: 0.8 }}>
+            Aeternum Labs Bot · Phase 1
           </text>
 
           {/* Node: Backup Address */}
@@ -197,7 +208,10 @@ export function HowItWorksDiagram() {
           </text>
 
           {/* Arrow 4: Keeper → Vault (triggerRecovery, solid) */}
-          {/* On-chain transaction — permissionless, no LINK required */}
+          {/* On-chain transaction — permissionless, no LINK required.
+              "(permissionless)" made explicit on the arrow itself so the
+              point survives even if this arrow is screenshotted without
+              the surrounding box context. */}
           <path d="M 591,137 H 472"
                 style={{ stroke: C.purple, strokeWidth: 1.5, fill: 'none' }}
                 markerEnd="url(#hiw-arr-purple)" />
