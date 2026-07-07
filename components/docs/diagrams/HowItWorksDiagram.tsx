@@ -7,13 +7,13 @@
  * Actors:
  *   User (Wallet Owner)      — deposits, withdraws, pings
  *   AeternumVault Contract   — central protocol, holds funds
- *   Chainlink Automation     — monitors inactivity off-chain, executes on-chain
+ *   Aeternum Keeper          — scans for due vaults off-chain, executes on-chain
  *   Backup Address           — receives funds when recovery triggers
  *
  * Arrow types:
  *   ─────►  Gray solid    — standard user ↔ vault interactions
- *   ╌╌╌╌►  Purple dashed — checkUpkeep (off-chain simulation, no gas cost)
- *   ─────►  Purple solid  — performUpkeep (on-chain transaction, LINK cost)
+ *   ╌╌╌╌►  Purple dashed — getTriggerableVaultsBatch (off-chain eth_call, no gas)
+ *   ─────►  Purple solid  — triggerRecovery (on-chain transaction, permissionless)
  *   ─────►  Green solid   — recovery transfer (triggered when timer expires)
  *
  * Colours are hardcoded HSL values derived from globals.css tokens.
@@ -58,7 +58,7 @@ export function HowItWorksDiagram() {
         <svg
           viewBox="0 0 760 390"
           className="mx-auto w-full max-w-2xl"
-          aria-label="Aeternum protocol flow: User interacts with AeternumVault smart contract. Chainlink Automation monitors the vault off-chain via checkUpkeep and executes recovery via performUpkeep when the inactivity timer expires. ETH is then transferred to the Backup Address."
+          aria-label="Aeternum protocol flow: User interacts with AeternumVault smart contract. The Aeternum keeper scans for due vaults off-chain via getTriggerableVaultsBatch and executes recovery via triggerRecovery when the inactivity timer expires. ETH is then transferred to the Backup Address."
           role="img"
         >
 
@@ -75,7 +75,7 @@ export function HowItWorksDiagram() {
               <path d="M 0,0 L 8,3 L 0,6 Z" fill={C.arrowGray} />
             </marker>
 
-            {/* Purple arrowhead (Chainlink) */}
+            {/* Purple arrowhead (keeper) */}
             <marker id="hiw-arr-purple" markerWidth="8" markerHeight="6"
                     refX="7" refY="3" orient="auto" markerUnits="userSpaceOnUse">
               <path d="M 0,0 L 8,3 L 0,6 Z" fill={C.purple} />
@@ -102,7 +102,7 @@ export function HowItWorksDiagram() {
           </text>
           <text x="668" y="72" textAnchor="middle"
                 style={{ fill: C.muted, fontSize: 9, fontWeight: 600, letterSpacing: '0.1em' }}>
-            AUTOMATION
+            KEEPER
           </text>
 
           {/* Node: User */}
@@ -134,16 +134,16 @@ export function HowItWorksDiagram() {
             Smart Contract
           </text>
 
-          {/* Node: Chainlink Automation */}
+          {/* Node: Aeternum Keeper */}
           <rect x="591" y="82" width="154" height="76" rx="10"
                 style={{ fill: C.purpleDim, stroke: C.purpleBorder, strokeWidth: 1.5 }} />
           <text x="668" y="115" textAnchor="middle"
                 style={{ fill: C.purpleText, fontSize: 13, fontWeight: 700 }}>
-            Chainlink
+            Aeternum
           </text>
           <text x="668" y="133" textAnchor="middle"
                 style={{ fill: C.purple, fontSize: 11 }}>
-            Automation
+            Keeper
           </text>
 
           {/* Node: Backup Address */}
@@ -159,7 +159,6 @@ export function HowItWorksDiagram() {
           </text>
 
           {/* Arrow 1: User → Vault (deposit / register / ping) */}
-          {/* Upper arrow in the bidirectional pair               */}
           <path d="M 170,103 H 288"
                 style={{ stroke: C.arrowGray, strokeWidth: 1.5, fill: 'none' }}
                 markerEnd="url(#hiw-arr-gray)" />
@@ -169,7 +168,6 @@ export function HowItWorksDiagram() {
           </text>
 
           {/* Arrow 2: Vault → User (withdraw / send) */}
-          {/* Lower arrow in the pair — path runs right-to-left */}
           <path d="M 297,137 H 178"
                 style={{ stroke: C.arrowGray, strokeWidth: 1.5, fill: 'none' }}
                 markerEnd="url(#hiw-arr-gray)" />
@@ -178,8 +176,8 @@ export function HowItWorksDiagram() {
             withdraw · send
           </text>
 
-          {/* Arrow 3: Vault → Chainlink (checkUpkeep, dashed) */}
-          {/* Off-chain simulation — free, no gas, just a read call  */}
+          {/* Arrow 3: Keeper → Vault (getTriggerableVaultsBatch, dashed) */}
+          {/* Off-chain eth_call — free, no gas, batch view function */}
           <path d="M 463,103 H 582"
                 style={{
                   stroke: C.purple,
@@ -191,21 +189,21 @@ export function HowItWorksDiagram() {
                 markerEnd="url(#hiw-arr-purple)" />
           <text x="522" y="85" textAnchor="middle"
                 style={{ fill: C.purple, fontSize: 10 }}>
-            checkUpkeep
+            getTriggerableVaultsBatch
           </text>
           <text x="522" y="97" textAnchor="middle"
                 style={{ fill: C.purple, fontSize: 10 }}>
             (off-chain)
           </text>
 
-          {/* Arrow 4: Chainlink → Vault (performUpkeep, solid) */}
-          {/* On-chain transaction — costs LINK, fires when due */}
+          {/* Arrow 4: Keeper → Vault (triggerRecovery, solid) */}
+          {/* On-chain transaction — permissionless, no LINK required */}
           <path d="M 591,137 H 472"
                 style={{ stroke: C.purple, strokeWidth: 1.5, fill: 'none' }}
                 markerEnd="url(#hiw-arr-purple)" />
           <text x="531" y="150" textAnchor="middle"
                 style={{ fill: C.purple, fontSize: 10 }}>
-            performUpkeep
+            triggerRecovery
           </text>
           <text x="531" y="160" textAnchor="middle"
                 style={{ fill: C.purple, fontSize: 10 }}>
@@ -231,28 +229,28 @@ export function HowItWorksDiagram() {
           {/* Legend */}
           <g transform="translate(0, 356)">
             {/* Gray: user interaction */}
-            <line x1="30" y1="7" x2="54" y2="7"
+            <line x1="22" y1="7" x2="54" y2="7"
                   style={{ stroke: C.arrowGray, strokeWidth: 1.5 }} />
             <polygon points="48,4 56,7 48,10" style={{ fill: C.arrowGray }} />
             <text x="62" y="11" style={{ fill: C.muted, fontSize: 10 }}>User interaction</text>
 
             {/* Purple dashed: off-chain */}
-            <line x1="186" y1="7" x2="210" y2="7"
+            <line x1="166" y1="7" x2="200" y2="7"
                   style={{ stroke: C.purple, strokeWidth: 1.5, strokeDasharray: '4,3', opacity: 0.8 }} />
-            <polygon points="204,4 212,7 204,10" style={{ fill: C.purple }} />
-            <text x="220" y="11" style={{ fill: C.muted, fontSize: 10 }}>checkUpkeep (off-chain)</text>
+            <polygon points="198,4 206,7 198,10" style={{ fill: C.purple }} />
+            <text x="214" y="11" style={{ fill: C.muted, fontSize: 10 }}>getTriggerableVaultsBatch (off-chain)</text>
 
             {/* Purple solid: on-chain */}
-            <line x1="400" y1="7" x2="424" y2="7"
+            <line x1="460" y1="7" x2="484" y2="7"
                   style={{ stroke: C.purple, strokeWidth: 1.5 }} />
-            <polygon points="418,4 426,7 418,10" style={{ fill: C.purple }} />
-            <text x="434" y="11" style={{ fill: C.muted, fontSize: 10 }}>performUpkeep (on-chain)</text>
+            <polygon points="478,4 486,7 478,10" style={{ fill: C.purple }} />
+            <text x="494" y="11" style={{ fill: C.muted, fontSize: 10 }}>triggerRecovery (on-chain)</text>
 
             {/* Green: recovery */}
-            <line x1="596" y1="7" x2="620" y2="7"
+            <line x1="628" y1="7" x2="652" y2="7"
                   style={{ stroke: C.green, strokeWidth: 2 }} />
-            <polygon points="614,4 622,7 614,10" style={{ fill: C.green }} />
-            <text x="630" y="11" style={{ fill: C.muted, fontSize: 10 }}>Recovery transfer</text>
+            <polygon points="646,4 654,7 646,10" style={{ fill: C.green }} />
+            <text x="660" y="11" style={{ fill: C.muted, fontSize: 10 }}>Recovery transfer</text>
           </g>
 
         </svg>
