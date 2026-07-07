@@ -187,11 +187,11 @@ export function HowItWorksDiagram() {
                   opacity: 0.7,
                 }}
                 markerEnd="url(#hiw-arr-purple)" />
-          <text x="522" y="85" textAnchor="middle"
+          <text x="527" y="84" textAnchor="middle"
                 style={{ fill: C.purple, fontSize: 10 }}>
             getTriggerableVaultsBatch
           </text>
-          <text x="522" y="97" textAnchor="middle"
+          <text x="527" y="97" textAnchor="middle"
                 style={{ fill: C.purple, fontSize: 10 }}>
             (off-chain)
           </text>
@@ -205,7 +205,7 @@ export function HowItWorksDiagram() {
                 style={{ fill: C.purple, fontSize: 10 }}>
             triggerRecovery
           </text>
-          <text x="531" y="160" textAnchor="middle"
+          <text x="531" y="163" textAnchor="middle"
                 style={{ fill: C.purple, fontSize: 10 }}>
             (on-chain)
           </text>
@@ -235,19 +235,19 @@ export function HowItWorksDiagram() {
             <text x="62" y="11" style={{ fill: C.muted, fontSize: 10 }}>User interaction</text>
 
             {/* Purple dashed: off-chain */}
-            <line x1="166" y1="7" x2="200" y2="7"
+            <line x1="166" y1="7" x2="196" y2="7"
                   style={{ stroke: C.purple, strokeWidth: 1.5, strokeDasharray: '4,3', opacity: 0.8 }} />
             <polygon points="198,4 206,7 198,10" style={{ fill: C.purple }} />
-            <text x="214" y="11" style={{ fill: C.muted, fontSize: 10 }}>getTriggerableVaultsBatch (off-chain)</text>
+            <text x="212" y="11" style={{ fill: C.muted, fontSize: 10 }}>getTriggerableVaultsBatch (off-chain)</text>
 
             {/* Purple solid: on-chain */}
-            <line x1="460" y1="7" x2="484" y2="7"
+            <line x1="420" y1="7" x2="450" y2="7"
                   style={{ stroke: C.purple, strokeWidth: 1.5 }} />
-            <polygon points="478,4 486,7 478,10" style={{ fill: C.purple }} />
-            <text x="494" y="11" style={{ fill: C.muted, fontSize: 10 }}>triggerRecovery (on-chain)</text>
+            <polygon points="450,4 458,7 450,10" style={{ fill: C.purple }} />
+            <text x="464" y="11" style={{ fill: C.muted, fontSize: 10 }}>triggerRecovery (on-chain)</text>
 
             {/* Green: recovery */}
-            <line x1="628" y1="7" x2="652" y2="7"
+            <line x1="620" y1="7" x2="652" y2="7"
                   style={{ stroke: C.green, strokeWidth: 2 }} />
             <polygon points="646,4 654,7 646,10" style={{ fill: C.green }} />
             <text x="660" y="11" style={{ fill: C.muted, fontSize: 10 }}>Recovery transfer</text>
