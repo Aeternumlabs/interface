@@ -197,7 +197,7 @@ aeternum-app/
 │   │   ├── diagrams/
 │   │   │   ├── HowItWorksDiagram.tsx
 │   │   │   ├── Phase2ArchitectureDiagram.tsx
-│   │   │   └── RollingCursorDiagram.tsx
+│   │   │   └── KeeperArchitectureDiagram.tsx
 │   │   ├── Callout.tsx
 │   │   ├── DocsBreadcrumb.tsx
 │   │   ├── DocsHeader.tsx

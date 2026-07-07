@@ -48,7 +48,7 @@ import { Callout }      from './Callout'
 import { StepList, StepItem } from './StepList'
 import { FunctionCard } from './FunctionCard'
 import { HowItWorksDiagram } from './diagrams/HowItWorksDiagram'
-import { RollingCursorDiagram } from './diagrams/RollingCursorDiagram'
+import { KeeperArchitectureDiagram } from './diagrams/KeeperArchitectureDiagram'
 import { Phase2ArchitectureDiagram } from './diagrams/Phase2ArchitectureDiagram'
 
 // --- Shared style constants ---
@@ -349,6 +349,6 @@ export const mdxComponents: MDXComponents = {
   StepItem,
   FunctionCard,
   HowItWorksDiagram,
-  RollingCursorDiagram,
+  KeeperArchitectureDiagram,
   Phase2ArchitectureDiagram,
 }

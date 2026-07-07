@@ -11,7 +11,7 @@ At maximum scan size (5,000 wallets), `checkUpkeep` uses approximately 4 million
 
 Aeternum’s recovery architecture resolves this scaling constraint through an evolving strategy: initiating with a rolling cursor that scans the registry in discrete windows, expanding into horizontal partitioning, and ultimately using off-chain indexing to scale monitoring to tens of millions of active wallets.
 
-<RollingCursorDiagram />
+<KeeperArchitectureDiagram />
 
 ## How the Cursor Works
 

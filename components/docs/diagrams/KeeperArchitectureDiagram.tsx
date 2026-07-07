@@ -1,31 +1,25 @@
 /**
- * components/docs/diagrams/RollingCursorDiagram.tsx
+ * components/docs/diagrams/KeeperArchitectureDiagram.tsx
  *
- * SVG diagram explaining the rolling cursor architecture that allows
- * a single Chainlink upkeep to monitor any number of registered wallets.
+ * SVG diagram explaining the keeper bot two-layer scan architecture
+ * that allows the Aeternum keeper to efficiently monitor all registered
+ * vaults without scanning the full registry on every cycle.
  *
  * Four sections (top to bottom):
  *
- *   1. REGISTRY OVERVIEW
- *      Full registry bar showing past windows, current scan window,
- *      execution batch, and pending — with a cursor marker.
+ *   1. PIPELINE OVERVIEW
+ *      Full DB candidates bar showing already-processed vaults, current
+ *      validation batch, execution batch, and pending — with a batch marker.
  *
- *   2. SCAN WINDOW DETAIL
- *      Grid of wallet squares (schematic) showing the scan window
+ *   2. SCAN CYCLE DETAIL
+ *      Grid of wallet squares (schematic) showing the candidate batch
  *      split into normal wallets (gray), due wallets (amber), and
  *      the execution batch (green). A downward arrow shows how due
  *      wallets are filtered into the execution batch.
  *
- *   3. CURSOR ADVANCE TIMELINE
- *      Four mini registry bars showing the cursor at different
- *      positions over time, connected by "≈1hr" arrows.
- *
- *   4. KEY STAT
- *      At 500,000 users — one full sweep takes ~4 days.
- *
- * Layout verified:
- *   ROW_W=625, ROW_X=68, dueCenterX=632.5, execStart=572, execEnd=693
- *   All text labels checked to fit within 760px viewBox at fontSize=9/10.
+ *   3. POLL CYCLE TIMELINE
+ *      Four mini registry bars showing the keeper state at different
+ *      points in time, connected by "≈12s" arrows.
  *
  * Colors are hardcoded HSL values from globals.css tokens — CSS custom
  * properties in SVG presentation attributes can be unreliable across
@@ -57,7 +51,7 @@ const C = {
   greenText:     'hsl(142,71%,58%)',
 } as const
 
-// ---Wallet grid constants (layout verified by node calculation) ---
+// --- Wallet grid constants (layout verified by node calculation) ---
 const SQ        = 16              // wallet square size (px)
 const GAP       = 5               // gap between squares
 const STEP      = SQ + GAP        // = 21
@@ -78,23 +72,23 @@ const MINI_W = 40    // mini bar width
 const MINI_H = 8     // mini bar height
 const MINI_Y = 266   // mini bar top y
 
-// --- Four cursor positions shown on the timeline ---
+// --- Four keeper states shown on the timeline ---
 const TICKS = [
-  { cx: 80,  cursorOff: 0,  label1: 'Window 0 – 4,999',     label2: 't = 0',    wrap: false },
-  { cx: 260, cursorOff: 10, label1: 'Window 5,000 – 9,999',  label2: 't + 1hr',  wrap: false },
-  { cx: 440, cursorOff: 20, label1: 'Window 10,000 – 14,999', label2: 't + 2hr', wrap: false },
-  { cx: 620, cursorOff: 0,  label1: '↺  Wrap → Window 0',  label2: 't + Nhr',   wrap: true  },
+  { cx: 80,  cursorOff: 0,  label1: 'No due vaults',         label2: 't = 0',    wrap: false },
+  { cx: 260, cursorOff: 10, label1: 'Due vaults found',       label2: 't + 12s',  wrap: false },
+  { cx: 440, cursorOff: 20, label1: 'triggerRecovery sent',   label2: 't + 24s',  wrap: false },
+  { cx: 620, cursorOff: 0,  label1: '↺  New cycle begins',  label2: 't + 36s',   wrap: true  },
 ] as const
 
 // --- Component ---
-export function RollingCursorDiagram() {
+export function KeeperArchitectureDiagram() {
   // Pre-compute wallet square fill colors
   const row1Squares = Array.from({ length: COLS }, (_, i) => ({
     x:    ROW_X + i * STEP,
     fill: i >= DUE_START ? C.amber : C.walletNormal,
   }))
 
-  // --- Execution batch: 6 green squares aligned directly under due squares
+  // Execution batch: 6 green squares aligned directly under due squares
   const execSquares = Array.from({ length: 6 }, (_, i) => ({
     x: EXEC_X + i * STEP,
   }))
@@ -104,14 +98,14 @@ export function RollingCursorDiagram() {
 
       {/* Caption bar */}
       <figcaption className="border-b border-border/60 px-6 py-6 text-center text-[11px] font-semibold uppercase tracking-widest text-muted-foreground">
-        Rolling Cursor Architecture
+        Keeper Bot Architecture
       </figcaption>
 
       <div className="px-4 pb-6 pt-4">
         <svg
           viewBox="0 0 760 400"
           className="mx-auto w-full max-w-2xl"
-          aria-label="Rolling cursor architecture diagram. The full registry is divided into scan windows of 5,000 wallets. Chainlink checks each window off-chain via checkUpkeep. When due wallets are found, up to 50 are processed per on-chain performUpkeep transaction. The cursor advances one window per hour when idle, wrapping back to zero after the last window."
+          aria-label="Keeper bot architecture diagram. The keeper queries the Ponder database for up to 600 vault candidates per cycle. It validates them onchain via a single multicall to isRecoveryDue. Confirmed due vaults are submitted in batches of up to 120 via Multicall3 aggregate3. The keeper polls every 15 seconds."
           role="img"
         >
 
@@ -122,7 +116,7 @@ export function RollingCursorDiagram() {
               <circle cx="10" cy="10" r="1" fill={C.dotGrid} />
             </pattern>
 
-            {/* Clip path — rounds outer corners of registry bar segments */}
+            {/* Clip path — rounds outer corners of bar segments */}
             <clipPath id="rcd-bar-clip">
               <rect x="30" y="28" width="700" height="36" rx="5" />
             </clipPath>
@@ -139,7 +133,7 @@ export function RollingCursorDiagram() {
               <path d="M 0,0 L 8,3 L 0,6 Z" fill={C.green} />
             </marker>
 
-            {/* Purple arrowhead (cursor/timeline) */}
+            {/* Purple arrowhead (batch / timeline) */}
             <marker id="rcd-arr-purple" markerWidth="8" markerHeight="6"
                     refX="7" refY="3" orient="auto" markerUnits="userSpaceOnUse">
               <path d="M 0,0 L 8,3 L 0,6 Z" fill={C.purple} />
@@ -149,74 +143,74 @@ export function RollingCursorDiagram() {
           {/* Dot grid background */}
           <rect width="760" height="400" fill="url(#rcd-dots)" opacity="0.4" />
 
-          {/* --- SECTION 1 — REGISTRY OVERVIEW */}
+          {/* --- SECTION 1 — PIPELINE OVERVIEW */}
           <text x="30" y="18"
                 style={{ fill: C.muted, fontSize: 9, fontWeight: 700, letterSpacing: '0.1em' }}>
-            REGISTRY OVERVIEW
+            PIPELINE OVERVIEW
           </text>
 
           {/* Base bar */}
           <rect x="30" y="28" width="700" height="36" rx="5"
                 style={{ fill: C.barBg, stroke: C.border, strokeWidth: 1 }} />
 
-          {/* Past windows segment */}
+          {/* Already processed segment */}
           <rect x="30" y="28" width="212" height="36"
                 style={{ fill: C.barPast }}
                 clipPath="url(#rcd-bar-clip)" />
 
-          {/* Scan window fill */}
+          {/* Current DB candidates batch fill */}
           <rect x="242" y="28" width="140" height="36"
                 style={{ fill: C.purpleDim }}
                 clipPath="url(#rcd-bar-clip)" />
 
-          {/* Execution batch fill (small bright slice at start of scan window) */}
+          {/* Execution batch fill (small bright slice at start of batch) */}
           <rect x="242" y="28" width="14" height="36"
                 style={{ fill: C.purpleBright }}
                 clipPath="url(#rcd-bar-clip)" />
 
-          {/* Scan window highlight border */}
+          {/* Batch highlight border */}
           <rect x="241" y="25" width="142" height="42" rx="5"
                 style={{ fill: 'none', stroke: C.purpleBorder, strokeWidth: 1.5 }} />
 
-          {/* Cursor position marker — downward triangle */}
+          {/* Current batch marker — downward triangle */}
           <line x1="242" y1="64" x2="242" y2="68"
                 style={{ stroke: C.purple, strokeWidth: 1.5 }} />
           <path d="M 242,68 L 251,82 L 233,82 Z"
                 style={{ fill: C.purple }} />
           <text x="242" y="95" textAnchor="middle"
                 style={{ fill: C.purpleText, fontSize: 10, fontWeight: 600 }}>
-            cursor
+            current batch
           </text>
 
           {/* Section 1 segment labels */}
           <text x="136" y="109" textAnchor="middle"
                 style={{ fill: C.muted, fontSize: 10 }}>
-            Past windows
+            Already processed
           </text>
           <text x="312" y="109" textAnchor="middle"
                 style={{ fill: C.purpleText, fontSize: 10, fontWeight: 600 }}>
-            Scan window (5,000)
+            DB candidates (600)
           </text>
           <text x="249" y="121" textAnchor="middle"
                 style={{ fill: C.dim, fontSize: 9 }}>
-            exec. batch (≤50)
+            exec. batch (≤120)
           </text>
           <text x="562" y="109" textAnchor="middle"
                 style={{ fill: C.muted, fontSize: 10 }}>
-            Pending
+            Next cycle
           </text>
 
-          {/* --- SECTION 2 — SCAN WINDOW DETAIL */}
+          {/* --- SECTION 2 — SCAN CYCLE DETAIL */}
           <text x="30" y="136"
                 style={{ fill: C.muted, fontSize: 9, fontWeight: 700, letterSpacing: '0.1em' }}>
-            SCAN WINDOW DETAIL
+            SCAN CYCLE DETAIL
           </text>
           <text x="730" y="136" textAnchor="end"
                 style={{ fill: C.muted, fontSize: 9, fontStyle: 'italic' }}>
             schematic — not to scale
           </text>
 
-          {/* Row 1: wallet squares (full scan window) */}
+          {/* Row 1: wallet squares (full candidate batch) */}
           {row1Squares.map((sq, i) => (
             <rect
               key={i}
@@ -229,7 +223,7 @@ export function RollingCursorDiagram() {
             />
           ))}
 
-          {/* Scan window bracket — spans all 30 squares */}
+          {/* Batch bracket — spans all 30 squares */}
           <line x1={ROW_X} y1="174" x2={ROW_X + ROW_W} y2="174"
                 style={{ stroke: C.muted, strokeWidth: 1 }} />
           <line x1={ROW_X} y1="168" x2={ROW_X} y2="174"
@@ -238,7 +232,7 @@ export function RollingCursorDiagram() {
                 style={{ stroke: C.muted, strokeWidth: 1 }} />
           <text x="380" y="185" textAnchor="middle"
                 style={{ fill: C.muted, fontSize: 9 }}>
-            checkUpkeep: scans 5,000 wallets per cycle (off-chain, no gas cost)
+            Layer 1: getDueVaults pulls up to 600 DB candidates (no RPC cost)
           </text>
 
           {/* Downward arrow from due wallets → execution batch */}
@@ -248,10 +242,10 @@ export function RollingCursorDiagram() {
             style={{ stroke: C.green, strokeWidth: 1.5 }}
             markerEnd="url(#rcd-arr-green)"
           />
-          {/* "filters due wallets" label — start-anchored safely within viewBox */}
+          {/* "onchain validation via multicall" label */}
           <text x="639" y="183" textAnchor="start"
                 style={{ fill: C.greenText, fontSize: 9 }}>
-            filters due wallets
+            onchain validation via multicall
           </text>
 
           {/* Row 2: execution batch (green squares, same x alignment as due squares) */}
@@ -277,7 +271,7 @@ export function RollingCursorDiagram() {
                 style={{ stroke: C.green, strokeWidth: 1 }} />
           <text x="380" y="235" textAnchor="middle"
                 style={{ fill: C.greenText, fontSize: 9 }}>
-            performUpkeep: up to 50 wallets per on-chain transaction
+            triggerRecovery: up to 120 wallets per Multicall3 aggregate3 call
           </text>
 
           {/* Row 2 colour legend (inline, left-aligned) */}
@@ -300,19 +294,19 @@ export function RollingCursorDiagram() {
             Execution batch
           </text>
 
-          {/* --- SECTION 3 — CURSOR ADVANCE TIMELINE */}
+          {/* --- SECTION 3 — POLL CYCLE TIMELINE */}
           <text x="30" y="254"
                 style={{ fill: C.muted, fontSize: 9, fontWeight: 700, letterSpacing: '0.1em' }}>
-            CURSOR ADVANCE TIMELINE
+            POLL CYCLE TIMELINE
           </text>
           <text x="730" y="254" textAnchor="end"
                 style={{ fill: C.muted, fontSize: 9 }}>
-            ~1hr cooldown per advance (when no wallets are due)
+            ~12s between each scan cycle
           </text>
 
-          {/* Mini registry bars with cursor position for each frame */}
+          {/* Mini state bars with keeper state for each frame */}
           {TICKS.map((tick) => {
-            const barX = tick.cx - MINI_W / 2   // left edge of mini bar
+            const barX = tick.cx - MINI_W / 2
 
             return (
               <g key={tick.cx}>
@@ -320,13 +314,13 @@ export function RollingCursorDiagram() {
                 <rect x={barX} y={MINI_Y} width={MINI_W} height={MINI_H} rx={2}
                       style={{ fill: C.barBg, stroke: C.border, strokeWidth: 0.8 }} />
 
-                {/* Past fill (wallets already scanned in previous windows) */}
+                {/* Past fill (vaults already processed in previous cycles) */}
                 {tick.cursorOff > 0 && (
                   <rect x={barX} y={MINI_Y} width={tick.cursorOff} height={MINI_H} rx={2}
                         style={{ fill: C.barPast }} />
                 )}
 
-                {/* Cursor / scan window highlight */}
+                {/* Current batch / scan highlight */}
                 <rect
                   x={barX + tick.cursorOff}
                   y={MINI_Y}
@@ -340,7 +334,7 @@ export function RollingCursorDiagram() {
                   }}
                 />
 
-                {/* Wrap indicator symbol above cursor position */}
+                {/* Wrap / new cycle indicator */}
                 {tick.wrap && (
                   <text
                     x={barX + tick.cursorOff + 5}
@@ -356,7 +350,7 @@ export function RollingCursorDiagram() {
                 <line x1={tick.cx} y1="284" x2={tick.cx} y2="294"
                       style={{ stroke: C.dim, strokeWidth: 1 }} />
 
-                {/* Window label */}
+                {/* State label */}
                 <text x={tick.cx} y="308" textAnchor="middle"
                       style={{
                         fill:       tick.wrap ? C.purpleText : C.dim,
@@ -379,7 +373,7 @@ export function RollingCursorDiagram() {
           <line x1="50" y1="290" x2="710" y2="290"
                 style={{ stroke: C.border, strokeWidth: 1 }} />
 
-          {/* Arrows + "≈1hr" labels between timeline frames */}
+          {/* Arrows + "≈12s" labels between timeline frames */}
           {([0, 1, 2] as const).map((i) => {
             const fromX  = TICKS[i].cx + MINI_W / 2 + 8
             const toX    = TICKS[i + 1].cx - MINI_W / 2 - 8
@@ -396,7 +390,7 @@ export function RollingCursorDiagram() {
                 />
                 <text x={midX} y={arrowY - 5} textAnchor="middle"
                       style={{ fill: C.muted, fontSize: 9 }}>
-                  ≈1hr
+                  ≈12s
                 </text>
               </g>
             )
