@@ -9,7 +9,7 @@ AeternumVault is deployed as a single smart contract. There are no proxy contrac
 
 This is intentional. Every additional contract in a system is a new attack surface, a new upgradeability risk, and a new thing for users to trust. AeternumVault keeps its scope minimal: hold ETH on behalf of registered wallets, monitor inactivity, and execute recovery when conditions are met.
 
-The contract inherits two battle-tested OpenZeppelin components — `ReentrancyGuard` and `AutomationCompatibleInterface` — but defines all vault logic internally.
+The contract inherits one battle-tested OpenZeppelin component — `ReentrancyGuard` — and implements its own `IAeternumVault` interface, which defines every event, error, struct, and function signature the contract exposes. All vault logic is defined internally, with no dependency on any automation provider's interface.
 
 ## The Two Core Data Structures
 
@@ -32,7 +32,7 @@ address[] private s_registeredWallets;
 mapping(address => uint256) private s_walletIndexPlusOne;
 ```
 
-The registry is an ordered list of all currently active wallet addresses. It exists because Chainlink Automation needs something to iterate over — without it, there would be no way to know which wallets to scan.
+The registry is an ordered list of all currently active wallet addresses. It exists so that `getTriggerableVaultsBatch()` — and any off-chain indexer building a keeper's own scan database — has something to enumerate; without it, there would be no way to know which wallets to check.
 
 `s_walletIndexPlusOne` stores each wallet's **1-indexed position** in the array. A value of 0 means the wallet is not in the registry. The 1-indexing is deliberate: it lets the zero-value of `uint256` serve as a natural sentinel for "not present", without needing a separate boolean.
 
@@ -70,17 +70,13 @@ The algorithm in plain terms:
 4. Pop the last element (now a duplicate) off the array.
 5. Delete the removed wallet's index entry.
 
-This is safe even when multiple wallets are removed in the same `performUpkeep` call, because the index mapping is updated atomically with each removal — subsequent lookups always find the correct current position.
+Each `triggerRecovery()` call processes exactly one wallet and performs at most one removal — there is no loop that processes a batch of wallets within a single transaction. But the registry still has to stay correct across many such calls arriving in rapid succession, potentially from different keepers acting independently. Because `s_walletIndexPlusOne` is updated atomically with every removal, a wallet's position may shift from one call to the next, but the mapping always reflects its true current index — so no lookup ever reads stale or incorrect array data, regardless of how many recoveries have happened since.
 
 ## No Owner, No Admin, No Upgrades
 
 The contract has no owner role, no `Ownable` inheritance, and no function that can pause, redirect, or modify any user's vault after deployment.
 
-The only privileged operation is `setForwarder()`, which registers the Chainlink Automation forwarder address. This is a one-time bootstrap call — once set, the function permanently reverts on any future call:
-
-```solidity
-if (s_forwarder != address(0)) revert AeternumVault__ForwarderAlreadySet();
-```
+There is no privileged operation of any kind — not even a one-time bootstrap call. Earlier versions of the contract required a one-time `setForwarder()` call immediately after deployment, locking in the Chainlink Automation forwarder as the only address permitted to execute recovery. That access-gated model has been removed entirely along with the rest of the Chainlink Automation architecture: `triggerRecovery()` carries no caller restriction from the moment the contract is deployed, so there is no bootstrap window, no forwarder to configure, and no deployment step during which the contract is briefly more permissive than its steady state.
 
 There is no upgrade mechanism. Each deployed version of AeternumVault is immutable. The rules you agree to when registering are fixed for the lifetime of that deployment. Future versions are deployed as entirely new contracts; users choose whether to migrate.
 
@@ -90,6 +86,6 @@ There is no upgrade mechanism. Each deployed version of AeternumVault is immutab
 
 ## Registered Wallets: Current Scope
 
-The registry (`s_registeredWallets`) only contains **currently active** vaults. Wallets that have canceled their vault, been abandoned, or never registered are not in the array. This keeps the array compact and keeps Chainlink scan costs proportional to the active user base.
+The registry (`s_registeredWallets`) only contains **currently active** vaults. Wallets that have canceled their vault, been abandoned, or never registered are not in the array. This keeps the array compact and keeps keeper scan costs — whether via `getTriggerableVaultsBatch()` or an off-chain indexer — proportional to the active user base.
 
-When a user cancels via `cancelRecovery()`, or when abandonment occurs after three failed recovery attempts, `_removeFromRegistry()` is called immediately — the wallet leaves the registry and is no longer scanned on subsequent upkeep calls.
+When a user cancels via `cancelRecovery()`, or when abandonment occurs after three failed recovery attempts, `_removeFromRegistry()` is called immediately — the wallet leaves the registry and is no longer surfaced in subsequent keeper scans.
