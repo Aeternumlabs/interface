@@ -18,14 +18,14 @@ if (block.timestamp < config.lastActivity + config.inactivityPeriod) return; // 
 All three must hold. If you have an active vault but a zero balance, nothing happens — there is nothing to recover. If your vault has ETH but you interacted an hour ago, nothing happens — your timer is still running. Recovery only fires when all three conditions align.
 
 <Callout type="info">
-  The keeper bot's `getTriggerableVaultsBatch()` evaluates these conditions off-chain every 12 seconds, at no gas cost. When it finds eligible vaults, it calls `triggerRecovery()` on-chain to execute the transfers. This on-chain call is permissionless — any address could submit it once a vault is eligible, not only the keeper bot. See [Keeper Network](/docs/architecture/keeper-network) for the detailed mechanics.
+  The keeper bot checks these conditions against its own indexed database — kept in sync with on-chain state — rather than calling the contract directly. When it finds eligible vaults, it calls `triggerRecovery()` on-chain to execute the transfers. This on-chain call is permissionless — any address could submit it once a vault is eligible, not only the keeper bot. See [Keeper Network](/docs/architecture/keeper-network) for the detailed mechanics.
 </Callout>
 
 ## How Recovery Executes
 
 When your vault is identified as due for recovery, the contract executes a single `_executeRecovery()` call for your address. The process follows the Checks-Effects-Interactions (CEI) security pattern:
 
-**Step 1 — Checks:** Conditions are re-validated inside `_executeRecovery()`, independently of whatever off-chain data motivated the call. If anything has changed since the keeper's last `getTriggerableVaultsBatch()` scan — you sent a ping in the gap, for instance — the recovery is silently skipped and no ETH moves.
+**Step 1 — Checks:** Conditions are re-validated inside `_executeRecovery()`, independently of whatever off-chain data motivated the call. If anything has changed since the keeper's last database scan — you sent a ping in the gap, for instance — the recovery is silently skipped and no ETH moves.
 
 **Step 2 — Effects:** Your balance is zeroed, your vault is marked inactive, and your address is removed from the monitoring registry — all before any ETH is transferred.
 
@@ -69,7 +69,7 @@ After three consecutive failures, the vault is marked as **abandoned**:
 
 Abandonment does not mean you lose your ETH. The two things that change are:
 
-**The vault is no longer monitored.** The keeper bot will not attempt recovery again for this vault, and it no longer shows up in `getTriggerableVaultsBatch()`. The automatic protection is gone.
+**The vault is no longer monitored.** The keeper bot will not attempt recovery again for this vault — abandoned vaults are excluded from its scans. The automatic protection is gone.
 
 **Your ETH balance remains fully accessible.** The `balance` field in your vault config is still intact. You can call `withdrawAll()` or `send()` at any time to retrieve your funds.
 
