@@ -89,6 +89,6 @@ The balance reduction and timer reset happen before the ETH transfer. This follo
 
 ## Version 1 is free
 
-AeternumVault v1 has no subscription fees, no tiers, and no protocol-level charges. The only costs are standard Ethereum gas fees for the transactions you initiate (register, deposit, send, etc.). The Chainlink Automation upkeep — the service that watches your vault and triggers recovery — is funded separately and does not pass costs on to individual users.
+AeternumVault v1 has no subscription fees, no tiers, and no protocol-level charges. The only costs are standard Ethereum gas fees for the transactions you initiate (register, deposit, send, etc.). The Aeternum keeper bot — the service that watches your vault and calls `triggerRecovery()` when it's due — runs as a public good, with Aeternum Labs absorbing its gas costs as an operating expense rather than passing them on to individual users. Because `triggerRecovery()` is permissionless, this isn't a service you depend on paying for either — anyone, including you or your backup address, could call it directly at no cost beyond gas.
 
 This is intentional. Foundational wallet safety should not be gated behind a paywall.
