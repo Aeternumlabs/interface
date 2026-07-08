@@ -31,13 +31,13 @@ There is no privileged role in AeternumVault — no owner function, no pause mec
 
 The entire system rests on a single idea: **an on-chain inactivity timer**. Every time you interact with your vault — deposit, send, withdraw, or even just call the `ping()` function — the elapsed counter resets, and the full countdown restarts from the configured period.
 
-If your timer reaches zero — meaning you have been completely inactive for your chosen period — the transfer to your backup address becomes available to execute. Someone still has to submit that transaction; in practice, that's almost always a [keeper](/docs/architecture/keeper-network) watching the chain. But `triggerRecovery()`, the function that actually executes the transfer, is permissionless: it carries no access restriction at all, so any address can call it — Aeternum Labs' own keeper bot, an independent third-party keeper, your backup address itself, or you. Recovery doesn't depend on any one company's infrastructure staying online.
+If your timer reaches zero — meaning you have been completely inactive for your chosen period — the transfer to your backup address becomes available to execute. Someone still has to submit that transaction; in practice, that's almost always the Aeternum Labs [keeper bot](/docs/architecture/keeper-network), which watches for eligible wallets via its own indexed database rather than polling the chain directly. But `triggerRecovery()`, the function that actually executes the transfer, is permissionless: it carries no access restriction at all, so any address can call it — Aeternum Labs' own keeper bot, an independent third-party keeper, your backup address itself, or you. Recovery doesn't depend on any one company's infrastructure staying online.
 
 What matters is that whoever calls it has no say in the outcome. The contract — not the caller — decides whether the transfer is valid, how much moves, and where it goes, based entirely on your current vault configuration, which you can update at any time. The caller can't redirect funds, force an early recovery, or influence anything beyond *whether the transaction gets submitted at all*.
 
 <HowItWorksDiagram />
 
-The diagram above shows the actors and flow of interactions. The `getTriggerableVaultsBatch()` call from a keeper to the vault is **dashed** — it runs entirely off-chain as a free read and costs nothing. The `triggerRecovery()` call is solid — it is an actual on-chain transaction, paid for in ETH gas by whichever address submits it, keeper or otherwise.
+The diagram above shows the actors and flow of interactions. The keeper's scan of eligible wallets is **dashed** — it runs entirely off-chain, against the keeper's own indexed database, and costs nothing. The `triggerRecovery()` call is solid — it is an actual on-chain transaction, paid for in ETH gas by whichever address submits it, keeper or otherwise.
 
 ## Key Properties
 
