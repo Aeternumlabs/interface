@@ -144,17 +144,21 @@ export function HowItWorksDiagram() {
               CRE keepers are planned as independent additions in Phase 2. */}
           <rect x="591" y="82" width="154" height="76" rx="10"
                 style={{ fill: C.purpleDim, stroke: C.purpleBorder, strokeWidth: 1.5 }} />
-          <text x="668" y="106" textAnchor="middle"
+          <text x="668" y="104" textAnchor="middle"
                 style={{ fill: C.purpleText, fontSize: 12, fontWeight: 700 }}>
-            Permissionless
+            Any external caller:
           </text>
-          <text x="668" y="123" textAnchor="middle"
-                style={{ fill: C.purpleText, fontSize: 12, fontWeight: 700 }}>
-            Keeper Network
+          <text x="668" y="118" textAnchor="middle"
+                style={{ fill: C.purpleText, fontSize: 10, opacity: 0.9 }}>
+            • Aeternum Labs Bot
           </text>
-          <text x="668" y="141" textAnchor="middle"
-                style={{ fill: C.purple, fontSize: 9, opacity: 0.8 }}>
-            Aeternum Labs Bot · Phase 1
+          <text x="671" y="132" textAnchor="middle"
+                style={{ fill: C.purpleText, fontSize: 10, opacity: 0.9 }}>
+            • Automation provider
+          </text>
+          <text x="656" y="146" textAnchor="middle"
+                style={{ fill: C.purpleText, fontSize: 10, opacity: 0.9 }}>
+            • Any individual
           </text>
 
           {/* Node: Backup Address */}
