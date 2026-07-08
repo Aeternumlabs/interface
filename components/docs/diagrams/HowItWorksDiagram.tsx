@@ -222,7 +222,7 @@ export function HowItWorksDiagram() {
             on-chain events
           </text>
           <text x="527" y="97" textAnchor="middle"
-                style={{ fill: C.purple, fontSize: 10 }}>
+                style={{ fill: C.purple, fontSize: 9 }}>
             (indexed off-chain)
           </text>
 
@@ -240,7 +240,7 @@ export function HowItWorksDiagram() {
             triggerRecovery
           </text>
           <text x="531" y="163" textAnchor="middle"
-                style={{ fill: C.purple, fontSize: 10 }}>
+                style={{ fill: C.purple, fontSize: 9 }}>
             (on-chain)
           </text>
 
@@ -275,16 +275,16 @@ export function HowItWorksDiagram() {
             <text x="212" y="11" style={{ fill: C.muted, fontSize: 10 }}>On-chain events (indexed off-chain)</text>
 
             {/* Purple solid: on-chain */}
-            <line x1="430" y1="7" x2="460" y2="7"
+            <line x1="414" y1="7" x2="444" y2="7"
                   style={{ stroke: C.purple, strokeWidth: 1.5 }} />
-            <polygon points="460,4 468,7 460,10" style={{ fill: C.purple }} />
-            <text x="474" y="11" style={{ fill: C.muted, fontSize: 10 }}>triggerRecovery (on-chain)</text>
+            <polygon points="444,4 452,7 444,10" style={{ fill: C.purple }} />
+            <text x="458" y="11" style={{ fill: C.muted, fontSize: 10 }}>triggerRecovery (on-chain)</text>
 
             {/* Green: recovery */}
-            <line x1="630" y1="7" x2="662" y2="7"
+            <line x1="614" y1="7" x2="646" y2="7"
                   style={{ stroke: C.green, strokeWidth: 2 }} />
-            <polygon points="656,4 664,7 656,10" style={{ fill: C.green }} />
-            <text x="670" y="11" style={{ fill: C.muted, fontSize: 10 }}>Recovery transfer</text>
+            <polygon points="640,4 648,7 640,10" style={{ fill: C.green }} />
+            <text x="654" y="11" style={{ fill: C.muted, fontSize: 10 }}>Recovery transfer</text>
           </g>
 
         </svg>
