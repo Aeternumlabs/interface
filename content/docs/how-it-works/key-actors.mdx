@@ -1,9 +1,9 @@
 ---
 title: Key Actors
-description: The roles of the vault owner, backup address, Chainlink Automation network, and the Chainlink forwarder.
+description: The roles of the vault owner, the backup address, and the permissionless keeper network that executes recovery.
 ---
 
-Four actors participate in the Aeternum protocol. Understanding each one's capabilities and limits is the foundation for trusting the system.
+Three actors participate in the Aeternum protocol. Understanding each one's capabilities and limits is the foundation for trusting the system.
 
 ---
 
@@ -54,51 +54,22 @@ The backup address can be:
 
 ---
 
-## Chainlink Automation
+## The Keeper Network — and Anyone Else
 
-Chainlink Automation is a decentralized network of independent nodes that evaluates on-chain conditions and triggers contract execution when those conditions are met. In Aeternum, it is the automated engine that watches your vault.
+Unlike the vault owner and the backup address, this "actor" isn't a single fixed address. It's whoever calls `triggerRecovery()` on your behalf once your vault becomes eligible — and the contract places no restriction at all on who that can be.
 
-The network interacts with AeternumVault through two functions:
+In practice, this is almost always the **Aeternum keeper bot**, run by Aeternum Labs as a public good. It works in two stages:
 
-**`checkUpkeep()`** — called every ~12 seconds as an off-chain simulation. No gas, no cost. The function scans the current cursor window of registered wallets and returns a list of any vaults due for recovery. If none are found, it returns `upkeepNeeded = false` and the network does nothing.
+**Scan.** Every ~12 seconds, the bot queries its own off-chain database — populated in real time from on-chain events by the Ponder indexer — for wallets that look due for recovery, pulling out a batch of candidates per pass. This step costs nothing on-chain; it's a plain database query, not a contract call.
 
-**`performUpkeep(performData)`** — called on-chain only when `checkUpkeep` returns `upkeepNeeded = true`. This is the real transaction that transfers ETH to backup addresses. It costs LINK tokens, which are deposited in the upkeep registration.
+**Execute.** The bot then works through that batch in smaller groups, calling `triggerRecovery(wallet)` on-chain for each one and paying the ETH gas itself as an operating cost.
 
-<Callout type="info" title="What if Chainlink goes down?">
-  Chainlink Automation is a decentralized network with thousands of independent nodes. A complete outage is extremely unlikely. If it were unavailable, your ETH would remain in your vault until the service resumed. The worst-case outcome is a delay in recovery, not loss of funds.
+<Callout type="info" title="What if the keeper bot goes down?">
+  If the Aeternum Labs keeper bot were ever unavailable, your ETH would simply remain in your vault, unrecovered, until service resumed — or until someone else calls `triggerRecovery()` on your behalf, since the function has no access restriction. Gelato Network is planned as an independent backup keeper (Phase 2), followed by Chainlink CRE for cross-chain coordination (Phase 3) — additional, independently-operated callers of the same permissionless function. The worst-case outcome of any keeper outage is a delay in recovery, not loss of funds.
 </Callout>
 
-The key property is that Chainlink nodes are **permissionless monitors** — they observe and execute, but they cannot override the contract logic, redirect funds, or skip the trigger conditions. The contract's `_executeRecovery()` function re-validates every condition before any ETH moves. Chainlink only provides the scheduling; the rules are in the contract.
+The contract also exposes `getTriggerableVaultsBatch(startIndex, batchSize)` — a free, permissionless on-chain view function that returns wallets due for recovery within a given slice of the registry. The Aeternum Labs bot doesn't currently use it; its own indexed database serves the same purpose. The function exists on the contract as a general-purpose tool available to anyone — other keeper operators, researchers, or tooling — who wants to query due wallets directly from chain state rather than run their own indexer.
 
----
+**Why no forwarder or access gate is needed.** You might reasonably wonder what stops an arbitrary caller from doing something harmful with `triggerRecovery()` if literally anyone can call it. The answer isn't a permission check on the caller — there isn't one — it's that the function gives the caller no leverage to begin with. `_executeRecovery()` re-validates every condition from your on-chain configuration before moving a single wei: whether your vault is active, whether the timer has actually elapsed, and where the funds go. The caller supplies only a wallet address; they cannot redirect funds, force an early recovery, or influence the outcome in any way. Removing the single designated caller doesn't weaken this — it removes a dependency on any one party remaining available, without weakening what the contract itself enforces.
 
-## The Chainlink Forwarder
-
-When you register an upkeep with Chainlink Automation, Chainlink deploys a unique **forwarder contract** specifically for that upkeep. The forwarder is the only address permitted to call `performUpkeep` on AeternumVault.
-
-This is a critical security layer. Without the forwarder check, anyone could construct a crafted `performData` payload and call `performUpkeep` directly — potentially attempting to manipulate which vaults get processed in a given batch.
-
-The forwarder is set once after deployment:
-
-```solidity
-function setForwarder(address forwarder) external {
-    if (s_forwarder != address(0)) revert AeternumVault__ForwarderAlreadySet(); // can only be set once
-    if (forwarder == address(0)) revert AeternumVault__InvalidAddress();
-    s_forwarder = forwarder;
-    emit ForwarderSet(forwarder);
-}
-```
-
-Once set, every call to `performUpkeep` from any other address is immediately rejected:
-
-```solidity
-if (s_forwarder != address(0) && msg.sender != s_forwarder) {
-    revert AeternumVault__NotForwarder();
-}
-```
-
-<Callout type="warning" title="Set the forwarder immediately after deployment">
-  Between contract deployment and calling `setForwarder()`, `performUpkeep` is open to any caller. On Sepolia this is acceptable for testing. On mainnet, `setForwarder()` must be called in the same deployment script, immediately after registration, to close this window.
-</Callout>
-
-The forwarder address can only be set once and cannot be changed afterward. This means it is not an ongoing admin function — it is a one-time bootstrap that permanently locks down the execution path.
+This is also why competing keepers are safe to run simultaneously. If two callers submit `triggerRecovery()` for the same wallet in the same block window, the first to land executes recovery normally; the second finds the vault already inactive and its balance already zero, and silently returns without reverting or double-spending.
