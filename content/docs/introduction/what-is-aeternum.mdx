@@ -37,7 +37,7 @@ What matters is that whoever calls it has no say in the outcome. The contract �
 
 <HowItWorksDiagram />
 
-The diagram above shows the actors and flow of interactions. The keeper's scan of eligible wallets is **dashed** — it runs entirely off-chain, against the keeper's own indexed database, and costs nothing. The `triggerRecovery()` call is solid — it is an actual on-chain transaction, paid for in ETH gas by whichever address submits it, keeper or otherwise.
+The diagram above shows the actors and flow of interactions. The dashed arrow represents on-chain events emitted by the vault, picked up by an off-chain indexer and fed into the keeper's own database — this is data flowing outward from the vault, not a live call to it. The `triggerRecovery()` call is solid because it's the only actual on-chain transaction between the keeper network and the vault, paid for in ETH gas by whichever address submits it, keeper or otherwise.
 
 ## Key Properties
 
