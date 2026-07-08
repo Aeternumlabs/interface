@@ -16,7 +16,7 @@ block.timestamp >= config.lastActivity + config.inactivityPeriod
 
 `lastActivity` is the Unix timestamp of your most recent on-chain interaction with the vault. `inactivityPeriod` is the duration you configured at registration. Their sum is your **deadline** — the moment at which recovery becomes eligible.
 
-Chainlink Automation evaluates this expression every 12 seconds. The moment `block.timestamp` crosses the deadline and your balance is non-zero, recovery is triggered.
+The Aeternum keeper bot checks this expression roughly every 12 seconds via a free off-chain read. The moment `block.timestamp` crosses your deadline and your balance is non-zero, your vault becomes eligible, and the keeper submits the on-chain transaction that executes the transfer. That on-chain call is permissionless — any address could submit it once your vault is eligible, not only the keeper bot — see [Automatic Recovery](/docs/how-it-works/automatic-recovery) for the full mechanics.
 
 ## What Counts as Activity
 
@@ -80,9 +80,9 @@ The minimum exists to prevent accidents — a period shorter than 180 days would
 
 ## When the Timer Reaches Zero
 
-If `block.timestamp >= lastActivity + inactivityPeriod` and your vault holds a non-zero ETH balance, your vault becomes **eligible for recovery**. This does not mean recovery happens instantly — it means that on the next Chainlink `checkUpkeep` cycle, your vault will be included in the batch of due wallets.
+If `block.timestamp >= lastActivity + inactivityPeriod` and your vault holds a non-zero ETH balance, your vault becomes **eligible for recovery**. This does not mean recovery happens instantly — it means that on the keeper's next scan, your vault will show up as due in `getTriggerableVaultsBatch()`, and the keeper will submit `triggerRecovery()` to execute the transfer on-chain.
 
-Chainlink runs `checkUpkeep` every 12 seconds. In practice, recovery executes within a minute of eligibility being detected, subject to on-chain confirmation times.
+The Aeternum keeper bot polls the chain every 12 seconds. In practice, recovery executes within a minute of eligibility being detected, subject to on-chain confirmation times.
 
 Once you interact with your vault again after the timer expires — even a single `ping()` — the timer resets and recovery is no longer eligible. You remain in full control until the next deadline.
 
