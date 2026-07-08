@@ -58,10 +58,15 @@ Request at least **0.05 Sepolia ETH** — enough to cover gas fees and fund your
   </StepItem>
 
   <StepItem step={5} title="Watch automatic recovery execute">
-    With a 5-minute timer, simply do nothing after your deposit confirms. Chainlink calls
-    `checkUpkeep` every 12 seconds — within moments of the timer elapsing, it detects your
-    vault as eligible and submits `performUpkeep` on-chain. Your Sepolia ETH moves to your
-    backup address automatically, with no action required from you.
+    With a 5-minute timer, simply do nothing after your deposit confirms. The Aeternum keeper
+    bot polls the chain every 12 seconds, calling `getTriggerableVaultsBatch()` — a free,
+    off-chain read — to check which vaults have crossed their inactivity deadline. Within
+    moments of your timer elapsing, it submits `triggerRecovery()` on-chain, and your Sepolia
+    ETH moves to your backup address automatically, with no action required from you.
+
+    This step is permissionless at the contract level — any address could call
+    `triggerRecovery()` once your timer is up, not just the Aeternum keeper bot — but for this
+    walkthrough, the keeper bot handles it for you.
 
     Allow a few minutes from timer expiry for the transaction to confirm on Sepolia, then
     open your backup address on [Sepolia Etherscan](https://sepolia.etherscan.io) and check
