@@ -5,10 +5,11 @@ description: The full recovery lifecycle — trigger conditions, failed transfer
 
 ## When Recovery Triggers
 
-Recovery is automatic and fully on-chain. No human being decides when to execute it. Chainlink Automation monitors every registered vault and triggers recovery the moment three conditions are all simultaneously true:
+Recovery is automatic and fully on-chain. No human being decides when to execute it. The Aeternum keeper bot monitors every registered vault and triggers recovery the moment three conditions are all simultaneously true:
 
 ```solidity
-// From _executeRecovery() — these three checks happen inside performUpkeep
+// From _executeRecovery() — these three checks are re-validated on every
+// triggerRecovery() call, regardless of who submits it
 if (!config.isActive)  return;   // 1. vault must be registered and active
 if (config.balance == 0) return; // 2. vault must hold a non-zero ETH balance
 if (block.timestamp < config.lastActivity + config.inactivityPeriod) return; // 3. timer must be elapsed
@@ -17,14 +18,14 @@ if (block.timestamp < config.lastActivity + config.inactivityPeriod) return; // 
 All three must hold. If you have an active vault but a zero balance, nothing happens — there is nothing to recover. If your vault has ETH but you interacted an hour ago, nothing happens — your timer is still running. Recovery only fires when all three conditions align.
 
 <Callout type="info">
-  Chainlink's `checkUpkeep` evaluates these conditions off-chain every 12 seconds. When it finds eligible vaults, it calls `performUpkeep` on-chain to execute the transfers. See [Chainlink Integration](/docs/architecture/chainlink-integration) for the detailed mechanics.
+  The keeper bot's `getTriggerableVaultsBatch()` evaluates these conditions off-chain every 12 seconds, at no gas cost. When it finds eligible vaults, it calls `triggerRecovery()` on-chain to execute the transfers. This on-chain call is permissionless — any address could submit it once a vault is eligible, not only the keeper bot. See [Keeper Network](/docs/architecture/keeper-network) for the detailed mechanics.
 </Callout>
 
 ## How Recovery Executes
 
 When your vault is identified as due for recovery, the contract executes a single `_executeRecovery()` call for your address. The process follows the Checks-Effects-Interactions (CEI) security pattern:
 
-**Step 1 — Checks:** Conditions are re-validated inside `performUpkeep`. If anything has changed since `checkUpkeep` ran (you sent a ping in the gap between the two calls), the recovery is silently skipped and no ETH moves.
+**Step 1 — Checks:** Conditions are re-validated inside `_executeRecovery()`, independently of whatever off-chain data motivated the call. If anything has changed since the keeper's last `getTriggerableVaultsBatch()` scan — you sent a ping in the gap, for instance — the recovery is silently skipped and no ETH moves.
 
 **Step 2 — Effects:** Your balance is zeroed, your vault is marked inactive, and your address is removed from the monitoring registry — all before any ETH is transferred.
 
@@ -40,7 +41,7 @@ When a transfer fails, the contract does not panic or lock up. It handles the fa
 
 1. **Your balance is restored** — the ETH is returned to your vault record.
 2. **A failure counter is incremented** — `failedRecoveryAttempts` goes from 0 to 1.
-3. **Your vault is re-added to monitoring** — Chainlink will attempt recovery again on the next pass.
+3. **Your vault is re-added to monitoring** — the keeper bot will attempt recovery again on its next scan.
 4. A `RecoveryFailed` event is emitted so off-chain monitors and the dashboard can surface the issue.
 
 This means a broken backup address does not lock your funds permanently — it just delays the recovery and gives you (or whoever controls your wallet) an opportunity to update the backup address via `updateBackupAddress()`.
@@ -51,7 +52,7 @@ This means a broken backup address does not lock your funds permanently — it j
 
 ## The Three-Attempt Limit
 
-To prevent Chainlink from running in an infinite loop attempting to send ETH to a permanently broken address — which would waste LINK tokens and degrade performance for all users — AeternumVault limits consecutive recovery attempts to **three**.
+To prevent an unbounded retry loop against a permanently broken backup address — which would mean whichever keeper submits the transaction keeps burning real ETH gas on a call that can never succeed, forever — AeternumVault limits consecutive recovery attempts to **three**.
 
 | Attempt | Result |
 | --- | --- |
@@ -68,7 +69,7 @@ After three consecutive failures, the vault is marked as **abandoned**:
 
 Abandonment does not mean you lose your ETH. The two things that change are:
 
-**The vault is no longer monitored.** Chainlink will not attempt recovery again for this vault. The automatic protection is gone.
+**The vault is no longer monitored.** The keeper bot will not attempt recovery again for this vault, and it no longer shows up in `getTriggerableVaultsBatch()`. The automatic protection is gone.
 
 **Your ETH balance remains fully accessible.** The `balance` field in your vault config is still intact. You can call `withdrawAll()` or `send()` at any time to retrieve your funds.
 
