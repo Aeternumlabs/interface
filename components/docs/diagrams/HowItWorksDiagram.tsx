@@ -5,20 +5,31 @@
  * the directional flow of interactions between them.
  *
  * Actors:
- *   User (Wallet Owner)          — deposits, withdraws, pings
- *   AeternumVault Contract       — central protocol, holds funds
- *   Permissionless Keeper Network — scans for due vaults off-chain, executes
- *                                   on-chain. Any address may call
- *                                   triggerRecovery(); Aeternum Labs runs the
- *                                   first keeper (Phase 1), with additional
- *                                   independent keepers planned.
- *   Backup Address                — receives funds when recovery triggers
+ *   User (Wallet Owner)  — deposits, withdraws, pings
+ *   AeternumVault Contract — central protocol, holds funds
+ *   Keeper Network — any external caller of triggerRecovery(). In practice,
+ *                     almost always the Aeternum Labs keeper bot today, with
+ *                     independent third-party keepers (or any individual)
+ *                     equally free to call the same permissionless function.
+ *                     The keeper scans its own off-chain indexed database to
+ *                     find due wallets — this is an internal step and does
+ *                     not call the vault contract. Only triggerRecovery()
+ *                     itself is an on-chain interaction with the vault.
+ *   Backup Address — receives funds when recovery triggers
  *
  * Arrow types:
  *   ─────►  Gray solid    — standard user ↔ vault interactions
- *   ╌╌╌╌►  Purple dashed — getTriggerableVaultsBatch (off-chain eth_call, no gas)
  *   ─────►  Purple solid  — triggerRecovery (on-chain transaction, permissionless)
  *   ─────►  Green solid   — recovery transfer (triggered when timer expires)
+ *
+ * Note: there is deliberately no arrow between the Keeper Network and the
+ * vault representing an off-chain "scan" step. The keeper's scan is a query
+ * against its own database (populated by an off-chain indexer), not a call
+ * to the contract, so it is shown as an annotation on the keeper node itself
+ * rather than a line to the vault. getTriggerableVaultsBatch() exists on the
+ * contract as a general-purpose permissionless view function, but is not
+ * part of the Aeternum Labs keeper bot's live scanning path — see the
+ * Key Actors doc page for the full explanation.
  *
  * Colours are hardcoded HSL values derived from globals.css tokens.
  * CSS custom properties in SVG presentation attributes are unreliable
@@ -62,7 +73,7 @@ export function HowItWorksDiagram() {
         <svg
           viewBox="0 0 760 390"
           className="mx-auto w-full max-w-2xl"
-          aria-label="Aeternum protocol flow: User interacts with AeternumVault smart contract. A permissionless keeper network — Aeternum Labs' keeper bot today, with additional independent keepers planned — scans for due vaults off-chain via getTriggerableVaultsBatch and executes recovery via triggerRecovery when the inactivity timer expires. ETH is then transferred to the Backup Address."
+          aria-label="Aeternum protocol flow: User interacts with AeternumVault smart contract. The keeper network — any external caller, in practice almost always the Aeternum Labs keeper bot — scans its own off-chain database to find wallets due for recovery, then calls triggerRecovery on-chain when the inactivity timer has expired. ETH is then transferred to the Backup Address."
           role="img"
         >
 
@@ -138,10 +149,10 @@ export function HowItWorksDiagram() {
             Smart Contract
           </text>
 
-          {/* Node: Permissionless Keeper Network */}
+          {/* Node: Keeper Network */}
           {/* Represents the category of caller, not a single privileged actor.
-              Aeternum Labs runs the first keeper (Phase 1); Gelato / Chainlink
-              CRE keepers are planned as independent additions in Phase 2. */}
+              Any address may call triggerRecovery(); Aeternum Labs runs the
+              first keeper today. */}
           <rect x="591" y="82" width="154" height="76" rx="10"
                 style={{ fill: C.purpleDim, stroke: C.purpleBorder, strokeWidth: 1.5 }} />
           <text x="668" y="108" textAnchor="middle"
@@ -155,6 +166,19 @@ export function HowItWorksDiagram() {
           <text x="656" y="136" textAnchor="middle"
                 style={{ fill: C.purpleText, fontSize: 10, opacity: 0.9 }}>
             • Any individual
+          </text>
+
+          {/* Keeper scan annotation — deliberately NOT an arrow to the vault.
+              The scan is a query against the keeper's own off-chain database,
+              not a contract call, so it's shown as a note on the keeper node
+              itself rather than an interaction line. */}
+          <text x="668" y="176" textAnchor="middle"
+                style={{ fill: C.dim, fontSize: 10, opacity: 1 }}>
+            scans its own indexed DB
+          </text>
+          <text x="668" y="188" textAnchor="middle"
+                style={{ fill: C.dim, fontSize: 10 }}>
+            off-chain — no contract call
           </text>
 
           {/* Node: Backup Address */}
@@ -187,31 +211,7 @@ export function HowItWorksDiagram() {
             withdraw · send
           </text>
 
-          {/* Arrow 3: Keeper → Vault (getTriggerableVaultsBatch, dashed) */}
-          {/* Off-chain eth_call — free, no gas, batch view function */}
-          <path d="M 463,103 H 582"
-                style={{
-                  stroke: C.purple,
-                  strokeWidth: 1.5,
-                  strokeDasharray: '6 4',
-                  fill: 'none',
-                  opacity: 0.7,
-                }}
-                markerEnd="url(#hiw-arr-purple)" />
-          <text x="527" y="84" textAnchor="middle"
-                style={{ fill: C.purple, fontSize: 10 }}>
-            getTriggerableVaultsBatch
-          </text>
-          <text x="527" y="97" textAnchor="middle"
-                style={{ fill: C.purple, fontSize: 10 }}>
-            (off-chain)
-          </text>
-
-          {/* Arrow 4: Keeper → Vault (triggerRecovery, solid) */}
-          {/* On-chain transaction — permissionless, no LINK required.
-              "(permissionless)" made explicit on the arrow itself so the
-              point survives even if this arrow is screenshotted without
-              the surrounding box context. */}
+          {/* Arrow 3: Keeper → Vault (triggerRecovery, solid) */}
           <path d="M 591,137 H 472"
                 style={{ stroke: C.purple, strokeWidth: 1.5, fill: 'none' }}
                 markerEnd="url(#hiw-arr-purple)" />
@@ -224,7 +224,7 @@ export function HowItWorksDiagram() {
             (on-chain)
           </text>
 
-          {/* Arrow 5: Vault → Backup (recovery transfer, green) */}
+          {/* Arrow 4: Vault → Backup (recovery transfer, green) */}
           {/* Fires when inactivity period has fully elapsed */}
           <path d="M 380,158 V 247"
                 style={{ stroke: C.green, strokeWidth: 2, fill: 'none' }}
@@ -239,33 +239,6 @@ export function HowItWorksDiagram() {
                 style={{ fill: C.green, fontSize: 10 }}>
             when timer expires
           </text>
-
-          {/* Legend */}
-          <g transform="translate(0, 356)">
-            {/* Gray: user interaction */}
-            <line x1="22" y1="7" x2="54" y2="7"
-                  style={{ stroke: C.arrowGray, strokeWidth: 1.5 }} />
-            <polygon points="48,4 56,7 48,10" style={{ fill: C.arrowGray }} />
-            <text x="62" y="11" style={{ fill: C.muted, fontSize: 10 }}>User interaction</text>
-
-            {/* Purple dashed: off-chain */}
-            <line x1="166" y1="7" x2="196" y2="7"
-                  style={{ stroke: C.purple, strokeWidth: 1.5, strokeDasharray: '4,3', opacity: 0.8 }} />
-            <polygon points="198,4 206,7 198,10" style={{ fill: C.purple }} />
-            <text x="212" y="11" style={{ fill: C.muted, fontSize: 10 }}>getTriggerableVaultsBatch (off-chain)</text>
-
-            {/* Purple solid: on-chain */}
-            <line x1="420" y1="7" x2="450" y2="7"
-                  style={{ stroke: C.purple, strokeWidth: 1.5 }} />
-            <polygon points="450,4 458,7 450,10" style={{ fill: C.purple }} />
-            <text x="464" y="11" style={{ fill: C.muted, fontSize: 10 }}>triggerRecovery (on-chain)</text>
-
-            {/* Green: recovery */}
-            <line x1="620" y1="7" x2="652" y2="7"
-                  style={{ stroke: C.green, strokeWidth: 2 }} />
-            <polygon points="646,4 654,7 646,10" style={{ fill: C.green }} />
-            <text x="660" y="11" style={{ fill: C.muted, fontSize: 10 }}>Recovery transfer</text>
-          </g>
 
         </svg>
       </div>
