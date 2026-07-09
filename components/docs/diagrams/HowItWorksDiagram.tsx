@@ -8,9 +8,14 @@
  *   User (Wallet Owner)  — deposits, withdraws, pings
  *   AeternumVault Contract — central protocol, holds funds
  *   Keeper Network — any external caller of triggerRecovery(). In practice,
- *                     today this is the Aeternum Labs keeper bot (Phase 1);
- *                     independent third-party keepers (Gelato, Chainlink CRE)
- *                     are planned as additional callers of the same
+ *                     today this is the Aeternum Labs keeper bot (Phase 1),
+ *                     which runs a three-stage cycle: scan its own indexed
+ *                     database for candidates, validate each on-chain
+ *                     (isRecoveryDue, batched via multicall) to catch stale
+ *                     entries, then execute confirmed wallets as batched
+ *                     triggerRecovery() calls via Multicall3. Independent
+ *                     third-party keepers (Gelato, Chainlink CRE) are
+ *                     planned as additional callers of the same
  *                     permissionless function in later phases.
  *   Backup Address — receives funds when recovery triggers
  *
@@ -20,7 +25,8 @@
  *                           keeper's own database (no contract call — this
  *                           represents event flow via an off-chain indexer,
  *                           not a live read of the vault)
- *   ─────►  Purple solid  — triggerRecovery (on-chain transaction, permissionless)
+ *   ─────►  Purple solid  — triggerRecovery (on-chain transaction, permissionless,
+ *                           batched via Multicall3)
  *   ─────►  Green solid   — recovery transfer (triggered when timer expires)
  *
  * Note: the dashed arrow does NOT represent getTriggerableVaultsBatch() or
@@ -32,6 +38,15 @@
  * see the Key Actors doc page for the full explanation. The dashed arrow
  * here represents that event-driven data flow, which is why it points
  * FROM the vault TO the keeper rather than the other way around.
+ *
+ * Note: the solid purple arrow represents triggerRecovery() specifically —
+ * the state-changing write. Before submitting it, the keeper bot also
+ * performs a separate on-chain READ (isRecoveryDue, batched into a single
+ * multicall) to re-validate every candidate and filter out anything the
+ * database missed. That validation step is deliberately not drawn as its
+ * own arrow, to keep the diagram focused on state-changing interactions —
+ * see Key Actors and the forthcoming Keeper Network architecture page for
+ * the full scan → validate → execute pipeline.
  *
  * Colours are hardcoded HSL values derived from globals.css tokens.
  * CSS custom properties in SVG presentation attributes are unreliable
@@ -75,7 +90,7 @@ export function HowItWorksDiagram() {
         <svg
           viewBox="0 0 760 390"
           className="mx-auto w-full max-w-2xl"
-          aria-label="Aeternum protocol flow: User interacts with AeternumVault smart contract. The vault's on-chain events are indexed off-chain into the keeper network's own database. The keeper — any external caller, in practice today the Aeternum Labs keeper bot — calls triggerRecovery on-chain when a wallet's inactivity timer has expired. ETH is then transferred to the Backup Address."
+          aria-label="Aeternum protocol flow: User interacts with AeternumVault smart contract. The vault's on-chain events are indexed off-chain into the keeper network's own database. The keeper — any external caller, in practice today the Aeternum Labs keeper bot — re-validates candidates on-chain before calling triggerRecovery on-chain when a wallet's inactivity timer has expired. ETH is then transferred to the Backup Address."
           role="img"
         >
 
@@ -207,7 +222,11 @@ export function HowItWorksDiagram() {
               NOT a live call from the keeper to the contract — no gas,
               no eth_call, no getTriggerableVaultsBatch(). Direction is
               vault → keeper because data is flowing outward from events
-              the vault emits, not a request the keeper is making. */}
+              the vault emits, not a request the keeper is making. This
+              feeds the keeper's DB pre-filter only — the separate on-chain
+              validation read (isRecoveryDue) is not sourced from this data
+              and is intentionally not drawn as its own arrow; see the file
+              header for why. */}
           <path d="M 463,103 H 582"
                 style={{
                   stroke: C.purple,
@@ -227,11 +246,16 @@ export function HowItWorksDiagram() {
           </text>
 
           {/* Arrow 4: Keeper → Vault (triggerRecovery, solid) */}
-          {/* The only on-chain call from the keeper network to the vault.
-              On-chain transaction — permissionless, no LINK required.
-              "(permissionless)" made explicit on the arrow itself so the
-              point survives even if this arrow is screenshotted without
-              the surrounding box context. */}
+          {/* The only STATE-CHANGING on-chain call from the keeper network
+              to the vault, and the only one drawn. Permissionless, no LINK
+              required, batched via Multicall3 when multiple wallets are
+              confirmed due in the same cycle. A separate on-chain READ
+              (isRecoveryDue, via multicall) happens just before this as a
+              validation step — see the file header note above; it is not
+              given its own arrow to keep this diagram simple.
+              "(permissionless)" is implied by the Keeper Network box copy;
+              "(batched)" made explicit here so the arrow doesn't imply
+              one transaction per wallet. */}
           <path d="M 591,137 H 472"
                 style={{ stroke: C.purple, strokeWidth: 1.5, fill: 'none' }}
                 markerEnd="url(#hiw-arr-purple)" />
@@ -241,7 +265,7 @@ export function HowItWorksDiagram() {
           </text>
           <text x="531" y="163" textAnchor="middle"
                 style={{ fill: C.purple, fontSize: 9 }}>
-            (on-chain)
+            (on-chain, batched)
           </text>
 
           {/* Arrow 5: Vault → Backup (recovery transfer, green) */}
