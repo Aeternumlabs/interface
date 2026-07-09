@@ -18,14 +18,14 @@ if (block.timestamp < config.lastActivity + config.inactivityPeriod) return; // 
 All three must hold. If you have an active vault but a zero balance, nothing happens — there is nothing to recover. If your vault has ETH but you interacted an hour ago, nothing happens — your timer is still running. Recovery only fires when all three conditions align.
 
 <Callout type="info">
-  The keeper bot checks these conditions against its own indexed database — kept in sync with on-chain state — rather than calling the contract directly. When it finds eligible vaults, it calls `triggerRecovery()` on-chain to execute the transfers. This on-chain call is permissionless — any address could submit it once a vault is eligible, not only the keeper bot. See [Keeper Network](/docs/architecture/keeper-network) for the detailed mechanics.
+  The keeper bot's database is only a first-pass filter. Before submitting anything on-chain, it re-validates every candidate directly against the contract in a single batched read, to catch stale entries the database missed. Only wallets confirmed due move forward to `triggerRecovery()`. This on-chain call is permissionless — any address could submit it once a vault is eligible, not only the keeper bot. See [Keeper Network](/docs/architecture/keeper-network) for the detailed mechanics.
 </Callout>
 
 ## How Recovery Executes
 
 When your vault is identified as due for recovery, the contract executes a single `_executeRecovery()` call for your address. The process follows the Checks-Effects-Interactions (CEI) security pattern:
 
-**Step 1 — Checks:** Conditions are re-validated inside `_executeRecovery()`, independently of whatever off-chain data motivated the call. If anything has changed since the keeper's last database scan — you sent a ping in the gap, for instance — the recovery is silently skipped and no ETH moves.
+**Step 1 — Checks:** Conditions are re-validated inside `_executeRecovery()`, independently of whatever off-chain or on-chain data motivated the call. Even after the keeper's own pre-submission validation, conditions can still change in the gap before the transaction confirms — you sent a ping in that window, for instance — so the contract checks everything again itself. If anything no longer holds, the recovery is silently skipped and no ETH moves.
 
 **Step 2 — Effects:** Your balance is zeroed, your vault is marked inactive, and your address is removed from the monitoring registry — all before any ETH is transferred.
 
@@ -41,7 +41,7 @@ When a transfer fails, the contract does not panic or lock up. It handles the fa
 
 1. **Your balance is restored** — the ETH is returned to your vault record.
 2. **A failure counter is incremented** — `failedRecoveryAttempts` goes from 0 to 1.
-3. **Your vault is re-added to monitoring** — the keeper bot will attempt recovery again on its next scan.
+3. **Your vault is re-added to monitoring** — the keeper bot will attempt recovery again on a future cycle. A failed transfer for your wallet has no effect on anyone else's recovery, even if several were submitted together.
 4. A `RecoveryFailed` event is emitted so off-chain monitors and the dashboard can surface the issue.
 
 This means a broken backup address does not lock your funds permanently — it just delays the recovery and gives you (or whoever controls your wallet) an opportunity to update the backup address via `updateBackupAddress()`.

@@ -58,11 +58,15 @@ The backup address can be:
 
 Unlike the vault owner and the backup address, this "actor" isn't a single fixed address. It's whoever calls `triggerRecovery()` on your behalf once your vault becomes eligible — and the contract places no restriction at all on who that can be.
 
-In practice, this is almost always the **Aeternum keeper bot**, run by Aeternum Labs as a public good. It works in two stages:
+In practice, this is almost always the **Aeternum keeper bot**, run by Aeternum Labs as a public good. Each cycle runs in three stages:
 
-**Scan.** Every ~12 seconds, the bot queries its own off-chain database — populated in real time from on-chain events by the Ponder indexer — for wallets that look due for recovery, pulling out a batch of candidates per pass. This step costs nothing on-chain; it's a plain database query, not a contract call.
+**Scan.** The bot queries its own off-chain database — populated in real time from on-chain events by an indexer — for wallets that look due for recovery. This costs nothing on-chain; it's a plain database query, not a contract call.
 
-**Execute.** The bot then works through that batch in smaller groups, calling `triggerRecovery(wallet)` on-chain for each one and paying the ETH gas itself as an operating cost.
+**Validate.** Every candidate from the scan is re-checked directly against the contract in a single batched on-chain read, to catch anything the database missed — a ping you sent moments ago, for instance. Only wallets confirmed due on-chain move forward.
+
+**Execute.** Confirmed wallets are batched together and submitted as `triggerRecovery()` transactions on-chain, with the bot paying the ETH gas itself as an operating cost. A failure on one wallet in a batch — a backup address that rejects ETH, say — doesn't affect any other wallet in the same batch.
+
+Cycles repeat roughly every 12 seconds, though the actual gap can stretch a little longer if a given cycle has a lot of recoveries to work through. The full technical pipeline — batching, gas estimation, and everything in between — is covered in [Keeper Network](/docs/architecture/keeper-network).
 
 <Callout type="info" title="What if the keeper bot goes down?">
   If the Aeternum Labs keeper bot were ever unavailable, your ETH would simply remain in your vault, unrecovered, until service resumed — or until someone else calls `triggerRecovery()` on your behalf, since the function has no access restriction. Gelato Network is planned as an independent backup keeper (Phase 2), followed by Chainlink CRE for cross-chain coordination (Phase 3) — additional, independently-operated callers of the same permissionless function. The worst-case outcome of any keeper outage is a delay in recovery, not loss of funds.
