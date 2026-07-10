@@ -264,8 +264,7 @@ aeternum-app/
 ├── content/
 │   └── docs/
 │       ├── architecture/
-│       │   ├── chainlink-integration.mdx
-│       │   ├── rolling-cursor.mdx
+│       │   ├── keeper-network.mdx
 │       │   ├── security.mdx
 │       │   └── smart-contract.mdx
 │       ├── contract-reference/

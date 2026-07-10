@@ -37,7 +37,7 @@ import {
 // --- Root sidebar ---
 export function DocsSidebar() {
   const pathname   = usePathname()
-  // '/docs/architecture/rolling-cursor' → 'architecture/rolling-cursor'
+  // '/docs/architecture/keeper-network' → 'architecture/keeper-network'
   // '/docs'                             → ''
   const activeSlug = pathname.startsWith('/docs/')
     ? pathname.slice('/docs/'.length)

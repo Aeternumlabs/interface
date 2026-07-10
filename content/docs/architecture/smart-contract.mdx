@@ -72,13 +72,9 @@ The algorithm in plain terms:
 
 Each `triggerRecovery()` call processes exactly one wallet and performs at most one removal — there is no loop inside the contract itself that iterates over a batch. The Aeternum Labs keeper bot does batch multiple `triggerRecovery()` calls into a single Ethereum transaction for gas efficiency (via Multicall3 — see [Keeper Network](/docs/architecture/keeper-network) for the mechanics), but that batching loop lives entirely in the external Multicall3 contract. It makes several separate calls into `triggerRecovery()`, one per wallet, rather than AeternumVault ever processing a list internally.
 
-That distinction doesn't matter for correctness, though — and it's worth being precise about why. Ethereum transactions execute sequentially, regardless of whether the calls originate from an internal loop or an external batching contract: each `triggerRecovery()` call fully completes its read-modify-write on `s_registeredWallets` and `s_walletIndexPlusOne` — including any swap-and-pop removal — before the next call in the same transaction begins. There is no concurrent storage access for the algorithm to race against, so it was never actually depending on "one removal per transaction" to stay correct. Because `s_walletIndexPlusOne` is updated atomically with every removal, a wallet's position may shift from one call to the next, but the mapping always reflects its true current index — so no lookup ever reads stale or incorrect array data, whether the removals span a single batched transaction, many separate transactions, or several independent keepers acting at once.
-
 ## No Owner, No Admin, No Upgrades
 
 The contract has no owner role, no `Ownable` inheritance, and no function that can pause, redirect, or modify any user's vault after deployment.
-
-There is no privileged operation of any kind — not even a one-time bootstrap call. Earlier versions of the contract required a one-time `setForwarder()` call immediately after deployment, locking in the Chainlink Automation forwarder as the only address permitted to execute recovery. That access-gated model has been removed entirely along with the rest of the Chainlink Automation architecture: `triggerRecovery()` carries no caller restriction from the moment the contract is deployed, so there is no bootstrap window, no forwarder to configure, and no deployment step during which the contract is briefly more permissive than its steady state.
 
 There is no upgrade mechanism. Each deployed version of AeternumVault is immutable. The rules you agree to when registering are fixed for the lifetime of that deployment. Future versions are deployed as entirely new contracts; users choose whether to migrate.
 

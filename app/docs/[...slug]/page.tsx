@@ -5,7 +5,7 @@
  *
  * Route examples:
  * /docs/introduction/what-is-aeternum  →  slug: ['introduction', 'what-is-aeternum']
- * /docs/architecture/rolling-cursor    →  slug: ['architecture', 'rolling-cursor']
+ * /docs/architecture/keeper-network    →  slug: ['architecture', 'keeper-network']
  * /docs/faq                            →  slug: ['faq']
  * /docs                                →  handled by app/docs/page.tsx (redirect)
  *
@@ -72,7 +72,7 @@ interface PageProps {
 // are included — orphaned files are excluded.
 //
 // The [...slug] catch-all receives segments as string[], so we split:
-//   'architecture/rolling-cursor'  →  { slug: ['architecture', 'rolling-cursor'] }
+//   'architecture/keeper-network'  →  { slug: ['architecture', 'keeper-network'] }
 //   'faq'                          →  { slug: ['faq'] }
 export async function generateStaticParams() {
   return getAllDocSlugs().map((slug) => ({

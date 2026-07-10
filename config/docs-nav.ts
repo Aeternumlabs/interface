@@ -131,16 +131,10 @@ export const docsNavSections: DocsNavSection[] = [
           'Single-contract design, the registry data structure, and per-vault isolation guarantees.',
       },
       {
-        label: 'Rolling Cursor',
-        slug: 'architecture/rolling-cursor',
+        label: 'Keeper Network',
+        slug: 'architecture/keeper-network',
         description:
-          'How one Chainlink upkeep job monitors any number of registered wallets indefinitely without splitting jobs.',
-      },
-      {
-        label: 'Chainlink Integration',
-        slug: 'architecture/chainlink-integration',
-        description:
-          'checkUpkeep, performUpkeep, stale data safety pattern, and step-by-step upkeep registration.',
+          'How the Aeternum keeper bot discovers, validates, and executes recovery — the scan-validate-execute pipeline, permissionless execution, and batched submission via Multicall3.',
       },
       {
         label: 'Security Design',

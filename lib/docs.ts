@@ -168,7 +168,7 @@ function walkMdxFiles(dir: string, base: string): string[] {
  * @param slug  E.g. 'introduction/what-is-aeternum' or 'faq'
  *
  * @example
- *   const doc = await getDocContent('architecture/rolling-cursor')
+ *   const doc = await getDocContent('architecture/keeper-network')
  *   if (!doc) notFound()
  *   // doc.frontmatter.title  → 'Rolling Cursor'
  *   // doc.content            → raw MDX string ready for MDXRemote

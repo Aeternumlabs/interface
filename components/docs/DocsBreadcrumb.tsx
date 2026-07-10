@@ -29,7 +29,7 @@ import {
 
 // --- Types ---
 interface DocsBreadcrumbProps {
-  /** Canonical slug, e.g. 'architecture/rolling-cursor' or 'faq' */
+  /** Canonical slug, e.g. 'architecture/keeper-network' or 'faq' */
   slug: string
 }
 

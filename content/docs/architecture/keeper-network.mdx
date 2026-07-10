@@ -1,0 +1,233 @@
+---
+title: Keeper Network
+description: How the Aeternum keeper bot discovers, validates, and executes recovery — the scan-validate-execute pipeline, permissionless execution, and batched submission via Multicall3.
+---
+
+## How the Keeper Network Monitors Vaults
+
+Recovery on AeternumVault is not driven by a privileged operator watching the chain. It's driven by whoever calls `triggerRecovery()` on a wallet once that wallet's inactivity period has elapsed — and the contract places no restriction at all on who that can be.
+
+In practice, today that's almost always the **Aeternum Labs keeper bot**, running as a public good (Phase 1 of the rollout). This page is the deep dive into how it actually works: how it finds wallets that are due, how it double-checks that they're really due before spending any gas, and how it submits recovery transactions on-chain.
+
+Three functions on the contract make this possible, each with a different role:
+
+| Function | Who actually uses it |
+| --- | --- |
+| `isRecoveryDue(wallet)` | The Aeternum Labs keeper bot's live pre-submission validation pass |
+| `getTriggerableVaultsBatch(startIndex, batchSize)` | Not used by the Aeternum Labs bot's live path — available to any other keeper, researcher, or tool that wants due-wallet data straight from chain state |
+| `triggerRecovery(wallet)` | The actual recovery execution — the only one of the three that moves funds |
+
+That last point is worth sitting with: **the first two functions above are conveniences, not gates.** Nothing on the contract requires anyone to call them before calling `triggerRecovery()`. A keeper that skipped validation entirely and just fired `triggerRecovery()` at every registered wallet on every cycle would still be perfectly safe — it would just be needlessly expensive, since most of those calls would hit the "not actually due yet" precondition and return without doing anything. The validation layer described below exists purely so the Aeternum Labs bot doesn't waste gas on calls it already knows will be no-ops.
+
+<KeeperArchitectureDiagram />
+
+---
+
+## The Keeper Cycle: Scan, Validate, Execute
+
+The Aeternum Labs keeper bot runs a continuous loop: scan, validate, execute, sleep, repeat. Each stage has a distinct cost profile.
+
+```typescript
+// The main loop, simplified
+while (running) {
+  const dueWallets = await scan(db, publicClient, contractAddress, KEEPER_BATCH_SIZE);
+
+  if (dueWallets.length > 0) {
+    await execute(walletClient, publicClient, contractAddress, dueWallets);
+  }
+
+  await sleep(KEEPER_POLL_INTERVAL_MS);
+}
+```
+
+One detail worth flagging: `KEEPER_POLL_INTERVAL_MS` is the gap *after* a cycle finishes, not a fixed clock tick. If a cycle has a lot of recoveries to execute, the actual time between scans stretches past 12 seconds. Under normal load this is imperceptible; it just means "roughly every 12 seconds" is a floor, not a guarantee.
+
+### Stage 1 — Scan (off-chain, free)
+
+The bot never queries the contract to find candidates. It queries its own database — populated in real time from on-chain events by a Ponder-based indexer, written to a Postgres database (Neon), and read via Drizzle:
+
+```typescript
+// Layer 1: DB pre-filter
+const rows = await getDueVaults(db, dbScanLimit); // dbScanLimit = KEEPER_BATCH_SIZE
+const candidates = rows.map((r) => r.id as Address);
+```
+
+This costs nothing on-chain — it's a plain database query. It's also allowed to be slightly stale: the indexer can lag a few blocks behind the chain head, and that's fine, because nothing gets executed on the strength of this query alone.
+
+### Stage 2 — Validate (on-chain, batched)
+
+Every DB candidate gets re-checked directly against the contract before anything is submitted, to catch anything the database missed — a ping sent moments ago, for instance, that the indexer hasn't caught up to yet. This is a real on-chain read, but a cheap one, and all candidates are checked in a single `eth_call` via multicall rather than one RPC round-trip per wallet:
+
+```typescript
+// Layer 2: on-chain validation
+const results = await publicClient.multicall({
+  contracts: candidates.map((wallet) => ({
+    address: contractAddress,
+    abi: AETERNUM_VAULT_ABI,
+    functionName: "isRecoveryDue" as const,
+    args: [wallet] as const,
+  })),
+  allowFailure: true,
+});
+
+const confirmed = candidates.filter((_, i) => results[i]?.status === "success" && results[i].result === true);
+```
+
+`isRecoveryDue()` is what gets called here — not `getTriggerableVaultsBatch()`. The two functions return conceptually similar information, but `isRecoveryDue()` is a single boolean check per wallet, which is exactly what's needed to validate a specific list of DB candidates; `getTriggerableVaultsBatch()` is built for a different job — scanning an index *range* of the registry without needing a pre-existing candidate list, useful for a keeper that has no indexer of its own.
+
+This scanner is explicitly designed as a filter, not a source of truth. As its own source comments put it: it's "an efficiency layer, not a security boundary" — if the database or this validation pass ever drifts from actual on-chain state, `_executeRecovery()`'s own precondition checks are still the final word on whether any ETH moves. Stage 2 exists to save gas, not to provide safety; the safety comes from the contract regardless of what any keeper does or doesn't validate beforehand.
+
+### Stage 3 — Execute (on-chain, batched via Multicall3)
+
+Confirmed wallets aren't submitted as one `triggerRecovery()` transaction each. They're batched into as few transactions as possible via [Multicall3](https://www.multicall3.com/)'s `aggregate3` function, with `allowFailure: true` so one wallet's failed ETH transfer doesn't affect any other wallet bundled into the same transaction:
+
+```typescript
+// Batched submission
+const batches = chunk(wallets, MAX_CALLS_PER_TX); // MAX_CALLS_PER_TX = 120
+
+for (const batch of batches) {
+  const calls = batch.map((wallet) => ({
+    target: contractAddress,
+    allowFailure: true,
+    callData: encodeFunctionData({
+      abi: AETERNUM_VAULT_ABI,
+      functionName: "triggerRecovery",
+      args: [wallet],
+    }),
+  }));
+
+  const estimatedGas = await publicClient.estimateContractGas({
+    address: MULTICALL3_ADDRESS,
+    abi: MULTICALL3_ABI,
+    functionName: "aggregate3",
+    args: [calls],
+    account: walletClient.account,
+  });
+
+  const bufferedGas = (estimatedGas * 130n) / 100n; // 30% buffer
+  const gasWithBuffer = bufferedGas > MAX_GAS_PER_TX ? MAX_GAS_PER_TX : bufferedGas;
+
+  const hash = await walletClient.writeContract({
+    address: MULTICALL3_ADDRESS,
+    abi: MULTICALL3_ABI,
+    functionName: "aggregate3",
+    args: [calls],
+    gas: gasWithBuffer,
+  });
+
+  await publicClient.waitForTransactionReceipt({ hash }); // awaited before the next batch
+}
+```
+
+A few things worth understanding about this stage:
+
+**Why 30% gas buffer, not 0% or 100%.** Testing surfaced a specific failure mode: `eth_estimateGas`'s binary search doesn't always precisely account for EIP-150's 63/64ths gas-forwarding rule across the nested call chain here — Multicall3 calling into AeternumVault calling into a backup address's `receive()`. Underestimating caused individual sub-calls to run out of gas and revert on-chain even though the outer transaction succeeded. The 30% figure is an empirical margin against that, not a formal guarantee, and would need retuning if the contract's gas profile ever shifts materially.
+
+**Why a hard ceiling on top of the buffer.** `MAX_GAS_PER_TX = 20,000,000` is applied after buffering, as defense in depth against an anomalous estimate — an RPC glitch, or a backup address with a deliberately expensive `receive()` function — being submitted unchecked.
+
+**Why batches are submitted sequentially, not in parallel.** Each batch awaits its transaction receipt before the next one is submitted. This keeps nonce ordering simple and avoids replacement-transaction edge cases, at the cost of some throughput — a cycle with 350 confirmed wallets takes three sequential transactions (120 + 120 + 110), one after another, rather than three in parallel.
+
+**What happens on failure.** A failed batch — submission error, dropped transaction, gas estimation failure — is logged and does not abort any other batch in the same cycle. `RecoveryExecuted`, `RecoveryFailed`, and `RecoveryAbandoned` events are parsed out of each successful batch's receipt and logged per-wallet, so the outcome of every individual recovery is observable regardless of how many wallets were bundled together.
+
+---
+
+## Two Separate Size Limits
+
+Just as the DB scan and the on-chain execution have different cost profiles, they're governed by two independently tunable limits:
+
+| Limit | Value | Governs | Tunable how |
+| --- | --- | --- | --- |
+| `KEEPER_BATCH_SIZE` | 600 (default) | How many candidates are pulled from the database per scan | Environment variable — changeable on the hosting platform, no code change or redeploy needed |
+| `MAX_CALLS_PER_TX` | 120 | How many `triggerRecovery` calls are bundled into a single transaction | Hard-coded constant in `executor.ts` — requires a code change and redeploy |
+
+These are deliberately decoupled. Raising `KEEPER_BATCH_SIZE` to pull more candidates per scan never silently grows the size of a single transaction — it just means more sequential transactions get submitted if more wallets turn out to be confirmed due.
+
+`MAX_CALLS_PER_TX`'s value of 120 isn't arbitrary — it's derived from measured gas cost: 120 calls at `triggerRecovery`'s measured worst-case (90,988 gas) plus the 30% estimation buffer works out to roughly 14.2M gas, about 24% of a 60M block gas limit — comfortable headroom even under network congestion, while still keeping each transaction well clear of any single-transaction gas ceiling.
+
+---
+
+## Stale Data Safety
+
+There's an unavoidable gap between when a wallet is confirmed due in Stage 2 and when its `triggerRecovery()` transaction actually confirms on-chain in Stage 3 — typically seconds, occasionally longer under load. A user could ping their vault, withdraw, or cancel recovery entirely in that window.
+
+This is handled the same way regardless of how confident the keeper's own validation was: every precondition is checked again, from scratch, inside `_executeRecovery()`, independent of whatever motivated the call.
+
+```solidity
+function _executeRecovery(address wallet) internal {
+    RecoveryConfig storage config = s_configs[wallet];
+
+    // Re-validate — stale entries are silently skipped
+    if (!config.isActive) return;
+    if (config.balance == 0) return;
+    if (block.timestamp < config.lastActivity + config.inactivityPeriod) return;
+
+    // ... proceed with recovery
+}
+```
+
+If a wallet no longer qualifies, the call returns without moving any funds — no revert, no error, just a cheap no-op (the ~8,300 gas precondition-check floor rather than a full recovery execution). Because `allowFailure: true` isn't even needed to catch this case — the function doesn't revert in the first place — a stale entry inside a batch doesn't affect any other wallet in that same transaction.
+
+---
+
+## Race Safety — Competing Keepers
+
+Because `triggerRecovery()` is permissionless, more than one caller can legitimately try to recover the same wallet — the Aeternum Labs bot and an independent third-party keeper racing each other, for instance, once Phase 2 and Phase 3 keepers are live. This resolves safely without any coordination between them.
+
+The first call to actually land executes recovery normally. Any subsequent call — whether it arrives in a separate transaction or happens to be bundled in the same Multicall3 batch — finds `isActive == false` and `balance == 0`, and silently returns without reverting or double-transferring funds.
+
+This holds regardless of how the competing calls are batched, for a simple reason: the EVM executes every call within a transaction strictly sequentially. There's no concurrent storage access for this safety property to race against — each `triggerRecovery()` call fully completes its read-modify-write on the wallet's config and on the registry before the next call, whether internal to a Multicall3 batch or in the next block, ever begins.
+
+<Callout type="info" title="Verification stays on-chain">
+  The keeper's database and its multicall validation pass exist purely to save gas by not submitting transactions that are already known to be no-ops. Neither one has any authority. `_executeRecovery()` re-validates every condition — active status, non-zero balance, elapsed inactivity period — directly from contract storage, at execution time, regardless of what any off-chain component believed to be true when it decided to submit the call. The worst-case outcome of a compromised, buggy, or simply out-of-date keeper is a delayed recovery, never an incorrect one.
+</Callout>
+
+---
+
+## Configuration Reference
+
+| Variable | Default | Type | Purpose |
+| --- | --- | --- | --- |
+| `KEEPER_PRIVATE_KEY` | — (required) | Env var, secret | Signs and submits `triggerRecovery` transactions |
+| `KEEPER_POLL_INTERVAL_MS` | 12,000 | Env var | Gap after a cycle completes before the next one starts |
+| `KEEPER_BATCH_SIZE` | 600 | Env var | Max candidates pulled from the database per scan |
+| `MAX_CALLS_PER_TX` | 120 | Hard-coded constant | Max `triggerRecovery` calls per Multicall3 transaction |
+| `MAX_GAS_PER_TX` | 20,000,000 | Hard-coded constant | Absolute gas ceiling per transaction, applied after buffering |
+| Gas buffer | 30% | Hard-coded constant | Multiplier applied to the raw gas estimate before submission |
+
+The keeper bot exposes a `/health` endpoint (port 3001, or `PORT` if set by the hosting platform) for uptime monitoring, and shuts down gracefully — finishing any in-progress cycle on `SIGTERM` before exiting, so a deploy or restart never interrupts a transaction mid-flight.
+
+---
+
+## Running Your Own Keeper
+
+Because `triggerRecovery()` has no access control, nothing about the protocol requires using the Aeternum Labs bot specifically. Anyone can run their own keeper against a live AeternumVault deployment. At minimum, a keeper needs to:
+
+<StepList>
+  <StepItem step={1} title="Discover candidate wallets">
+    Either run your own indexer against the contract's events, or query `getTriggerableVaultsBatch(startIndex, batchSize)` directly on-chain — this is the general-purpose path built for exactly this use case, for anyone who doesn't want to maintain their own indexing infrastructure.
+  </StepItem>
+  <StepItem step={2} title="Validate before submitting (optional, but recommended)">
+    Call `isRecoveryDue(wallet)` for each candidate before spending gas on `triggerRecovery()`. This step is purely a gas optimization — skipping it doesn't create any safety risk, since `_executeRecovery()` re-validates everything regardless.
+  </StepItem>
+  <StepItem step={3} title="Submit triggerRecovery">
+    Call `triggerRecovery(wallet)` for each confirmed wallet. Batching via Multicall3 (or an equivalent) reduces per-wallet transaction overhead but isn't required — a keeper that submits one transaction per wallet is just as safe, only less gas-efficient.
+  </StepItem>
+</StepList>
+
+An independent keeper running today would be operating alongside the Aeternum Labs bot rather than instead of it — both are just permissionless callers of the same function, and a wallet recovered by one is simply unavailable to the other by the time its call lands, [see Race Safety above](/docs/architecture/keeper-network#race-safety-competing-keepers).
+
+<Callout type="warning" title="Deploying your own instance is a separate question from running a keeper">
+  Running a keeper against an *existing* AeternumVault deployment doesn't require any license — you're just calling public contract functions. Deploying your *own instance* of AeternumVault.sol is a different act: production deployment on any live mainnet requires a commercial license from Aeternum Labs under [BUSL-1.1](https://github.com/Aeternumlabs/aeternum-core/blob/main/LICENSE.md). The licensed work transitions automatically to GPL-3.0-or-later four years from the first mainnet deployment date.
+</Callout>
+
+---
+
+## Scaling Beyond Phase 1
+
+The old cursor-based design existed to solve a specific problem: Chainlink's off-chain simulation still had to walk the registry in bounded on-chain-style windows, and each on-chain execution batch was hard-capped by the block gas limit. Scaling that meant increasingly elaborate partitioning of on-chain scan state.
+
+This architecture sidesteps that problem rather than solving a bigger version of it. Discovery (Stage 1) is a database query, not a contract call — there's no on-chain gas limit to bump against, and scaling a Postgres query over a larger table is a well-understood, off-the-shelf problem, not a novel one. Validation (Stage 2) is cheap enough (under 10,000 gas per wallet) to batch hundreds of candidates into a single `eth_call` at effectively zero real cost. The only genuinely bounded resource left is `MAX_CALLS_PER_TX` on the execution side — and that's worked around simply by submitting more sequential transactions per cycle, not by any structural change to the contract or the keeper's logic.
+
+Phase 2 (Gelato as an independent backup keeper) and Phase 3 (Chainlink CRE for cross-chain coordination) both plug into this same model without requiring any change to `triggerRecovery()` itself — they're additional, independently-operated callers of the same permissionless entry point described throughout this page, not new privileged roles.
+
+We haven't load-tested this design at the scale the old Rolling Cursor documentation modeled hypothetically (tens of millions of registered wallets), so this section makes a structural claim, not a benchmarked one: the bottlenecks that justified on-chain cursor partitioning don't apply to an off-chain-discovery design in the first place. Concrete throughput numbers at real scale are a question for production monitoring once mainnet volume exists, not something this page should guess at.
