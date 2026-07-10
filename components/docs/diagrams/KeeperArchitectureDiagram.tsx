@@ -1,25 +1,28 @@
 /**
  * components/docs/diagrams/KeeperArchitectureDiagram.tsx
  *
- * SVG diagram explaining the keeper bot two-layer scan architecture
- * that allows the Aeternum keeper to efficiently monitor all registered
- * vaults without scanning the full registry on every cycle.
+ * SVG diagram explaining the keeper bot's recovery pipeline and cycle
+ * timing.
  *
- * Four sections (top to bottom):
+ * Two sections (top to bottom):
  *
- *   1. PIPELINE OVERVIEW
- *      Full DB candidates bar showing already-processed vaults, current
- *      validation batch, execution batch, and pending — with a batch marker.
+ *   1. RECOVERY PIPELINE
+ *      A filter funnel, not a scan window: All Registered Wallets →
+ *      DB Candidates (≤600, via getDueVaults — a query for wallets
+ *      already believed due, not a positional slice of the registry)
+ *      → Executed (via isRecoveryDue on-chain validation, then
+ *      triggerRecovery batched ≤120/tx via Multicall3). There is no
+ *      "already scanned / not yet scanned" position tracked between
+ *      cycles — getDueVaults returns whatever is due right now, every
+ *      time it's called.
  *
- *   2. SCAN CYCLE DETAIL
- *      Grid of wallet squares (schematic) showing the candidate batch
- *      split into normal wallets (gray), due wallets (amber), and
- *      the execution batch (green). A downward arrow shows how due
- *      wallets are filtered into the execution batch.
- *
- *   3. POLL CYCLE TIMELINE
- *      Four mini registry bars showing the keeper state at different
- *      points in time, connected by "≈12s" arrows.
+ *   2. CYCLE TIMING
+ *      Two states: the cycle itself (scan, validate, execute — all
+ *      back-to-back, no fixed sub-timing) and the next cycle beginning
+ *      roughly 12 seconds later. That gap is the pause AFTER a cycle
+ *      completes, not a fixed clock tick — it stretches if the cycle
+ *      had a lot to execute. No on-chain scan state persists between
+ *      cycles.
  *
  * Colors are hardcoded HSL values from globals.css tokens — CSS custom
  * properties in SVG presentation attributes can be unreliable across
@@ -31,68 +34,23 @@
 // --- Design palette (mirrors globals.css tokens exactly) ---
 const C = {
   barBg:         'hsl(0,0%,6%)',
-  barPast:       'hsl(0,0%,11%)',
   border:        'hsl(0,0%,16%)',
   fg:            'hsl(0,0%,91%)',
   muted:         'hsl(0,0%,42%)',
   dim:           'hsl(0,0%,55%)',
   dotGrid:       'hsl(0,0%,15%)',
-  walletNormal:  'hsl(0,0%,17%)',
-  amber:         'hsl(35,90%,55%)',    // due-for-recovery state
-  amberDim:      'hsla(35,90%,55%,0.15)',
-  amberText:     'hsl(35,90%,65%)',
   purple:        'hsl(263,65%,62%)',   // --chart-1
   purpleDim:     'hsla(263,65%,62%,0.12)',
-  purpleBright:  'hsla(263,65%,62%,0.35)',
   purpleBorder:  'hsla(263,65%,62%,0.4)',
   purpleText:    'hsl(263,65%,72%)',
   green:         'hsl(142,71%,45%)',   // --price-up
-  greenDim:      'hsla(142,71%,45%,0.15)',
+  greenDim:      'hsla(142,71%,45%,0.12)',
+  greenBorder:   'hsla(142,71%,45%,0.4)',
   greenText:     'hsl(142,71%,58%)',
 } as const
 
-// --- Wallet grid constants (layout verified by node calculation) ---
-const SQ        = 16              // wallet square size (px)
-const GAP       = 5               // gap between squares
-const STEP      = SQ + GAP        // = 21
-const COLS      = 30              // total squares in row 1
-const ROW_W     = COLS * STEP - GAP  // = 625
-const ROW_X     = 68              // (760 − 625) / 2 = 67.5 → 68
-const DUE_START = 24              // squares 24–29 are "due for recovery"
-const ROW1_Y    = 150             // y-position of scan window wallet row
-const ROW2_Y    = 200             // y-position of execution batch row
-
-// Execution batch starts at the same x as the first due square
-const EXEC_X = ROW_X + DUE_START * STEP   // = 572
-// Center x of the due/exec section (used for the downward arrow)
-const DUE_CENTER_X = Math.round(EXEC_X + (6 * STEP - GAP) / 2)  // = 633
-
-// --- Timeline constants ---
-const MINI_W = 40    // mini bar width
-const MINI_H = 8     // mini bar height
-const MINI_Y = 266   // mini bar top y
-
-// --- Four keeper states shown on the timeline ---
-const TICKS = [
-  { cx: 80,  cursorOff: 0,  label1: 'No due vaults',         label2: 't = 0',    wrap: false },
-  { cx: 260, cursorOff: 10, label1: 'Due vaults found',       label2: 't + 12s',  wrap: false },
-  { cx: 440, cursorOff: 20, label1: 'triggerRecovery sent',   label2: 't + 24s',  wrap: false },
-  { cx: 620, cursorOff: 0,  label1: '↺  New cycle begins',  label2: 't + 36s',   wrap: true  },
-] as const
-
 // --- Component ---
 export function KeeperArchitectureDiagram() {
-  // Pre-compute wallet square fill colors
-  const row1Squares = Array.from({ length: COLS }, (_, i) => ({
-    x:    ROW_X + i * STEP,
-    fill: i >= DUE_START ? C.amber : C.walletNormal,
-  }))
-
-  // Execution batch: 6 green squares aligned directly under due squares
-  const execSquares = Array.from({ length: 6 }, (_, i) => ({
-    x: EXEC_X + i * STEP,
-  }))
-
   return (
     <figure className="not-prose my-8 overflow-x-auto rounded-xl border border-border/50 bg-card">
 
@@ -103,301 +61,166 @@ export function KeeperArchitectureDiagram() {
 
       <div className="px-4 pb-6 pt-4">
         <svg
-          viewBox="0 0 760 400"
+          viewBox="0 0 760 290"
           className="mx-auto w-full max-w-2xl"
-          aria-label="Keeper bot architecture diagram. The keeper queries the Ponder database for up to 600 vault candidates per cycle. It validates them onchain via a single multicall to isRecoveryDue. Confirmed due vaults are submitted in batches of up to 120 via Multicall3 aggregate3. The keeper polls every 15 seconds."
+          aria-label="Keeper bot architecture diagram. Every cycle, the keeper queries its own database via getDueVaults for up to 600 wallets it believes are currently due for recovery. It re-validates each one on-chain in a single multicall to isRecoveryDue, filtering out any stale entries. Confirmed wallets are recovered via triggerRecovery, batched up to 120 calls per transaction through Multicall3's aggregate3. There is no persistent on-chain scan position between cycles — each cycle is stateless. The next cycle begins roughly 12 seconds after the current one finishes; this gap can stretch longer if the current cycle had many recoveries to execute."
           role="img"
         >
 
           {/* Defs */}
           <defs>
-            {/* Subtle dot grid background */}
             <pattern id="rcd-dots" width="20" height="20" patternUnits="userSpaceOnUse">
               <circle cx="10" cy="10" r="1" fill={C.dotGrid} />
             </pattern>
 
-            {/* Clip path — rounds outer corners of bar segments */}
-            <clipPath id="rcd-bar-clip">
-              <rect x="30" y="28" width="700" height="36" rx="5" />
-            </clipPath>
-
-            {/* Gray arrowhead */}
             <marker id="rcd-arr-gray" markerWidth="8" markerHeight="6"
                     refX="7" refY="3" orient="auto" markerUnits="userSpaceOnUse">
               <path d="M 0,0 L 8,3 L 0,6 Z" fill={C.muted} />
             </marker>
-
-            {/* Green arrowhead (due wallet filter) */}
-            <marker id="rcd-arr-green" markerWidth="8" markerHeight="6"
-                    refX="7" refY="3" orient="auto" markerUnits="userSpaceOnUse">
-              <path d="M 0,0 L 8,3 L 0,6 Z" fill={C.green} />
-            </marker>
-
-            {/* Purple arrowhead (batch / timeline) */}
-            <marker id="rcd-arr-purple" markerWidth="8" markerHeight="6"
-                    refX="7" refY="3" orient="auto" markerUnits="userSpaceOnUse">
-              <path d="M 0,0 L 8,3 L 0,6 Z" fill={C.purple} />
-            </marker>
           </defs>
 
           {/* Dot grid background */}
-          <rect width="760" height="400" fill="url(#rcd-dots)" opacity="0.4" />
+          <rect width="760" height="290" fill="url(#rcd-dots)" opacity="0.4" />
 
-          {/* --- SECTION 1 — PIPELINE OVERVIEW */}
-          <text x="30" y="18"
+          {/* --- SECTION 1 — RECOVERY PIPELINE --- */}
+          <text x="30" y="24"
                 style={{ fill: C.muted, fontSize: 9, fontWeight: 700, letterSpacing: '0.1em' }}>
-            PIPELINE OVERVIEW
+            RECOVERY PIPELINE
           </text>
 
-          {/* Base bar */}
-          <rect x="30" y="28" width="700" height="36" rx="5"
+          {/* Box 1: All Registered Wallets */}
+          <rect x="30" y="40" width="180" height="78" rx="8"
                 style={{ fill: C.barBg, stroke: C.border, strokeWidth: 1 }} />
-
-          {/* Already processed segment */}
-          <rect x="30" y="28" width="212" height="36"
-                style={{ fill: C.barPast }}
-                clipPath="url(#rcd-bar-clip)" />
-
-          {/* Current DB candidates batch fill */}
-          <rect x="242" y="28" width="140" height="36"
-                style={{ fill: C.purpleDim }}
-                clipPath="url(#rcd-bar-clip)" />
-
-          {/* Execution batch fill (small bright slice at start of batch) */}
-          <rect x="242" y="28" width="14" height="36"
-                style={{ fill: C.purpleBright }}
-                clipPath="url(#rcd-bar-clip)" />
-
-          {/* Batch highlight border */}
-          <rect x="241" y="25" width="142" height="42" rx="5"
-                style={{ fill: 'none', stroke: C.purpleBorder, strokeWidth: 1.5 }} />
-
-          {/* Current batch marker — downward triangle */}
-          <line x1="242" y1="64" x2="242" y2="68"
-                style={{ stroke: C.purple, strokeWidth: 1.5 }} />
-          <path d="M 242,68 L 251,82 L 233,82 Z"
-                style={{ fill: C.purple }} />
-          <text x="242" y="95" textAnchor="middle"
-                style={{ fill: C.purpleText, fontSize: 10, fontWeight: 600 }}>
-            current batch
+          <text x="120" y="64" textAnchor="middle"
+                style={{ fill: C.fg, fontSize: 11, fontWeight: 700 }}>
+            All Registered
+          </text>
+          <text x="120" y="78" textAnchor="middle"
+                style={{ fill: C.fg, fontSize: 11, fontWeight: 700 }}>
+            Wallets
+          </text>
+          <text x="120" y="96" textAnchor="middle"
+                style={{ fill: C.dim, fontSize: 9.5 }}>
+            no scan position —
+          </text>
+          <text x="120" y="108" textAnchor="middle"
+                style={{ fill: C.dim, fontSize: 9.5 }}>
+            stateless between cycles
           </text>
 
-          {/* Section 1 segment labels */}
-          <text x="136" y="109" textAnchor="middle"
-                style={{ fill: C.muted, fontSize: 10 }}>
-            Already processed
-          </text>
-          <text x="312" y="109" textAnchor="middle"
-                style={{ fill: C.purpleText, fontSize: 10, fontWeight: 600 }}>
-            DB candidates (600)
-          </text>
-          <text x="249" y="121" textAnchor="middle"
-                style={{ fill: C.dim, fontSize: 9 }}>
-            exec. batch (≤120)
-          </text>
-          <text x="562" y="109" textAnchor="middle"
-                style={{ fill: C.muted, fontSize: 10 }}>
-            Next cycle
-          </text>
+          {/* Arrow 1 */}
+          <line x1="214" y1="79" x2="266" y2="79"
+                style={{ stroke: C.muted, strokeWidth: 1.5 }}
+                markerEnd="url(#rcd-arr-gray)" />
 
-          {/* --- SECTION 2 — SCAN CYCLE DETAIL */}
-          <text x="30" y="136"
-                style={{ fill: C.muted, fontSize: 9, fontWeight: 700, letterSpacing: '0.1em' }}>
-            SCAN CYCLE DETAIL
+          {/* Box 2: DB Candidates */}
+          <rect x="270" y="40" width="200" height="78" rx="8"
+                style={{ fill: C.purpleDim, stroke: C.purpleBorder, strokeWidth: 1.5 }} />
+          <text x="370" y="64" textAnchor="middle"
+                style={{ fill: C.purpleText, fontSize: 11, fontWeight: 700 }}>
+            DB Candidates (≤600)
           </text>
-          <text x="730" y="136" textAnchor="end"
-                style={{ fill: C.muted, fontSize: 9, fontStyle: 'italic' }}>
-            schematic — not to scale
+          <text x="370" y="82" textAnchor="middle"
+                style={{ fill: C.dim, fontSize: 9.5 }}>
+            via getDueVaults() —
+          </text>
+          <text x="370" y="94" textAnchor="middle"
+                style={{ fill: C.dim, fontSize: 9.5 }}>
+            presumed due, indexer
+          </text>
+          <text x="370" y="106" textAnchor="middle"
+                style={{ fill: C.dim, fontSize: 9.5 }}>
+            may lag slightly
           </text>
 
-          {/* Row 1: wallet squares (full candidate batch) */}
-          {row1Squares.map((sq, i) => (
-            <rect
-              key={i}
-              x={sq.x}
-              y={ROW1_Y}
-              width={SQ}
-              height={SQ}
-              rx={3}
-              style={{ fill: sq.fill }}
-            />
-          ))}
+          {/* Arrow 2 */}
+          <line x1="474" y1="79" x2="526" y2="79"
+                style={{ stroke: C.muted, strokeWidth: 1.5 }}
+                markerEnd="url(#rcd-arr-gray)" />
 
-          {/* Batch bracket — spans all 30 squares */}
-          <line x1={ROW_X} y1="174" x2={ROW_X + ROW_W} y2="174"
-                style={{ stroke: C.muted, strokeWidth: 1 }} />
-          <line x1={ROW_X} y1="168" x2={ROW_X} y2="174"
-                style={{ stroke: C.muted, strokeWidth: 1 }} />
-          <line x1={ROW_X + ROW_W} y1="168" x2={ROW_X + ROW_W} y2="174"
-                style={{ stroke: C.muted, strokeWidth: 1 }} />
-          <text x="380" y="185" textAnchor="middle"
-                style={{ fill: C.muted, fontSize: 9 }}>
-            Layer 1: getDueVaults pulls up to 600 DB candidates (no RPC cost)
+          {/* Box 3: Executed */}
+          <rect x="530" y="40" width="200" height="78" rx="8"
+                style={{ fill: C.greenDim, stroke: C.greenBorder, strokeWidth: 1.5 }} />
+          <text x="630" y="64" textAnchor="middle"
+                style={{ fill: C.greenText, fontSize: 11, fontWeight: 700 }}>
+            Executed
+          </text>
+          <text x="630" y="82" textAnchor="middle"
+                style={{ fill: C.dim, fontSize: 9.5 }}>
+            isRecoveryDue() confirms
+          </text>
+          <text x="630" y="94" textAnchor="middle"
+                style={{ fill: C.dim, fontSize: 9.5 }}>
+            on-chain (1 multicall), then
+          </text>
+          <text x="630" y="106" textAnchor="middle"
+                style={{ fill: C.dim, fontSize: 9.5 }}>
+            ≤120 calls/tx via Multicall3
           </text>
 
-          {/* Downward arrow from due wallets → execution batch */}
-          <line
-            x1={DUE_CENTER_X} y1="168"
-            x2={DUE_CENTER_X} y2="194"
-            style={{ stroke: C.green, strokeWidth: 1.5 }}
-            markerEnd="url(#rcd-arr-green)"
-          />
-          {/* "onchain validation via multicall" label */}
-          <text x="639" y="183" textAnchor="start"
-                style={{ fill: C.greenText, fontSize: 9 }}>
-            onchain validation via multicall
+          {/* Explanatory note */}
+          <text x="380" y="134" textAnchor="middle"
+                style={{ fill: C.dim, fontSize: 10 }}>
+            Stale entries (pinged, withdrawn, or already recovered) are filtered out before execution.
           </text>
-
-          {/* Row 2: execution batch (green squares, same x alignment as due squares) */}
-          {execSquares.map((sq, i) => (
-            <rect
-              key={i}
-              x={sq.x}
-              y={ROW2_Y}
-              width={SQ}
-              height={SQ}
-              rx={3}
-              style={{ fill: C.green }}
-            />
-          ))}
-
-          {/* Execution batch bracket — spans the 6 green squares */}
-          <line x1={EXEC_X} y1="224" x2={EXEC_X + 6 * STEP - GAP} y2="224"
-                style={{ stroke: C.green, strokeWidth: 1 }} />
-          <line x1={EXEC_X} y1="218" x2={EXEC_X} y2="224"
-                style={{ stroke: C.green, strokeWidth: 1 }} />
-          <line x1={EXEC_X + 6 * STEP - GAP} y1="218"
-                x2={EXEC_X + 6 * STEP - GAP} y2="224"
-                style={{ stroke: C.green, strokeWidth: 1 }} />
-          <text x="380" y="235" textAnchor="middle"
-                style={{ fill: C.greenText, fontSize: 9 }}>
-            triggerRecovery: up to 120 wallets per Multicall3 aggregate3 call
-          </text>
-
-          {/* Row 2 colour legend (inline, left-aligned) */}
-          <rect x="68" y="200" width={SQ} height={SQ} rx={3}
-                style={{ fill: C.walletNormal }} />
-          <text x="90" y="212"
-                style={{ fill: C.muted, fontSize: 9 }}>
-            Normal
-          </text>
-          <rect x="130" y="200" width={SQ} height={SQ} rx={3}
-                style={{ fill: C.amber }} />
-          <text x="152" y="212"
-                style={{ fill: C.amberText, fontSize: 9 }}>
-            Due for recovery
-          </text>
-          <rect x="248" y="200" width={SQ} height={SQ} rx={3}
-                style={{ fill: C.green }} />
-          <text x="270" y="212"
-                style={{ fill: C.greenText, fontSize: 9 }}>
-            Execution batch
-          </text>
-
-          {/* --- SECTION 3 — POLL CYCLE TIMELINE */}
-          <text x="30" y="254"
-                style={{ fill: C.muted, fontSize: 9, fontWeight: 700, letterSpacing: '0.1em' }}>
-            POLL CYCLE TIMELINE
-          </text>
-          <text x="730" y="254" textAnchor="end"
-                style={{ fill: C.muted, fontSize: 9 }}>
-            ~12s between each scan cycle
-          </text>
-
-          {/* Mini state bars with keeper state for each frame */}
-          {TICKS.map((tick) => {
-            const barX = tick.cx - MINI_W / 2
-
-            return (
-              <g key={tick.cx}>
-                {/* Mini bar base */}
-                <rect x={barX} y={MINI_Y} width={MINI_W} height={MINI_H} rx={2}
-                      style={{ fill: C.barBg, stroke: C.border, strokeWidth: 0.8 }} />
-
-                {/* Past fill (vaults already processed in previous cycles) */}
-                {tick.cursorOff > 0 && (
-                  <rect x={barX} y={MINI_Y} width={tick.cursorOff} height={MINI_H} rx={2}
-                        style={{ fill: C.barPast }} />
-                )}
-
-                {/* Current batch / scan highlight */}
-                <rect
-                  x={barX + tick.cursorOff}
-                  y={MINI_Y}
-                  width={10}
-                  height={MINI_H}
-                  rx={2}
-                  style={{
-                    fill:        tick.wrap ? C.purpleBright : C.purpleDim,
-                    stroke:      C.purple,
-                    strokeWidth: 0.8,
-                  }}
-                />
-
-                {/* Wrap / new cycle indicator */}
-                {tick.wrap && (
-                  <text
-                    x={barX + tick.cursorOff + 5}
-                    y={MINI_Y - 3}
-                    textAnchor="middle"
-                    style={{ fill: C.purpleText, fontSize: 9 }}
-                  >
-                    ↺
-                  </text>
-                )}
-
-                {/* Tick mark on timeline baseline */}
-                <line x1={tick.cx} y1="284" x2={tick.cx} y2="294"
-                      style={{ stroke: C.dim, strokeWidth: 1 }} />
-
-                {/* State label */}
-                <text x={tick.cx} y="308" textAnchor="middle"
-                      style={{
-                        fill:       tick.wrap ? C.purpleText : C.dim,
-                        fontSize:   9,
-                        fontWeight: tick.wrap ? 600 : 400,
-                      }}>
-                  {tick.label1}
-                </text>
-
-                {/* Time label */}
-                <text x={tick.cx} y="321" textAnchor="middle"
-                      style={{ fill: C.muted, fontSize: 9 }}>
-                  {tick.label2}
-                </text>
-              </g>
-            )
-          })}
-
-          {/* Horizontal timeline baseline */}
-          <line x1="50" y1="290" x2="710" y2="290"
-                style={{ stroke: C.border, strokeWidth: 1 }} />
-
-          {/* Arrows + "≈12s" labels between timeline frames */}
-          {([0, 1, 2] as const).map((i) => {
-            const fromX  = TICKS[i].cx + MINI_W / 2 + 8
-            const toX    = TICKS[i + 1].cx - MINI_W / 2 - 8
-            const midX   = Math.round((fromX + toX) / 2)
-            const arrowY = MINI_Y + MINI_H / 2
-
-            return (
-              <g key={i}>
-                <line
-                  x1={fromX} y1={arrowY}
-                  x2={toX - 8} y2={arrowY}
-                  style={{ stroke: C.muted, strokeWidth: 1 }}
-                  markerEnd="url(#rcd-arr-gray)"
-                />
-                <text x={midX} y={arrowY - 5} textAnchor="middle"
-                      style={{ fill: C.muted, fontSize: 9 }}>
-                  ≈12s
-                </text>
-              </g>
-            )
-          })}
 
           {/* Divider */}
-          <line x1="30" y1="350" x2="730" y2="350"
+          <line x1="30" y1="150" x2="730" y2="150"
+                style={{ stroke: C.border, strokeWidth: 1 }} />
+
+          {/* --- SECTION 2 — CYCLE TIMING --- */}
+          <text x="30" y="174"
+                style={{ fill: C.dim, fontSize: 10, fontWeight: 700, letterSpacing: '0.1em' }}>
+            CYCLE TIMING
+          </text>
+          <text x="730" y="174" textAnchor="end"
+                style={{ fill: C.dim, fontSize: 10 }}>
+            gap ≈12s after each cycle finishes
+          </text>
+
+          {/* Box A: Cycle runs */}
+          <rect x="50" y="190" width="300" height="54" rx="8"
+                style={{ fill: C.barBg, stroke: C.border, strokeWidth: 1 }} />
+          <text x="200" y="212" textAnchor="middle"
+                style={{ fill: C.fg, fontSize: 11, fontWeight: 700 }}>
+            Scan → Validate → Execute
+          </text>
+          <text x="200" y="228" textAnchor="middle"
+                style={{ fill: C.dim, fontSize: 9.5 }}>
+            back-to-back within one cycle
+          </text>
+
+          {/* Arrow between cycle states */}
+          <line x1="360" y1="217" x2="402" y2="217"
+                style={{ stroke: C.muted, strokeWidth: 1.5 }}
+                markerEnd="url(#rcd-arr-gray)" />
+          <text x="381" y="207" textAnchor="middle"
+                style={{ fill: C.purpleText, fontSize: 10, fontWeight: 600 }}>
+            ~12s
+          </text>
+          <text x="381" y="231" textAnchor="middle"
+                style={{ fill: C.dim, fontSize: 9.5, fontStyle: 'italic' }}>
+            longer if
+          </text>
+          <text x="381" y="241" textAnchor="middle"
+                style={{ fill: C.dim, fontSize: 9.5, fontStyle: 'italic' }}>
+            many ran
+          </text>
+
+          {/* Box B: Next cycle begins */}
+          <rect x="410" y="190" width="300" height="54" rx="8"
+                style={{ fill: C.purpleDim, stroke: C.purpleBorder, strokeWidth: 1.5 }} />
+          <text x="560" y="212" textAnchor="middle"
+                style={{ fill: C.purpleText, fontSize: 11, fontWeight: 700 }}>
+            Next Cycle Begins
+          </text>
+          <text x="560" y="228" textAnchor="middle"
+                style={{ fill: C.dim, fontSize: 9.5 }}>
+            no on-chain scan state persists
+          </text>
+
+          {/* Divider */}
+          <line x1="30" y1="260" x2="730" y2="260"
                 style={{ stroke: C.border, strokeWidth: 1 }} />
 
         </svg>
