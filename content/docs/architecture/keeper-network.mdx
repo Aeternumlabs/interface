@@ -216,7 +216,7 @@ Because `triggerRecovery()` has no access control, nothing about the protocol re
   </StepItem>
 </StepList>
 
-An independent keeper running today would be operating alongside the Aeternum Labs bot rather than instead of it — both are just permissionless callers of the same function, and a wallet recovered by one is simply unavailable to the other by the time its call lands, [see Race Safety above](/docs/architecture/keeper-network#race-safety-competing-keepers).
+An independent keeper running today would be operating alongside the Aeternum Labs bot rather than instead of it — both are just permissionless callers of the same function, and a wallet recovered by one is simply unavailable to the other by the time its call lands, [see Race Safety above](/docs/architecture/keeper-network#race-safety--competing-keepers).
 
 <Callout type="warning" title="Deploying your own instance is a separate question from running a keeper">
   Running a keeper against an *existing* AeternumVault deployment doesn't require any license — you're just calling public contract functions. Deploying your *own instance* of AeternumVault.sol is a different act: production deployment on any live mainnet requires a commercial license from Aeternum Labs under [BUSL-1.1](https://github.com/Aeternumlabs/aeternum-core/blob/main/LICENSE.md). The licensed work transitions automatically to GPL-3.0-or-later four years from the first mainnet deployment date.
@@ -232,7 +232,7 @@ The actual constraint is on the execution side, and it isn't `MAX_CALLS_PER_TX`.
 
 The path to scaling past that is horizontal, not vertical: run the keeper with multiple signing keys instead of one. Each key manages its own nonce sequence independently, so multiple batches can be in flight simultaneously — batch N from key A and batch N+1 from key B submitting in parallel rather than waiting on each other. Throughput scales roughly linearly with the number of active signers, without touching `MAX_CALLS_PER_TX`, without any change to the contract, and without any change to `triggerRecovery()` itself.
 
-This works cleanly because of the same property that makes competing keepers safe in the first place, [see Race Safety above](/docs/architecture/keeper-network#race-safety-competing-keepers): every signer is just another independent, permissionless caller of `triggerRecovery()`. Multiple keys submitting concurrently is mechanically no different from multiple independent third-party keepers submitting concurrently — the contract doesn't distinguish between them, and doesn't need to. Adding signers is purely an operational change to the keeper bot's submission layer.
+This works cleanly because of the same property that makes competing keepers safe in the first place, [see Race Safety above](/docs/architecture/keeper-network#race-safety--competing-keepers): every signer is just another independent, permissionless caller of `triggerRecovery()`. Multiple keys submitting concurrently is mechanically no different from multiple independent third-party keepers submitting concurrently — the contract doesn't distinguish between them, and doesn't need to. Adding signers is purely an operational change to the keeper bot's submission layer.
 
 Phase 2 (Gelato as an independent backup keeper) and Phase 3 (Chainlink CRE for cross-chain coordination) plug into this same model without requiring any change to `triggerRecovery()` — they're additional, independently-operated callers of the same permissionless entry point described throughout this page, not new privileged roles.
 
