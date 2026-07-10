@@ -21,6 +21,8 @@ That last point is worth sitting with: **the first two functions above are conve
 
 <KeeperArchitectureDiagram />
 
+*The diagram above shows the two things that matter about this pipeline. First, it's a filter, not a scan: `getDueVaults()` asks the database for whatever's due right now, every cycle — there's no position to track, no "already scanned" portion of the registry, nothing to advance. Second, the ~12 second gap sits *between* cycles, not between steps within one — scanning, validating, and executing all happen back-to-back as fast as the database query and the on-chain calls allow, and the wait only starts once that's done.*
+
 ---
 
 ## The Keeper Cycle: Scan, Validate, Execute
