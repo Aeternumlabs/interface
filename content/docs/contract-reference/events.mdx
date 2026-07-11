@@ -28,21 +28,13 @@ These events fire when a vault owner takes an action.
 
 ## Recovery Lifecycle Events
 
-These events fire during automated recovery execution by Chainlink.
+These events fire during recovery execution — whenever `triggerRecovery()` is called, whether by the Aeternum keeper bot or any other permissionless caller.
 
 | Event | When emitted | Key fields |
 | --- | --- | --- |
 | `RecoveryExecuted` | ETH successfully sent to backup address | `wallet`, `backupAddress`, `amount` |
 | `RecoveryFailed` | ETH transfer to backup address reverted | `wallet`, `backupAddress`, `amount` |
 | `RecoveryAbandoned` | 3rd consecutive failed recovery attempt | `wallet`, `backupAddress`, `amount` |
-
----
-
-## System Events
-
-| Event | When emitted | Key fields |
-| --- | --- | --- |
-| `ForwarderSet` | `setForwarder()` called (one-time only) | `forwarder` |
 
 ---
 
@@ -110,9 +102,6 @@ event RecoveryAbandoned(
     address indexed backupAddress,
     uint256 amount
 );
-
-// System events
-event ForwarderSet(address indexed forwarder);
 ```
 
 ---
@@ -125,4 +114,4 @@ event ForwarderSet(address indexed forwarder);
 
 **`RecoveryAbandoned` means the vault is permanently removed from monitoring.** The balance is NOT zero after abandonment — it remains in the config mapping and the user can still `withdrawAll()`. If you are building a monitoring dashboard, flag vaults that emit `RecoveryAbandoned` as requiring user attention.
 
-**Watching for Chainlink execution:** filter `RecoveryExecuted` and `RecoveryFailed` events from the [contract's event tab](https://sepolia.etherscan.io/address/0x9Eb95e4b47aECCB131f20AE7af33A29832499067#events) on Sepolia Etherscan to see live Chainlink activity. Each `performUpkeep` transaction may contain multiple events (up to 50 per batch).
+**Watching for keeper activity:** filter `RecoveryExecuted` and `RecoveryFailed` events from the [contract's event tab](https://sepolia.etherscan.io/address/0x9Eb95e4b47aECCB131f20AE7af33A29832499067#events) on Sepolia Etherscan to see live recovery activity. A single transaction can contain events for many wallets at once — the Aeternum keeper bot batches up to 120 `triggerRecovery` calls into one transaction via Multicall3, so one transaction hash may correspond to dozens of individual `RecoveryExecuted`/`RecoveryFailed`/`RecoveryAbandoned` logs.
