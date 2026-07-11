@@ -1,11 +1,11 @@
 ---
 title: Immutable Limits
-description: Protocol constants — minimum and maximum inactivity periods, scan window size, execution batch cap, and retry limit.
+description: Protocol constants — minimum and maximum inactivity periods, and the recovery retry limit.
 ---
 
 All of the values on this page are **immutable** — they are set at deployment time via the constructor and cannot be changed afterward. There is no governance mechanism, no admin function, and no upgrade path that can modify them once the contract is deployed.
 
-The constructor validates all values and reverts deployment if any are out of bounds (e.g. `maxInactivityPeriod < minInactivityPeriod`, or `maxPerformUpkeepSize > maxCheckUpkeepSize`).
+The constructor validates all values and reverts deployment if any are out of bounds — for example, a zero `minInactivityPeriod_`, a `maxInactivityPeriod_` set below `minInactivityPeriod_`, or a zero `maxRecoveryAttempts_`.
 
 ---
 
@@ -17,10 +17,7 @@ The table below shows the values for the live Sepolia deployment (`0x9Eb95e4b47a
 | --- | --- | --- | --- |
 | `MIN_INACTIVITY_PERIOD` | 5 min | 180 days | Shortest inactivity period a user can set |
 | `MAX_INACTIVITY_PERIOD` | 3,650 days | 3,650 days (10 years) | Longest inactivity period — prevents permanent lock-up |
-| `MAX_CHECK_UPKEEP_SIZE` | 5,000 | 5,000 | Wallets scanned per `checkUpkeep` simulation (off-chain) |
-| `MAX_PERFORM_UPKEEP_SIZE` | 50 | 50 | Recoveries executed per `performUpkeep` transaction (on-chain) |
 | `MAX_RECOVERY_ATTEMPTS` | 3 | 3 | Consecutive failures before a vault is abandoned |
-| `CURSOR_ADVANCE_INTERVAL` | 30 sec | 1 hour | Minimum cooldown between cursor advances when registry is clear |
 
 ---
 
@@ -36,23 +33,9 @@ On Sepolia, the minimum is set to 5 minutes (300 seconds) specifically to allow 
 
 The 10-year ceiling prevents a pathological case where a user sets an astronomically long period (say, 100 years) and their vault balance becomes permanently irrecoverable. If someone has been inactive for 10 years, recovery is almost certainly appropriate.
 
-### MAX_CHECK_UPKEEP_SIZE: 5,000
-
-`checkUpkeep` runs entirely off-chain in Chainlink's simulation environment. Chainlink's simulation has a gas budget of approximately 6.5 million gas. At ~800 gas per storage read, 5,000 wallets consumes ~4 million gas — well within the simulation budget, leaving headroom for the rest of the function's logic.
-
-### MAX_PERFORM_UPKEEP_SIZE: 50
-
-`performUpkeep` is an on-chain transaction subject to Ethereum's ~30 million block gas limit. Each `_executeRecovery` call worst-case consumes approximately 100,000 gas (multiple storage writes, an external ETH call, event emissions, and the retry logic). At 50 wallets, the total sits at ~5 million gas — a comfortable margin.
-
 ### MAX_RECOVERY_ATTEMPTS: 3
 
-Three attempts give a broken backup address a fair chance to be fixed (perhaps the contract was temporarily reverting due to a bug, now patched). After three consecutive failures, the protocol stops retrying rather than spending Chainlink LINK indefinitely on a permanently broken address.
-
-### CURSOR_ADVANCE_INTERVAL: 1 hour
-
-One hour means the cursor sweeps at a maximum of 24 windows per day. At 5,000 wallets per window and 500,000 total users, the full registry is covered in ~4 days. This pacing keeps Chainlink costs reasonable — if the interval were 1 second, idle advancement would cost significant LINK even when no recoveries are pending.
-
-On Sepolia, the interval is set to 30 seconds specifically to ensure the cursor sweeps through all windows fast enough to catch and process recoveries for testers utilizing accelerated inactivity periods (like 5 minutes).
+Three attempts give a broken backup address a fair chance to be fixed — perhaps it was a multisig temporarily misconfigured, or a contract with a bug that's since been patched. After three consecutive failures, the protocol stops retrying rather than letting a permanently broken address consume gas indefinitely: without a cap, whichever address ends up submitting `triggerRecovery()` for that wallet would keep burning real ETH on a transfer that can never succeed.
 
 ---
 
@@ -62,12 +45,9 @@ All immutable constants are publicly accessible as `public immutable` Solidity v
 
 ```solidity
 // Read all immutable limits
-const minInactivityPeriod  = await vault.read.MIN_INACTIVITY_PERIOD()    // 300 (Sepolia) / 15552000 (mainnet)
-const maxInactivityPeriod  = await vault.read.MAX_INACTIVITY_PERIOD()    // 315360000
-const maxCheckUpkeepSize = await vault.read.MAX_CHECK_UPKEEP_SIZE()    // 5000
-const maxPerformUpkeepSize = await vault.read.MAX_PERFORM_UPKEEP_SIZE()  // 50
-const maxRecoveryAttempts = await vault.read.MAX_RECOVERY_ATTEMPTS()    // 3
-const cursorAdvanceInterval = await vault.read.CURSOR_ADVANCE_INTERVAL()  // 30 (Sepolia) / 3600 (mainnet)
+const minInactivityPeriod  = await vault.read.MIN_INACTIVITY_PERIOD()  // 300 (Sepolia) / 15552000 (mainnet)
+const maxInactivityPeriod  = await vault.read.MAX_INACTIVITY_PERIOD()  // 315360000
+const maxRecoveryAttempts  = await vault.read.MAX_RECOVERY_ATTEMPTS()  // 3
 ```
 
 Frontends and integrators should read these values from the contract rather than hardcoding them, since different deployments (Sepolia vs mainnet vs future chains) use different values.
