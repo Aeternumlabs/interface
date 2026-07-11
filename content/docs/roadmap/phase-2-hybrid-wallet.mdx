@@ -31,7 +31,7 @@ Phase 1 supports native ETH only. Phase 2 expands to **ETH and any ERC-20 token*
 Each token balance is tracked independently per user in the `AeternumRecoveryManager`. When recovery triggers, the contract transfers all registered token balances alongside the ETH balance to the backup address in a single execution — the beneficiary receives everything the wallet held, not just the ETH.
 
 Key design properties:
-- **Partial failure isolation.** If a single token transfer fails during batch recovery (e.g. a frozen stablecoin), that token's failure is recorded and retried on the next `performUpkeep` cycle. The remaining assets transfer normally — one broken token cannot block recovery of everything else.
+- **Partial failure isolation.** If a single token transfer fails during batch recovery (e.g. a frozen stablecoin), that token's failure is recorded and retried on a subsequent recovery attempt — the same per-wallet retry mechanism used in Phase 1, just extended to track failures per-token rather than only per-wallet. The remaining assets transfer normally — one broken token cannot block recovery of everything else.
 - **Revocable allowances.** Token allowances granted to the `AeternumRecoveryManager` are revocable at any time. Revoking before recovery triggers causes that token to be skipped silently while all other assets recover normally.
 - **No custody transfer.** At no point do your tokens move to the `AeternumRecoveryManager` contract. The manager holds an allowance, not the assets.
 
@@ -63,9 +63,9 @@ The manual `ping()` function remains available on-chain for users who want to pr
 
 ## How Recovery Works in Phase 2
 
-The `AeternumRecoveryManager` monitors all registered Aeternum wallets using the same rolling cursor architecture from Phase 1. When a wallet's inactivity period expires, Chainlink Automation calls `performUpkeep()`, which calls `_executeRecovery()` on the wallet.
+The `AeternumRecoveryManager` is monitored the same way Phase 1 vaults are: an off-chain indexer tracks activity events for every registered wallet, a keeper bot's database-driven scan identifies wallets that are due for recovery, and each candidate is re-validated directly on-chain before anything executes. See [Keeper Network](/docs/architecture/keeper-network) for the full mechanics of that pipeline as it operates in Phase 1 — the same model carries forward here.
 
-ETH and all registered ERC-20 token balances move from the Aeternum wallet to the user's designated backup address — exactly as in Phase 1, but from a self-custodial address rather than a vault escrow.
+When a wallet's inactivity period expires, the keeper bot — or any other permissionless caller, since the entry point carries no access restriction — invokes recovery on the manager for that wallet. The manager re-validates every precondition independently at execution time, exactly as `_executeRecovery()` does in Phase 1, and only then moves funds: ETH and all registered ERC-20 token balances transfer from the Aeternum wallet to the user's designated backup address in a single execution — the same recovery guarantee as Phase 1, just from a self-custodial address rather than a vault escrow, and across multiple asset types rather than one.
 
 **Ownership rotation** — where control of the smart account itself transfers to the backup rather than assets moving — is reserved as a future opt-in feature once Aeternum wallets are common enough as backup addresses to make it meaningful. Asset transfer remains the default recovery execution path in Phase 2.
 
@@ -75,23 +75,22 @@ ETH and all registered ERC-20 token balances move from the Aeternum wallet to th
 
 The following architecture elements are preserved in Phase 2:
 
-- **The rolling cursor architecture — extended, not replaced.** The core window-based
-  scanning logic, cursor hold/advance behavior, and self-correction design carry forward
-  from Phase 1. Phase 2 extends it with a `checkData` parameter that allows multiple
-  partitioned Chainlink jobs to operate over distinct registry slices — the horizontal
-  scaling model described in the [Rolling Cursor](/docs/architecture/rolling-cursor)
-  architecture. A reduced `CURSOR_ADVANCE_INTERVAL` is also planned for Phase 2 given
-  the more distributed LINK cost across multiple jobs.
+- **The keeper network's scan-validate-execute model — extended, not replaced.** Off-chain discovery via an indexed database, on-chain re-validation of every candidate before submission, and batched on-chain execution all carry forward from Phase 1 unchanged in principle. Recovery execution remains permissionless: any address can call it once a wallet is due, and the contract's own precondition checks — not the identity of the caller — are what make that safe. Scaling this to more wallets is expected to follow the same path outlined for Phase 1: running the keeper with multiple independent signing keys so more batches can be in flight at once, rather than any change to the recovery contract itself. See [Keeper Network](/docs/architecture/keeper-network) for the full detail on how this works today, and its own scaling notes for what's planned versus what's already shipped.
 - **`MAX_RECOVERY_ATTEMPTS` abandonment handling — with per-asset nuance.** The
   three-attempt ceiling on per-wallet abandonment carries forward for ETH recovery. In
   Phase 2's multi-asset model, individual ERC-20 token transfer failures are tracked
   separately per token across retry cycles — a single failing token does not count
   against the wallet-level abandonment counter. Abandonment applies when the ETH
   recovery path itself has failed three consecutive times.
-- The stale data safety pattern in `performUpkeep` — every candidate wallet is
-  re-validated on-chain before any asset moves, regardless of what the off-chain
-  discovery layer submitted.
-- The Chainlink forwarder access control pattern.
+- **The stale-data safety pattern in `_executeRecovery`** — every candidate wallet is
+  re-validated on-chain immediately before any asset moves, regardless of what a
+  keeper's off-chain database or its on-chain validation pass believed to be true when
+  it decided to submit the call.
+- **Permissionless execution — no access gate.** Just as `triggerRecovery()` in Phase 1
+  carries no caller restriction, Phase 2's recovery entry point is equally
+  permissionless. Any address may call it once conditions are met; the safety property
+  comes entirely from what the contract re-validates before acting, not from who is
+  allowed to ask it to act.
 - The event schema (with additions for multi-asset transfer and per-token failure events).
 
 These preserved mechanics form a battle-tested safety foundation. Phase 2 layers on top of this foundation by expanding the protocol's surface area — transitioning from a localized escrow contract to a comprehensive, multi-token recovery manager capable of securely retrieving assets straight from the user's self-custodial wallet.
