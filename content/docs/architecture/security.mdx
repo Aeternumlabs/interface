@@ -1,6 +1,6 @@
 ---
 title: Security Design
-description: Reentrancy protection, forwarder access control, the CEI pattern, and the immutable contract guarantee.
+description: Reentrancy protection, permissionless execution safety, the CEI pattern, and the immutable contract guarantee.
 ---
 
 ## Non-Custodial by Design
@@ -48,43 +48,44 @@ function _executeRecovery(address wallet) internal {
 Every function that sends ETH is protected by OpenZeppelin's `ReentrancyGuard`:
 
 ```solidity
-contract AeternumVault is IAeternumVault, ReentrancyGuard, AutomationCompatibleInterface {
+contract AeternumVault is IAeternumVault, ReentrancyGuard {
 ```
 
-`ReentrancyGuard` maintains a locked/unlocked mutex in contract storage. Any attempt to invoke a guarded function while one is already executing immediately reverts — blocking reentrant calls at the function boundary, independently of how state is ordered inside the function.
+`ReentrancyGuard` maintains a locked/unlocked mutex in contract storage. Any attempt to invoke a guarded function while one is already executing immediately reverts — blocking reentrant calls at the function boundary, independently of how state is ordered inside the function. On the recovery path, this guard sits on `triggerRecovery()` — the sole external entry point into `_executeRecovery()`.
 
 The two layers address different threat surfaces. CEI eliminates the economic incentive: `config.balance` is zeroed before any ETH transfer, so a reentrant call finds nothing left to steal. `ReentrancyGuard` provides a hard execution boundary that holds even on the failure-restore path — where some state writes unavoidably occur after the external call because the contract can only determine a transfer has failed after attempting it. A third layer closes the loop: after `MAX_RECOVERY_ATTEMPTS` consecutive failures, the vault is permanently abandoned and removed from monitoring, eliminating the retry surface entirely.
 
 <Callout type="info">
-  The internal security audit (AV-01) confirmed this architecture. Slither downgraded the failure-restore path finding from `reentrancy-eth` (Medium) to `reentrancy-benign` (Low) because `config.balance` is provably zeroed before the call — making double-spend impossible regardless of reentrant behavior. No High severity findings were identified.
+  The internal security audit (AV-01) confirmed this architecture. Slither classifies the failure-restore path finding as `reentrancy-benign` (Low) rather than `reentrancy-eth` (Medium), because `config.balance` is provably zeroed before the call — making double-spend impossible regardless of reentrant behavior. No High or Medium severity findings remain open in the current revision.
 </Callout>
 
 ---
 
-## Forwarder Access Control
+## Permissionless Execution — Why No Access Gate Is Needed
 
-`performUpkeep` is the most sensitive function in the contract — it is the only path through which funds move without an explicit user instruction. Without access control, a sophisticated attacker could craft a malicious `performData` payload and call `performUpkeep` directly, attempting to manipulate which wallets get processed.
+`triggerRecovery()` is the only function through which funds move without an explicit user instruction — which is exactly why it's worth asking what stops an arbitrary caller from doing something harmful with it, given that literally any address can call it.
 
-The forwarder pattern eliminates this risk entirely. Once `setForwarder()` has been called, the contract permanently rejects any `performUpkeep` call from any address other than the registered Chainlink forwarder:
+The answer isn't a permission check on the caller. There isn't one:
 
 ```solidity
-if (s_forwarder != address(0) && msg.sender != s_forwarder) {
-    revert AeternumVault__NotForwarder();
+function triggerRecovery(address wallet) external nonReentrant {
+    _executeRecovery(wallet);
 }
 ```
 
-The forwarder address itself is immutable after registration — it can only be set once and cannot be changed:
+No modifier restricts `msg.sender` here at all — `nonReentrant` guards against reentrancy, not against *who* is calling. The safety property comes from somewhere else entirely: the function gives the caller no leverage to begin with. The caller supplies only a wallet address. Every subsequent decision — whether recovery executes, how much moves, and where it goes — is made exclusively from storage the vault owner wrote, re-validated from scratch inside `_executeRecovery()` on every single call:
 
 ```solidity
-function setForwarder(address forwarder) external {
-    if (s_forwarder != address(0)) revert AeternumVault__ForwarderAlreadySet();
-    if (forwarder == address(0)) revert AeternumVault__InvalidAddress();
-    s_forwarder = forwarder;
-    emit ForwarderSet(forwarder);
-}
+if (!config.isActive) return;
+if (config.balance == 0) return;
+if (block.timestamp < config.lastActivity + config.inactivityPeriod) return;
 ```
 
-This means the forwarder lock is not an ongoing privilege — it is a one-time bootstrap that permanently seals the execution path. After the call, no one (including the deployer) can change which address is authorized to call `performUpkeep`.
+A caller can trigger the check. A caller cannot influence its outcome. Removing the requirement for a single designated caller doesn't weaken this property in any way — it just removes a dependency on any one party remaining available to submit the transaction. See [Keeper Network](/docs/architecture/keeper-network) for how this plays out with multiple keepers calling concurrently.
+
+<Callout type="info" title="This wasn't always the design">
+  Earlier versions of this contract gated recovery execution behind a one-time-set forwarder address — a specific address, registered once at deployment, that was the only caller permitted to execute recovery. That model has been removed entirely (audit finding AV-04, resolved). It eliminated both the forwarder-registration bootstrap window it required and the single-point-of-failure risk of depending on one automation provider's infrastructure remaining online. The permissionless model above is not a simplification of the old one — it's a different, and more trustless, security property.
+</Callout>
 
 ---
 
@@ -106,7 +107,7 @@ If you accidentally send ETH directly to the contract address without going thro
 
 The absence of admin functionality is worth stating explicitly because it is an unusual design choice. Many DeFi contracts include emergency pause mechanisms, fee collection functions, or upgrade paths "for safety". These introduce a class of risk: the admin key can be compromised, the multisig can be coerced, the governance vote can be manipulated.
 
-AeternumVault has none of these. The only privileged operation is `setForwarder()` — and once called, it eliminates itself as a future option. After that single call, there are no privileged addresses in the system.
+AeternumVault has none of these. There is no privileged operation of any kind, anywhere in the contract — not even a one-time bootstrap call.
 
 | Common admin function | Present in AeternumVault? |
 | --- | --- |
@@ -115,7 +116,7 @@ AeternumVault has none of these. The only privileged operation is `setForwarder(
 | Change fee parameters | No |
 | Upgrade contract logic | No |
 | Override user recovery config | No |
-| Change forwarder address | No (immutable after first set) |
+| Gate recovery execution to a specific caller | No |
 
 ---
 
@@ -123,7 +124,7 @@ AeternumVault has none of these. The only privileged operation is `setForwarder(
 
 Each deployed version of AeternumVault is immutable and cannot be modified after deployment. There are no proxy upgrades, no admin-controlled logic changes, and no governance mechanisms that could alter how your vault operates once you have deposited.
 
-The rules you agree to when registering — the inactivity bounds, the scan limits, the retry cap, the recovery logic — are fixed for the lifetime of that deployed contract.
+The rules you agree to when registering — the inactivity bounds, the retry cap, and the recovery logic itself — are fixed for the lifetime of that deployed contract.
 
 Aeternum Labs will continue developing new versions, deployed as entirely new contracts. You choose whether to stay on your current deployment or migrate to a newer one. You are never forced to upgrade.
 
@@ -131,53 +132,55 @@ Aeternum Labs will continue developing new versions, deployed as entirely new co
 
 ## Testing and Audit Status
 
-AeternumVault has completed a comprehensive internal security assessment (Revision 2, June 2026),
-superseding the initial pre-audit review from May 2026. The revised assessment reflects the
-current contract architecture — cursor-based rolling scan, no subscription or
-treasury logic.
+AeternumVault has completed a comprehensive internal security assessment (Revision 3, 7th July 2026), superseding the prior assessment from June 2026 (Revision 2). The revised assessment reflects the current contract architecture — a permissionless keeper model, no subscription or treasury logic.
 
 The full report is available here:
-[Aeternum Internal Audit Report (June 2026)](https://github.com/Aeternumlabs/aeternum-core/blob/main/audits/2026-06-03_Aeternum_Smart_Contract_Audit_Report.pdf).
+[Aeternum Internal Audit Report (Revision 3)](https://github.com/Aeternumlabs/aeternum-core/blob/main/audits/2026-07-07_Aeternum-core_audit_rev3.pdf).
 
 <Callout type="warning" title="External audit required before mainnet">
   The internal assessment was conducted by the contract author. An independent external audit
   by a professional security firm is required before mainnet deployment. The contract should not
   be used for real-value ETH until that audit is complete and its findings have been addressed.
-  Mainnet gas cost estimates and Chainlink upkeep LINK funding requirements have not yet been
-  validated under production fork conditions.
+  Mainnet gas cost estimates have not yet been validated under production fork conditions, and
+  the off-chain keeper bot infrastructure that submits recovery transactions has not been
+  separately audited.
 </Callout>
 
 ### Test Coverage
 
 | Test type | Detail | Result |
 | --- | --- | --- |
-| Unit tests | 135 tests — 100% line and function coverage on `AeternumVault.sol` | 135 passing, 0 failing |
-| Fuzz tests | 4 functions × 256 runs — inactivity period bounds, deposit amounts, partial sends, recovery timing | All passing |
-| Foundry invariant tests | 2 properties × 128,000+ calls — ETH balance solvency, registry active-status integrity | All passing |
-| Echidna property fuzzing | 11 properties × 50,057 randomised call sequences | All passing |
-| Static analysis | Slither v0.11.4 — 0 High findings | See finding summary below |
-| Linting | Solhint — project-tuned configuration | 0 errors, 0 warnings |
+| Unit, fuzz, and invariant tests (combined) | 127 tests total — 100% line and function coverage on `AeternumVault.sol` | 127 passing, 0 failing |
+| Fuzz tests | 6 functions × 256 runs — inactivity period bounds, deposit/send amounts, recovery timing, permissionless caller checks, pagination edge cases | All passing |
+| Foundry invariant tests | 3 properties × 128,000+ calls — ETH balance solvency, registry active-status integrity, abandoned-wallet exclusion | All passing |
+| Echidna property fuzzing | 12 properties × 50,127 randomised call sequences | All passing |
+| Static analysis | Slither v0.11.4 — 0 High, 0 Medium findings | See finding summary below |
+| Linting | Solhint | Not re-run this revision — Revision 2 result (0 errors, 0 warnings) carried forward for reference only |
 
 ### Internal Audit Finding Summary
 
 | Severity | Count | Status |
 | --- | --- | --- |
 | High | 0 | — |
-| Medium | 1 | Acknowledged — architecturally unavoidable, documented |
-| Low | 1 | Acknowledged — mitigated by three independent layers |
-| Informational | 3 | Acknowledged |
+| Medium | 0 | 1 finding resolved in this revision — see AV-02 |
+| Low | 2 | Acknowledged — mitigated or acceptable |
+| Informational | 5 | Acknowledged |
+
+The two open Low findings and all five Informational findings are covered in full in the linked report. The two most relevant to this page are detailed below.
 
 **AV-01 (Low) — Reentrancy-benign in `_executeRecovery`:** On the failure-restore path, several
 state variables are written after the external ETH transfer call. These post-call writes are
 unavoidable — the contract can only determine a transfer has failed after making it. Slither
-downgraded this finding from `reentrancy-eth` (Medium, May 2026) to `reentrancy-benign` (Low)
-because `config.balance` is provably zeroed before the call. Three independent layers prevent
-exploitation: `nonReentrant` on `performUpkeep`, the pre-call balance zeroing, and permanent
-vault abandonment after `MAX_RECOVERY_ATTEMPTS` failures.
+classifies this as `reentrancy-benign` rather than `reentrancy-eth` because `config.balance` is
+provably zeroed before the call. Three independent layers prevent exploitation: `nonReentrant`
+on `triggerRecovery`, the pre-call balance zeroing, and permanent vault abandonment after
+`MAX_RECOVERY_ATTEMPTS` failures.
 
-**AV-02 (Medium) — External calls inside `performUpkeep` loop:** Batch ETH recovery to distinct
-backup addresses inherently requires a loop containing external calls. There is no architectural
-alternative that preserves automatic recovery without beneficiary action. Mitigated by
-`nonReentrant`, per-wallet CEI enforcement, per-wallet re-validation, the
-`MAX_PERFORM_UPKEEP_SIZE` gas cap, and graceful per-wallet failure handling that does not
-revert the batch.
+**AV-02 (Medium, resolved) — External calls inside a batch recovery loop:** In the prior
+forwarder-gated architecture, a single automation call could iterate internally over multiple
+wallets, containing an external ETH transfer inside that loop. This is resolved as a direct
+consequence of the current architecture: `triggerRecovery()` now processes exactly one wallet
+per call, with no loop inside the contract at all. Batch submission, where it happens, is handled
+externally by whichever keeper is submitting transactions — outside the contract, and outside
+this audit's scope — not by AeternumVault.sol itself. No function in the current contract
+contains an external call inside a loop.
