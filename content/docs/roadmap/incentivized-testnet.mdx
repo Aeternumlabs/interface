@@ -16,13 +16,13 @@ The open testnet lets any individual explore AeternumVault on Sepolia at their o
 The incentivized testnet is different in scope: it is a structured, rewarded campaign
 designed to validate the protocol under conditions that resemble mainnet — multiple
 concurrent users, diverse wallet configurations, simultaneous recovery executions, and
-sustained Chainlink Automation activity.
+sustained keeper bot activity.
 
 Single-user testing on Sepolia cannot surface a class of issues that only emerge at
-scale: cursor behaviour when many vaults become eligible simultaneously, Ponder indexer
-throughput under a dense event stream, gas estimation accuracy on real recovery batches,
-and edge cases in the failure-handling path that require specific wallet configurations
-to trigger.
+scale: keeper bot batching behaviour when many vaults become eligible simultaneously,
+Ponder indexer throughput under a dense event stream, gas estimation accuracy on real
+recovery batches submitted via Multicall3, and edge cases in the failure-handling path
+that require specific wallet configurations to trigger.
 
 The incentivized testnet is the mechanism for gathering that evidence before real ETH
 is ever at stake.
@@ -31,20 +31,25 @@ is ever at stake.
 
 ## What It Validates
 
-### Chainlink Automation Under Realistic Load
+### Keeper Bot Under Realistic Load
 
-The rolling cursor architecture is designed to handle registries of any size, but its
-behaviour with many concurrent vaults — some actively pinging, some approaching their
-timer, some mid-recovery — has not been tested at scale on the open testnet. The
-incentivized phase creates that condition deliberately.
+The keeper bot's scan-validate-execute pipeline is designed to handle registries of any
+size, but its behaviour with many concurrent vaults — some actively pinging, some
+approaching their timer, some mid-recovery — has not been tested at scale on the open
+testnet. The incentivized phase creates that condition deliberately.
 
 Specific properties under observation:
 
-- `checkUpkeep` gas consumption as the registry grows toward the scan window ceiling
-- Cursor hold-and-advance behaviour when multiple wallets become eligible in the same
-  window simultaneously
-- `performUpkeep` batch execution timing and gas accuracy at varying batch sizes
-- LINK cost per unit of monitoring work at realistic user counts
+- Database pre-filter query performance (`getDueVaults`) as the registry grows, pulling
+  up to `KEEPER_BATCH_SIZE` candidates per cycle
+- On-chain validation batch behaviour — `isRecoveryDue` multicall accuracy and timing
+  when many wallets are confirmed due in the same scan cycle
+- Multicall3 `aggregate3` batch execution timing and gas estimation accuracy at varying
+  batch sizes, including cycles that require multiple sequential transactions (more than
+  `MAX_CALLS_PER_TX` confirmed wallets in one cycle)
+- ETH gas cost per unit of monitoring work at realistic user counts, since the Aeternum
+  Labs keeper bot pays gas directly rather than drawing from a separate funding
+  mechanism
 
 ### Ponder Indexer and Frontend Performance
 
@@ -71,13 +76,13 @@ The incentivized phase specifically rewards participants who test less common pa
   `receive()` — requiring deployment of a custom rejection contract on Sepolia
 - Re-registration after abandonment, including carried-balance behaviour
 - A vault registered without an initial deposit, or whose balance has been zeroed via
-  withdrawAll(), is not recovery due if the balance remains zero — confirming that
-  Chainlink correctly detects it as ineligible and that config.balance > 0 is
-  enforced as an independent recovery condition
+  withdrawAll(), is not recovery due if the balance remains zero — confirming that the
+  keeper bot's filtering correctly excludes it, and that config.balance > 0 is enforced
+  on-chain as an independent recovery condition regardless of what any keeper does
 - `cancelRecovery()` called on a vault that holds a zero balance — confirming that
   deregistration completes and the wallet is removed from the monitoring registry
   without any ETH transfer and without reverting
-- Config updates in the window between timer expiry and `performUpkeep` execution
+- Config updates in the window between timer expiry and `triggerRecovery` execution
 
 These paths exist in the contract and are covered by the Foundry test suite, but
 live on-chain confirmation under real network conditions is a different standard of
@@ -115,8 +120,8 @@ published before the phase opens.
 The following activity categories will be tracked:
 
 **Core recovery cycle.** Completing the full lifecycle — register, deposit, wait for
-timer expiry, confirm Chainlink execution, verify receipt at backup address — on Sepolia
-with the 5-minute testnet timer.
+timer expiry, confirm keeper bot execution, verify receipt at backup address — on
+Sepolia with the 5-minute testnet timer.
 
 **Edge case reproduction.** Triggering documented edge-case paths such as the
 three-attempt failure cycle, recovery cancellation within the pre-execution window, or
