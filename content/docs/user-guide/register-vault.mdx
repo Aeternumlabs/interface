@@ -86,7 +86,7 @@ Remember that **any interaction with your vault resets the timer** — deposits,
   </StepItem>
 
   <StepItem step={6} title="Vault is live">
-    Once the transaction confirms (typically 12–30 seconds on Sepolia), your vault dashboard updates. You will see your balance, backup address, and the recovery countdown timer. Chainlink Automation begins monitoring your vault immediately.
+    Once the transaction confirms (typically 12–30 seconds on Sepolia), your vault dashboard updates. You will see your balance, backup address, and the recovery countdown timer. No further action is needed on your part — the Aeternum keeper bot's indexer picks up your `RecoveryRegistered` event shortly after confirmation, and your vault is automatically included in its monitoring from that point on.
   </StepItem>
 </StepList>
 
