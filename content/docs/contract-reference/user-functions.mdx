@@ -3,7 +3,7 @@ title: User Functions
 description: All write functions — register, deposit, send, withdrawAll, ping, updateBackupAddress, updateInactivityPeriod, cancelRecovery.
 ---
 
-All functions on this page are state-changing — they cost gas and modify on-chain state. Every function except `setForwarder` and `cancelRecovery` resets the caller's `lastActivity` timestamp as a side effect.
+All functions on this page are state-changing — they cost gas and modify on-chain state. Every function except `cancelRecovery` resets the caller's `lastActivity` timestamp as a side effect.
 
 The contract address on Sepolia is `0x9Eb95e4b47aECCB131f20AE7af33A29832499067`.
 
@@ -77,13 +77,4 @@ The contract address on Sepolia is `0x9Eb95e4b47aECCB131f20AE7af33A29832499067`.
   signature="cancelRecovery() external"
   modifier="nonpayable"
   description="Withdraws all ETH and permanently removes the vault from monitoring in one transaction. The caller is deregistered. Re-registration is allowed after cancellation. If the vault has zero balance, deregistration still completes with no ETH transfer."
-/>
-
----
-
-<FunctionCard
-  name="setForwarder"
-  signature="setForwarder(address forwarder) external"
-  modifier="nonpayable"
-  description="Registers the Chainlink Automation forwarder address for this upkeep. Can only be called once. Once set, only the registered forwarder address may call performUpkeep(). Obtain the forwarder address from the Chainlink Automation UI after registering your upkeep. This function is intended for the deployer immediately after deployment — it is not a standard user-facing action."
 />
