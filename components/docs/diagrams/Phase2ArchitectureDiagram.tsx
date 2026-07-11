@@ -8,6 +8,22 @@
  *   Phase 1: ETH deposited into AeternumVault contract escrow
  *   Phase 2: ETH stays in the user's own EOA — manager sits on top via EIP-7702
  *
+ * Keeper mechanics mirror Phase 1 (see HowItWorksDiagram.tsx and the Keeper
+ * Network doc page): the dashed arrow represents on-chain events emitted by
+ * the Recovery Manager, picked up by an off-chain indexer and written into
+ * the keeper's own database. It is NOT a live getTriggerableVaultsBatch()
+ * call — that function is not part of the Aeternum Labs keeper bot's live
+ * path. The solid arrow (triggerRecovery) is the only actual on-chain call
+ * between the keeper and the manager, typically batching several wallets
+ * via Multicall3.
+ *
+ * The keeper card lists both the current keeper (Aeternum Labs' bot) and
+ * Gelato as a planned independent backup keeper. Deliberately no "Phase"
+ * label is attached to Gelato here, since this document is itself titled
+ * "Phase 2" in the product roadmap sense — a different numbering scheme
+ * than the keeper rollout's own phases described on the Keeper Network
+ * page. Reconcile that naming collision there, not here.
+ *
  * Color palette mirrors globals.css design tokens exactly (hardcoded HSL
  * values used in SVG fill/stroke attributes for cross-environment reliability).
  *
@@ -47,7 +63,7 @@ export function Phase2ArchitectureDiagram() {
         <svg
           viewBox="0 0 820 460"
           className="mx-auto w-full max-w-3xl"
-          aria-label="EIP-7702 Hybrid Account Architecture: your EOA address is unchanged and holds all assets; the AeternumRecoveryManager is linked via EIP-7702 delegation and monitors the inactivity timer; the Aeternum keeper calls getTriggerableVaultsBatch off-chain and triggerRecovery on-chain, transferring ETH and ERC-20 tokens to the Backup Address."
+          aria-label="EIP-7702 Hybrid Account Architecture: your EOA address is unchanged and holds all assets; the AeternumRecoveryManager is linked via EIP-7702 delegation and monitors the inactivity timer. The manager's on-chain events are indexed off-chain into the keeper network's own database — today the Aeternum Labs keeper bot, with Gelato planned as an independent backup keeper. The keeper calls triggerRecovery on-chain, batched, transferring ETH and ERC-20 tokens to the Backup Address."
           role="img"
         >
           {/* --- Defs */}
@@ -82,9 +98,9 @@ export function Phase2ArchitectureDiagram() {
           </text>
           <text x="733" y="70" textAnchor="middle"
                 style={{ fill: C.muted, fontSize: 9, fontWeight: 700, letterSpacing: '0.12em' }}>
-            KEEPER
+            KEEPER NETWORK
           </text>
-          <text x="733" y="308" textAnchor="middle"
+          <text x="733" y="330" textAnchor="middle"
                 style={{ fill: C.muted, fontSize: 9, fontWeight: 700, letterSpacing: '0.12em' }}>
             BENEFICIARY
           </text>
@@ -243,49 +259,73 @@ export function Phase2ArchitectureDiagram() {
                 style={{ stroke: C.arrowGray, strokeWidth: 1.5 }}
                 markerEnd="url(#p2-gray)" />
 
-          {/* --- AETERNUM KEEPER BOX */}
-          <rect x="655" y="80" width="155" height="98" rx="10"
+          {/* --- KEEPER NETWORK BOX */}
+          {/* Represents the category of caller, not a single privileged actor —
+              same framing as the Phase 1 HowItWorksDiagram. Aeternum Labs runs
+              the current keeper; Gelato is planned as an independent backup. */}
+          <rect x="655" y="80" width="155" height="120" rx="10"
                 style={{ fill: C.purpleDim, stroke: C.purpleBorder, strokeWidth: 1.5 }} />
-          <text x="733" y="110" textAnchor="middle"
-                style={{ fill: C.purpleText, fontSize: 13, fontWeight: 700 }}>
-            Aeternum
+          <text x="733" y="104" textAnchor="middle"
+                style={{ fill: C.purpleText, fontSize: 12, fontWeight: 700 }}>
+            Permissionless
           </text>
-          <text x="733" y="128" textAnchor="middle"
-                style={{ fill: C.purple, fontSize: 11 }}>
-            Keeper
+          <text x="733" y="120" textAnchor="middle"
+                style={{ fill: C.purpleText, fontSize: 12, fontWeight: 700 }}>
+            Keeper Network
           </text>
-          <text x="733" y="148" textAnchor="middle" style={{ fill: C.muted, fontSize: 9 }}>
-            Polls every 12 seconds
+          <line x1="673" y1="132" x2="793" y2="132"
+                style={{ stroke: C.purpleBorder, strokeWidth: 1 }} />
+          <text x="733" y="150" textAnchor="middle"
+                style={{ fill: C.muted, fontSize: 9 }}>
+            Aeternum Labs Bot
           </text>
-          <text x="733" y="164" textAnchor="middle" style={{ fill: C.muted, fontSize: 9 }}>
-            permissionless · Off-chain
+          <text x="733" y="164" textAnchor="middle"
+                style={{ fill: C.muted, fontSize: 9 }}>
+            + Gelato (backup)
+          </text>
+          <text x="733" y="184" textAnchor="middle"
+                style={{ fill: C.muted, fontSize: 8, fontStyle: 'italic' }}>
+            ~12s cycle
           </text>
 
           {/* --- Arrows: ARM ↔ Keeper */}
-          {/* ARM → Keeper: getTriggerableVaultsBatch (off-chain, dashed) */}
+          {/* ARM → Keeper: on-chain events, indexed off-chain into the keeper's
+              own database. NOT a live getTriggerableVaultsBatch() call — see
+              file header note. Direction is ARM → Keeper because this is event
+              data flowing outward, not a request the keeper is making. */}
           <line x1="593" y1="116" x2="654" y2="116"
                 style={{ stroke: C.purple, strokeWidth: 1.5, strokeDasharray: '5,4', opacity: 0.8 }}
                 markerEnd="url(#p2-purple)" />
-          <text x="624" y="99" textAnchor="middle"
+          <text x="624" y="92" textAnchor="middle"
                 style={{ fill: C.purple, fontSize: 7.5 }}>
-            Vaults Batch
+            on-chain events
           </text>
-          <text x="624" y="108" textAnchor="middle"
-                style={{ fill: C.muted, fontSize: 7.5 }}>
-            (off-chain)
+          <text x="624" y="101" textAnchor="middle"
+                style={{ fill: C.dim, fontSize: 7.5 }}>
+            indexed
+          </text>
+                    <text x="624" y="110" textAnchor="middle"
+                style={{ fill: C.dim, fontSize: 7.5 }}>
+            off-chain
           </text>
 
-          {/* Keeper → ARM: triggerRecovery (on-chain, solid) */}
+          {/* Keeper → ARM: triggerRecovery — the only state-changing on-chain
+              call in this pair, batched via Multicall3 when multiple wallets
+              are confirmed due in the same cycle. */}
           <line x1="655" y1="148" x2="594" y2="148"
                 style={{ stroke: C.purple, strokeWidth: 1.5 }}
                 markerEnd="url(#p2-purple)" />
-          <text x="624" y="162" textAnchor="middle"
+          <text x="624" y="161" textAnchor="middle"
                 style={{ fill: C.purple, fontSize: 7.5 }}>
             triggerRecovery
           </text>
-          <text x="624" y="172" textAnchor="middle"
+          <text x="624" y="171" textAnchor="middle"
                 style={{ fill: C.muted, fontSize: 7.5 }}>
-            (on-chain)
+            on-chain
+          </text>
+                    <text x="624" y="181" textAnchor="middle"
+                style={{ fill: C.muted, fontSize: 7.5 }}>
+            batched
           </text>
 
           {/* --- BACKUP ADDRESS BOX */}
