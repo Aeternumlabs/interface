@@ -31,7 +31,7 @@ All functions on this page are `view` — they read state without modifying it a
   name="isRecoveryDue"
   signature="isRecoveryDue(address wallet) external view returns (bool)"
   modifier="view"
-  description="Returns true if a vault is currently eligible for recovery — meaning it is active, holds a non-zero ETH balance, and the inactivity period has fully elapsed since the last interaction. This function exposes the same three-condition eligibility check that checkUpkeep evaluates internally — useful for frontends, dashboards, and monitoring tools to surface vault status without simulating the full upkeep logic."
+  description="Returns true if a vault is currently eligible for recovery — meaning it is active, holds a non-zero ETH balance, and the inactivity period has fully elapsed since the last interaction. This is the function the Aeternum keeper bot calls, batched via multicall, to re-validate database candidates on-chain before submitting triggerRecovery. It's also useful directly for frontends, dashboards, and monitoring tools that want to surface a vault's status without decoding the full config."
   returns="bool — true if the vault is due for recovery, false otherwise."
 />
 
@@ -78,29 +78,9 @@ All functions on this page are `view` — they read state without modifying it a
 ---
 
 <FunctionCard
-  name="getCheckCursor"
-  signature="getCheckCursor() external view returns (uint256)"
+  name="getTriggerableVaultsBatch"
+  signature="getTriggerableVaultsBatch(uint256 startIndex, uint256 batchSize) external view returns (address[] memory triggerable)"
   modifier="view"
-  description="Returns the current position of the rolling cursor — the registry index at which the next checkUpkeep scan window begins. Used by frontends and monitoring tools to display the current scan progress across the registry."
-  returns="uint256 — the current cursor index into the registered wallets array."
-/>
-
----
-
-<FunctionCard
-  name="getLastCursorAdvance"
-  signature="getLastCursorAdvance() external view returns (uint256)"
-  modifier="view"
-  description="Returns the Unix timestamp of the last time the cursor advanced during an idle window scan. Used with CURSOR_ADVANCE_INTERVAL to determine when the next cursor advance is eligible."
-  returns="uint256 — Unix timestamp of the last cursor advance, or 0 if the cursor has never advanced."
-/>
-
----
-
-<FunctionCard
-  name="getForwarder"
-  signature="getForwarder() external view returns (address)"
-  modifier="view"
-  description="Returns the registered Chainlink Automation forwarder address. Returns the zero address (0x000...000) if setForwarder() has not yet been called. A non-zero return value confirms that performUpkeep is locked to the Chainlink forwarder only."
-  returns="address — the registered forwarder, or address(0) if not yet set."
+  description="Returns the subset of registered wallets — within the given index window — that are currently eligible for recovery. Stateless and permissionless: each call is explicitly parameterized by the caller, with no persistent scan position tracked on-chain. It is available to any tool that wants due-wallet data sourced directly from chain state without running an indexer."
+  returns="address[] — wallet addresses currently eligible for recovery within [startIndex, startIndex + batchSize). Empty array if none are due in the requested range."
 />
