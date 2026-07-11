@@ -16,22 +16,26 @@ Three conditions must all be satisfied before AeternumVault is deployed to Ether
 mainnet. None are negotiable.
 
 **External security audit — complete and findings addressed.** The internal assessment
-(Revision 2, June 2026) identified zero High severity findings. An independent external
+([Revision 3](https://github.com/Aeternumlabs/aeternum-core/blob/main/audits/2026-07-07_Aeternum-core_audit_rev3.pdf),
+7th July 2026) identified zero High and zero Medium severity findings — the one Medium
+finding present in the prior revision was resolved as a direct consequence of the
+migration to the current permissionless keeper architecture. An independent external
 audit by a professional security firm is required before any real ETH is placed under
 the contract's protection. The audit operates on the exact bytecode that will be
 deployed — not a branch, not a pre-audit candidate. Any findings from the audit are
 triaged, addressed, and re-reviewed before deployment proceeds.
 
 **Incentivized testnet — complete.** The incentivized testnet phase validates the
-protocol under realistic multi-user load on Sepolia: Chainlink Automation behaviour
-at scale, Ponder indexer performance under concurrent event streams, and edge-case
-recovery paths. Any issues surfaced during that phase are resolved before the audit
-engagement begins, ensuring the audited contract matches what was tested at scale.
+protocol under realistic multi-user load on Sepolia: keeper bot behaviour at scale
+(database scan volume, on-chain validation batching, and Multicall3 execution), Ponder
+indexer performance under concurrent event streams, and edge-case recovery paths. Any
+issues surfaced during that phase are resolved before the audit engagement begins,
+ensuring the audited contract matches what was tested at scale.
 
-**Operational infrastructure — verified.** The Chainlink Automation upkeep on mainnet
-must be funded, the forwarder address must be confirmed, and the Ponder indexer must
-be pointed at the mainnet contract before launch. These are not steps that can be
-completed after users have deposited ETH.
+**Operational infrastructure — verified.** The Aeternum Labs keeper bot's signing
+wallet must be funded with mainnet ETH to pay for `triggerRecovery` gas, the keeper bot
+and Ponder indexer must both be pointed at the mainnet contract, and the indexer must be
+confirmed synced before launch.
 
 ---
 
@@ -48,34 +52,19 @@ real-world Ethereum environment rather than the testing environment.
 | --- | --- | --- |
 | `MIN_INACTIVITY_PERIOD` | 5 min | 180 days |
 | `MAX_INACTIVITY_PERIOD` | 3650 days | 3650 days |
-| `MAX_CHECK_UPKEEP_SIZE` | 5,000 | 5,000 |
-| `MAX_PERFORM_UPKEEP_SIZE` | 50 | 50 |
 | `MAX_RECOVERY_ATTEMPTS` | 3 | 3 |
-| `CURSOR_ADVANCE_INTERVAL` | 30 seconds | 1 hour |
 
 The 180-day minimum inactivity period is the most consequential change for users. The
 5-minute Sepolia minimum exists solely to make the full recovery cycle observable in
 a single session. At mainnet gas prices, maintaining a 5-minute timer would require 
 continuous on-chain transactions — an impossible condition for any real user.
 
-The 1-hour `CURSOR_ADVANCE_INTERVAL` replaces Sepolia's 30-second interval. At
-mainnet's pace, the cursor sweeps at a maximum of 24 windows per day, keeping
-Chainlink LINK costs proportional to the actual monitoring work done.
-
-### Licensing
-
-AeternumVault is governed by [BUSL-1.1](https://github.com/Aeternumlabs/aeternum-core/blob/main/LICENSE.md), which is already in full effect. Under the
-license's parameters — Additional Use Grant: None — production deployment on any
-mainnet blockchain by any party other than Aeternum Labs requires a separate commercial
-license. No one can legally deploy AeternumVault to mainnet ahead of Aeternum Labs or
-in parallel without that agreement. Non-production use — local development, testing,
-academic research, and public testnet deployment including Sepolia — remains freely
-permitted for everyone.
-
-Mainnet deployment by Aeternum Labs starts the Change Date countdown: four years from
-the deployment date, or January 1, 2031, whichever comes first. On that date the
-license converts automatically to GPL-3.0-or-later and unrestricted production
-deployment becomes available to everyone.
+The keeper bot's own configuration — `KEEPER_POLL_INTERVAL_MS` and `KEEPER_BATCH_SIZE`
+— is separate from these constructor parameters entirely. It lives in the keeper bot's
+own environment, not the contract, and doesn't need to change between Sepolia and
+mainnet by default, though Aeternum Labs may tune it based on real registry size once
+mainnet volume exists. See [Keeper Network](/docs/architecture/keeper-network) for the
+full configuration reference.
 
 ---
 
@@ -87,9 +76,10 @@ to reduce the window during which the contract is live but not fully configured.
 <StepList>
   <StepItem step={1} title="Deploy AeternumVault with mainnet constructor parameters">
     The Foundry deployment script (`Deploy.s.sol`) is run against Ethereum mainnet
-    with the production parameter values. The script sets `MIN_INACTIVITY_PERIOD` to
-    180 days, `CURSOR_ADVANCE_INTERVAL` to 1 hour, and all other parameters to their
-    mainnet values. The deployer address has no ongoing privileged role after deployment.
+    with the production parameter values: `MIN_INACTIVITY_PERIOD` set to 180 days,
+    `MAX_INACTIVITY_PERIOD` to 3,650 days, and `MAX_RECOVERY_ATTEMPTS` to 3. The
+    deployer address has no ongoing privileged role after deployment — there is nothing
+    left to configure that grants any address special access.
   </StepItem>
 
   <StepItem step={2} title="Verify source code on Etherscan">
@@ -99,62 +89,49 @@ to reduce the window during which the contract is live but not fully configured.
     Labs's documentation. The audit report is published alongside the verification.
   </StepItem>
 
-  <StepItem step={3} title="Register the Chainlink Automation upkeep programmatically">
-    The upkeep is registered directly via Chainlink's `AutomationRegistrar` contract
-    from within the Foundry deployment script — not through the Chainlink Automation UI.
-    Programmatic registration is required because it returns the upkeep ID in the same
-    script execution, which is needed to retrieve the forwarder address and call
-    `setForwarder()` atomically in Step 4.
-
-    The script approves a LINK transfer to the registrar, calls `registerUpkeep()` with
-    the deployed contract address and gas parameters, and reads the assigned upkeep ID
-    from the return value. The gas limit is set to accommodate the worst-case
-    `performUpkeep` execution: 50 wallets × ~100,000 gas per recovery = ~5,000,000 gas,
-    plus overhead. The upkeep balance is funded with mainnet LINK in the same call.
+  <StepItem step={3} title="Configure and deploy the keeper bot for mainnet">
+    The Aeternum Labs keeper bot (`apps/keeper` in `aeternum-infra`) is pointed at the
+    deployed mainnet contract: `CONTRACT_ADDRESS`, `CHAIN_ID`, and `RPC_URL` are updated
+    for mainnet, and the Ponder indexer is redeployed against the mainnet deployment
+    block. The keeper's signing wallet (`KEEPER_PRIVATE_KEY`) is funded with mainnet ETH
+    to cover `triggerRecovery` gas costs — this wallet's balance is an ongoing
+    operational responsibility, not a one-time setup step ([see Post-Deployment
+    Operations below](/docs/roadmap/phase-1-mainnet-deployment#post-deployment-operations)). 
+    Because `triggerRecovery` carries no access restriction, the keeper bot doesn't
+    need to be granted permission to call the contract; it simply starts calling a
+    function that was already open to any caller from the moment of deployment.
   </StepItem>
 
-  <StepItem step={4} title="Call setForwarder() atomically — no gap permitted">
-    Using the upkeep ID from Step 3, the script queries the Chainlink registry via
-    `IAutomationRegistry.getUpkeep(upkeepId)` to retrieve the forwarder address assigned
-    to this upkeep. It immediately passes that address to `setForwarder()` on the deployed
-    AeternumVault contract in the same script execution.
-
-    `setForwarder()` has no access control — it is callable by any external address
-    before it has been set. Any block that elapses between contract deployment and this
-    call is a window in which a front-runner could call `setForwarder()` with an address
-    they control, permanently locking Chainlink out of the contract. Completing Steps 3
-    and 4 in one uninterrupted script execution eliminates this window. Using the UI for
-    upkeep registration is not acceptable on mainnet for this reason.
-  </StepItem>
-
-  <StepItem step={5} title="Update the frontend to point at the mainnet contract">
+  <StepItem step={4} title="Update the frontend to point at the mainnet contract">
     The frontend is redeployed and the vault dashboard
     automatically connects to the mainnet contract for users on Ethereum mainnet, while
     remaining connected to Sepolia for users who want to continue testing.
   </StepItem>
 
-  <StepItem step={6} title="Confirm Chainlink Automation is monitoring">
-    After the first `CURSOR_ADVANCE_INTERVAL` (1 hour) elapses, Chainlink's first idle
-    cursor advance `performUpkeep` confirms that automation is running correctly on
-    mainnet. This transaction is inspectable on Etherscan. Aeternum Labs monitors the
-    upkeep dashboard and the first several `performUpkeep` calls before announcing
-    the deployment publicly.
+  <StepItem step={5} title="Confirm the keeper bot is monitoring">
+    Because the mainnet minimum inactivity period is 180 days, there is no fast
+    equivalent of Sepolia's 5-minute test cycle to observe end-to-end recovery before
+    launch — waiting for a real recovery event isn't a practical verification step here.
+    Instead, Aeternum Labs confirms the keeper bot's `/health` endpoint returns a healthy
+    status, confirms the Ponder indexer is synced to the mainnet chain head, and confirms
+    the keeper's signing wallet has a funded ETH balance. Combined with the audit and
+    incentivized testnet having already exercised the full recovery path on Sepolia,
+    this establishes that the infrastructure is live and correctly configured before the
+    deployment is announced publicly.
   </StepItem>
 
-  <StepItem step={7} title="Publish the deployment announcement">
+  <StepItem step={6} title="Publish the deployment announcement">
     The mainnet contract address, the Etherscan verification link, and the external
     audit report are published simultaneously. The announcement is not made before
     the deployment is confirmed working end-to-end.
   </StepItem>
 </StepList>
 
-<Callout type="danger" title="setForwarder() must be called in the deployment script">
-  Between contract deployment and calling `setForwarder()`, `performUpkeep` is callable
-  by any address. On Sepolia this window is acceptable for development. On mainnet, a
-  front-runner who calls `setForwarder()` first with an address they control locks
-  Chainlink out of the contract permanently — recovery would never execute for any user.
-  The deployment script calls `setForwarder()` atomically after upkeep registration, with
-  no manual intermediate step.
+<Callout type="warning" title="An underfunded keeper wallet delays recovery — it never risks funds">
+  If the keeper bot's signing wallet runs out of ETH for gas, it simply cannot submit
+  `triggerRecovery` transactions until it's topped up — no user's funds are ever at
+  risk, since `triggerRecovery` remains permissionless and any other address (a future
+  Gelato or CRE keeper, or an individual) could still call it.
 </Callout>
 
 ---
@@ -181,9 +158,11 @@ failure lifecycle.
 
 **Your backup address is your beneficiary.** Give this decision the same weight as naming 
 an heir in a will. It may be a family member, a trusted heir, or a separate wallet you control. 
-It cannot be your own registered address. Think through what happens if recovery fires 
-unexpectedly — whether you can coordinate to retrieve the funds — before committing 
-to a backup address with real ETH involved.
+It cannot be your own registered address. Think through what happens if recovery fires because 
+your inactivity period elapses while you're still alive and in full control of your wallet — you 
+simply went longer than expected without a transaction. Can you coordinate with your 
+backup address to retrieve the funds in that case? Weigh that before committing to a backup address 
+with real ETH involved.
 
 **Gas costs are real.** Every on-chain interaction — register, deposit, send, ping,
 updateBackupAddress — costs real Ethereum gas. The gas estimates documented in
@@ -194,26 +173,28 @@ depends on current gas prices and ETH price at the time of the transaction.
 
 ## Post-Deployment Operations
 
-### Chainlink Upkeep Maintenance
+### Keeper Bot Maintenance
 
-The Chainlink Automation upkeep requires a funded LINK balance to operate. If the
-balance runs to zero, `checkUpkeep` continues to run (it is free and off-chain) but
-`performUpkeep` will not be submitted — recovery executions will be delayed until the
-balance is replenished. Aeternum Labs monitors the upkeep balance and tops it up
-proactively. There is no on-chain mechanism that alerts users if the balance runs low;
-this is an operational responsibility Aeternum Labs assumes as part of running the
-protocol.
+The Aeternum Labs keeper bot's signing wallet requires a funded ETH balance to operate.
+If the balance runs low, the bot's database scan and on-chain validation continue to
+run normally — these cost nothing to the keeper, since one is a database query and the
+other a batched view call — but it will not be able to submit `triggerRecovery`
+transactions, and recovery executions will be delayed until the wallet is topped up.
+Because `triggerRecovery` is permissionless, this delay is not a single point of
+failure; any other party could still call `triggerRecovery` directly during that window. 
+In practice, Aeternum Labs monitors the keeper wallet balance and tops it up proactively
+as part of running the protocol.
 
 ### Source Availability and Licensing
 
-AeternumVault has been source-available under BUSL-1.1 since the repository was
-published — the license has been in effect throughout the open testnet and incentivized
-testnet phases. Mainnet deployment starts the Change Date countdown: the deployed
-contract address, constructor parameters, and deployment timestamp are recorded in the
-`aeternum-core` repository, and the calculated Change Date — four years from that
-timestamp or January 1, 2031, whichever is earlier — is committed to
-[LICENSE.md](https://github.com/Aeternumlabs/aeternum-core/blob/main/LICENSE.md)
-in the same deployment commit.
+AeternumVault has been source-available under 
+[BUSL-1.1](https://github.com/Aeternumlabs/aeternum-core/blob/main/LICENSE.md) 
+since the repository was published — the license has been in effect throughout 
+the open testnet and incentivized testnet phases. Mainnet deployment starts the 
+Change Date countdown: the deployed contract address, constructor parameters, and 
+deployment timestamp are recorded in the `aeternum-core` repository, and the 
+calculated Change Date — four years from that timestamp or January 1, 2031, 
+whichever is earlier — is committed to `LICENSE.md` in the same deployment commit.
 
 ### Immutability
 
@@ -229,7 +210,7 @@ that were fixed at deployment and will not change.
 ## What Comes Next
 
 Phase 1 mainnet establishes the foundational recovery primitive. ETH is protected.
-The contract is live and immutable. Chainlink Automation is monitoring.
+The contract is live and immutable. The keeper network is monitoring.
 
 The next phase — [Phase 2: Hybrid Wallet](/docs/roadmap/phase-2-hybrid-wallet) —
 removes the escrow model entirely. Assets stay in the user's own EOA. Multi-asset
