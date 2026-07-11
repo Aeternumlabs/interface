@@ -7,7 +7,7 @@ description: How the Aeternum keeper bot discovers, validates, and executes reco
 
 Recovery on AeternumVault is not driven by a privileged operator watching the chain. It's driven by whoever calls `triggerRecovery()` on a wallet once that wallet's inactivity period has elapsed — and the contract places no restriction at all on who that can be.
 
-In practice, today that's almost always the **Aeternum Labs keeper bot**, running as a public good (Phase 1 of the rollout). This page is the deep dive into how it actually works: how it finds wallets that are due, how it double-checks that they're really due before spending any gas, and how it submits recovery transactions on-chain.
+In practice, today that's almost always the **Aeternum Labs keeper bot**, running as a public good (Phase 1 of the rollout, alongside the AeternumVault contract itself). This page is the deep dive into how it actually works: how it finds wallets that are due, how it double-checks that they're really due before spending any gas, and how it submits recovery transactions on-chain.
 
 Three functions on the contract make this possible, each with a different role:
 
@@ -173,7 +173,7 @@ If a wallet no longer qualifies, the call returns without moving any funds — n
 
 ## Race Safety — Competing Keepers
 
-Because `triggerRecovery()` is permissionless, more than one caller can legitimately try to recover the same wallet — the Aeternum Labs bot and an independent third-party keeper racing each other, for instance, once Phase 2 and Phase 3 keepers are live. This resolves safely without any coordination between them.
+Because `triggerRecovery()` is permissionless, more than one caller can legitimately try to recover the same wallet — the Aeternum Labs bot and Gelato racing each other once Phase 2 is live, for instance, or all three keepers racing once Chainlink CRE joins in Phase 3. This resolves safely without any coordination between them.
 
 The first call to actually land executes recovery normally. Any subsequent call — whether it arrives in a separate transaction or happens to be bundled in the same Multicall3 batch — finds `isActive == false` and `balance == 0`, and silently returns without reverting or double-transferring funds.
 
@@ -224,7 +224,11 @@ An independent keeper running today would be operating alongside the Aeternum La
 
 ---
 
-## Scaling Beyond Phase 1
+## Scaling the Keeper Network
+
+Two different questions about scaling come up, and they have two different answers.
+
+### More throughput from a single keeper — horizontal signers
 
 Nothing about this architecture bottlenecks on discovery or validation. Discovery (Stage 1) is a database query — scaling a Postgres query over a larger table as the registry grows is a well-understood, off-the-shelf problem. Validation (Stage 2) is cheap enough (under 10,000 gas per wallet) to batch hundreds of candidates into a single `eth_call` at effectively zero real cost, regardless of how many candidates there are.
 
@@ -234,6 +238,10 @@ The path to scaling past that is horizontal, not vertical: run the keeper with m
 
 This works cleanly because of the same property that makes competing keepers safe in the first place, [see Race Safety above](/docs/architecture/keeper-network#race-safety--competing-keepers). Every signer is just another independent, permissionless caller of `triggerRecovery()`. Multiple keys submitting concurrently is mechanically no different from multiple independent third-party keepers submitting concurrently — the contract doesn't distinguish between them, and doesn't need to. Adding signers is purely an operational change to the keeper bot's submission layer.
 
-Phase 2 (Gelato as an independent backup keeper) and Phase 3 (Chainlink CRE for cross-chain coordination) plug into this same model without requiring any change to `triggerRecovery()` — they're additional, independently-operated callers of the same permissionless entry point described throughout this page, not new privileged roles.
+Multi-signer submission isn't built yet — this is the direction, not a shipped feature or a benchmarked result. The single-signer design comfortably covers Phase 1 volume; horizontal scaling is the planned response once real throughput data shows it's warranted, not a problem being solved preemptively.
 
-Multi-signer submission isn't built yet — this section describes the direction, not a shipped feature or a benchmarked result. The single-signer design comfortably covers Phase 1 volume; horizontal scaling is the planned response once real throughput data shows it's warranted, not a problem being solved preemptively.
+### More keepers over time — the phase rollout
+
+Separately from any single keeper's own throughput, resilience grows by adding entirely independent keepers over time, in step with the product roadmap. **Phase 2** (Hybrid Account) brings Gelato online as a second, independently-operated keeper alongside the Aeternum Labs bot. **Phase 3** (Multichain — independent deployments across Base, Arbitrum One, Optimism, BNB Chain, Polygon, and zkSync) adds Chainlink CRE to coordinate recovery across all of those chains, running alongside both existing keepers on each one.
+
+None of this requires any change to `triggerRecovery()`. Every keeper added at every phase is just another permissionless caller of the same function described throughout this page, not a new privileged role — the contract doesn't know or care whether a given call came from the Aeternum Labs bot, Gelato, Chainlink CRE, or an individual, and it doesn't need to.
