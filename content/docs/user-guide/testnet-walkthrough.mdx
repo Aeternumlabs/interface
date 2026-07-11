@@ -4,7 +4,7 @@ description: End-to-end Sepolia test — connect, register with a 5-minute timer
 badge: new
 ---
 
-This walkthrough takes you through the complete Aeternum lifecycle on Sepolia testnet — from connecting your wallet all the way to watching Chainlink automatically transfer your ETH to a backup address. It uses a **5-minute inactivity timer** so you can observe the full recovery cycle in a single session rather than waiting months.
+This walkthrough takes you through the complete Aeternum lifecycle on Sepolia testnet — from connecting your wallet all the way to watching the Aeternum keeper bot automatically transfer your ETH to your backup address. It uses a **5-minute inactivity timer** so you can observe the full recovery cycle in a single session rather than waiting months.
 
 <Callout type="info" title="Sepolia testnet — no real ETH">
   Everything in this walkthrough uses Sepolia test ETH, which has no monetary value. You can view the contract address and verify all transactions at [Sepolia Etherscan](https://sepolia.etherscan.io/address/0x9Eb95e4b47aECCB131f20AE7af33A29832499067).
@@ -16,7 +16,7 @@ This walkthrough takes you through the complete Aeternum lifecycle on Sepolia te
 
 Before starting, prepare the following:
 
-- **Browser wallet** — MetaMask or any RainbowKit-supported wallet
+- **Browser wallet** — MetaMask or any wallet that supports the EIP-1193 provider standard. [See supported wallets](/docs/user-guide/connect-wallet#supported-Wallets).
 - **Sepolia ETH** — at least 0.05 SepoliaETH (get it free from [sepoliafaucet.com](https://sepoliafaucet.com) or [Google Cloud Web3](https://cloud.google.com/application/web3/faucet/ethereum/sepolia))
 - **A second Ethereum address** — your "backup address" for this test. This can be a fresh MetaMask account, another wallet you control, or any address you can verify on Etherscan afterwards. You do not need Sepolia ETH in the backup address.
 
@@ -52,17 +52,17 @@ Before starting, prepare the following:
   <StepItem step={4} title="Deposit Sepolia ETH into your vault (If skipped in Step 3)">
     If you chose not to make an initial deposit during registration, click **Deposit** on the dashboard. Enter `0.02` in the ETH field. Confirm the transaction.
 
-    After confirmation, your vault balance shows `0.02 SepoliaETH` and the countdown timer appears on the dashboard. Chainlink Automation is now watching your vault — as soon as 5 minutes of silence elapses, it will trigger recovery.
+    After confirmation, your vault balance shows `0.02 SepoliaETH` and the countdown timer appears on the dashboard. The Aeternum keeper bot's indexer picks up your vault automatically — no separate action is required from you. As soon as 5 minutes of silence elapses, your vault becomes eligible for recovery.
   </StepItem>
 
   <StepItem step={5} title="Do nothing — let the timer expire">
     Wait **at least 5 minutes** without interacting with your vault. Do not interact with your vault in any way — no Ping, no Deposit, no Send. Any vault interaction resets the timer.
 
-    You can watch the countdown timer on the dashboard tick down to zero. Once it reaches zero, your vault becomes eligible for recovery. The Chainlink node calls `checkUpkeep` every 12 seconds — it will detect your vault as due on its next scan.
+    You can watch the countdown timer on the dashboard tick down to zero. Once it reaches zero, your vault becomes eligible for recovery. The keeper bot checks its own indexed database roughly every 12 seconds, then re-confirms directly on-chain before acting — it will pick up your vault as due on one of its next few cycles.
   </StepItem>
 
-  <StepItem step={6} title="Watch Chainlink execute the recovery">
-    Typically within a few minutes of the timer expiring, Chainlink's `performUpkeep` transaction will appear on-chain. You can observe it in two ways:
+  <StepItem step={6} title="Watch the keeper bot execute the recovery">
+    Typically within a minute or so of the timer expiring, a `triggerRecovery` transaction will appear on-chain. This step is permissionless at the contract level — any address could call it once your timer is up, but for this walkthrough, the Aeternum keeper bot handles it for you. You can observe the result in two ways:
 
     - **On the dashboard:** your vault balance drops to zero, the countdown timer disappears, and a "Recovery executed" entry appears in the vault history feed.
 
@@ -100,7 +100,7 @@ If you want to verify the failed recovery handling:
 2. Deposit ETH and wait for recovery to trigger
 3. The contract will attempt the transfer, fail, restore your balance, increment the retry counter, and emit `RecoveryFailed`
 4. After three failures, the vault is abandoned and `RecoveryAbandoned` is emitted
-5. Your ETH is still accessible via `withdrawAll()` even after abandonment
+5. Your ETH is still accessible via `send()` and `withdrawAll()` even after abandonment
 
 This path is easier to observe in a local Foundry test than on Sepolia, where deploying a rejection contract requires additional setup.
 
