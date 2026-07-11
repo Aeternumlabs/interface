@@ -22,6 +22,8 @@ From the outside, the Phase 2 wallet is indistinguishable from MetaMask. DeFi pr
 
 <Phase2ArchitectureDiagram />
 
+*The keeper network shown above also expands at this phase: Gelato comes online as a second, independently-operated keeper alongside the Aeternum Labs bot — see [How Recovery Works in Phase 2](#how-recovery-works-in-phase-2) below for what that means in practice.*
+
 ---
 
 ## Multi-Asset Recovery
@@ -65,7 +67,11 @@ The manual `ping()` function remains available on-chain for users who want to pr
 
 The `AeternumRecoveryManager` is monitored the same way Phase 1 vaults are: an off-chain indexer tracks activity events for every registered wallet, a keeper bot's database-driven scan identifies wallets that are due for recovery, and each candidate is re-validated directly on-chain before anything executes. See [Keeper Network](/docs/architecture/keeper-network) for the full mechanics of that pipeline as it operates in Phase 1 — the same model carries forward here.
 
-When a wallet's inactivity period expires, the keeper bot — or any other permissionless caller, since the entry point carries no access restriction — invokes recovery on the manager for that wallet. The manager re-validates every precondition independently at execution time, exactly as `_executeRecovery()` does in Phase 1, and only then moves funds: ETH and all registered ERC-20 token balances transfer from the Aeternum wallet to the user's designated backup address in a single execution — the same recovery guarantee as Phase 1, just from a self-custodial address rather than a vault escrow, and across multiple asset types rather than one.
+What's new at this phase is *who's running the pipeline*. Phase 1 runs on the Aeternum Labs bot alone. Phase 2 is where **Gelato** joins as a second, independently-operated keeper — both running the same scan-validate-execute cycle against the same contract, with no coordination required between them. See the [Keeper Network phase breakdown](/docs/architecture/keeper-network) for the full rollout plan across all phases.
+
+When a wallet's inactivity period expires, either keeper — or any other permissionless caller, since the entry point carries no access restriction — can invoke recovery on the manager for that wallet. The manager re-validates every precondition independently at execution time, exactly as `_executeRecovery()` does in Phase 1, and only then moves funds: ETH and all registered ERC-20 token balances transfer from the Aeternum wallet to the user's designated backup address in a single execution — the same recovery guarantee as Phase 1, just from a self-custodial address rather than a vault escrow, across multiple asset types rather than one, and now backed by two independent keepers rather than a single point of monitoring failure.
+
+If Gelato and the Aeternum Labs bot ever raced to recover the same wallet, that resolves exactly as described in [Keeper Network's Race Safety section](/docs/architecture/keeper-network#race-safety--competing-keepers) — the first call to land executes normally, and the second silently returns without reverting or double-transferring funds. Nothing about having two keepers instead of one changes that guarantee.
 
 **Ownership rotation** — where control of the smart account itself transfers to the backup rather than assets moving — is reserved as a future opt-in feature once Aeternum wallets are common enough as backup addresses to make it meaningful. Asset transfer remains the default recovery execution path in Phase 2.
 
@@ -75,7 +81,7 @@ When a wallet's inactivity period expires, the keeper bot — or any other permi
 
 The following architecture elements are preserved in Phase 2:
 
-- **The keeper network's scan-validate-execute model — extended, not replaced.** Off-chain discovery via an indexed database, on-chain re-validation of every candidate before submission, and batched on-chain execution all carry forward from Phase 1 unchanged in principle. Recovery execution remains permissionless: any address can call it once a wallet is due, and the contract's own precondition checks — not the identity of the caller — are what make that safe. Scaling this to more wallets is expected to follow the same path outlined for Phase 1: running the keeper with multiple independent signing keys so more batches can be in flight at once, rather than any change to the recovery contract itself. See [Keeper Network](/docs/architecture/keeper-network) for the full detail on how this works today, and its own scaling notes for what's planned versus what's already shipped.
+- **The keeper network's scan-validate-execute model — extended, not replaced.** Off-chain discovery via an indexed database, on-chain re-validation of every candidate before submission, and batched on-chain execution all carry forward from Phase 1 unchanged in principle. Recovery execution remains permissionless: any address can call it once a wallet is due, and the contract's own precondition checks — not the identity of the caller — are what make that safe. What's added at this phase is a second keeper (Gelato), not a change to the model itself; scaling either keeper's individual throughput is expected to follow the same path outlined for Phase 1 — multiple independent signing keys per keeper, so more batches can be in flight at once, rather than any change to the recovery contract itself. See [Keeper Network](/docs/architecture/keeper-network) for the full detail on how this works today, its phase-by-phase rollout plan, and its own scaling notes for what's planned versus what's already shipped.
 - **`MAX_RECOVERY_ATTEMPTS` abandonment handling — with per-asset nuance.** The
   three-attempt ceiling on per-wallet abandonment carries forward for ETH recovery. In
   Phase 2's multi-asset model, individual ERC-20 token transfer failures are tracked
