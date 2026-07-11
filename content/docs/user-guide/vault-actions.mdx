@@ -15,7 +15,7 @@ Once your vault is registered, six actions are available from the dashboard. All
 
 **When to use it:** Any time you want to bring ETH under Aeternum's recovery protection. You can deposit as many times as you like after the initial registration.
 
-**Gas cost:** ~65,000 gas.
+**Gas cost:** ~24,000–40,000 gas.
 
 **How:** Click **Deposit** on the dashboard, enter the amount in ETH, and confirm the transaction. Your vault balance updates immediately after confirmation.
 
@@ -40,7 +40,7 @@ withdrawals. Your vault acts as a standard sending wallet.
   any on-chain address directly from your vault without first withdrawing to your
   primary wallet.
 
-**Gas cost:** ~80,000–100,000 gas (higher if the recipient is a contract that executes code on receipt).
+**Gas cost:** ~25,000–76,000 gas to a standard wallet address (higher if the recipient is a contract that executes code on receipt).
 
 **How:** Click **Send**, enter the recipient address and the ETH amount, and confirm. The transaction deducts the amount from your vault balance and transfers it on-chain.
 
@@ -56,7 +56,7 @@ withdrawals. Your vault acts as a standard sending wallet.
 
 **When to use it:** When you want your ETH back without canceling your vault configuration. Your vault stays registered and active after a withdrawal — you can deposit again any time. Use send() if you want to withdraw a specific amount. withdrawAll() always withdraws your full balance.
 
-**Gas cost:** ~60,000 gas.
+**Gas cost:** ~32,000–43,000 gas.
 
 **How:** Click **Withdraw balance** in the sidebar. The full balance is sent to your connected address. Confirm in your wallet. The vault balance drops to zero but the vault itself remains live.
 
@@ -72,7 +72,7 @@ withdrawals. Your vault acts as a standard sending wallet.
 
 **When to use it:** When you are not planning any vault transactions but want to reset your inactivity timer — whether as a regular routine or because your deadline is approaching.
 
-**Gas cost:** ~30,000 gas — the cheapest possible vault interaction.
+**Gas cost:** ~6400–31,000 gas — the cheapest possible vault interaction.
 
 **How:** Click **Ping** on the dashboard and confirm the transaction. Your countdown timer resets to the full inactivity period.
 
@@ -102,7 +102,7 @@ It is intentionally minimal. There is no risk of accidentally moving funds or ch
   to better reflect your current usage — longer if you expect extended periods of
   inactivity, shorter if you want a tighter safety window.
 
-**Gas cost:** ~45,000 gas for backup address update; ~40,000 gas for inactivity period update.
+**Gas cost:** ~15,700–40,000 gas for a backup address update; ~13,300–38,000 gas for an inactivity period update, depending on your current configuration.
 
 **How:** Click **Update config** in the sidebar. A modal opens with your current settings pre-filled. Change either or both values and confirm the transaction.
 
@@ -114,7 +114,7 @@ It is intentionally minimal. There is no risk of accidentally moving funds or ch
 
 **When to use it:** When you want to fully opt out of Aeternum protection and take your ETH back without any ongoing monitoring.
 
-**Gas cost:** ~70,000–100,000 gas.
+**Gas cost:** ~24,000–58,000 gas, depending on whether your vault holds a balance to refund.
 
 **How:** Click **Cancel recovery** in the sidebar. A confirmation modal warns that this removes your vault from monitoring. Confirm the transaction. Your ETH is returned to your connected wallet, your address is deregistered, and your vault is marked inactive.
 
