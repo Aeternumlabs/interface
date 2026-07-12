@@ -43,7 +43,7 @@ The account deposits assets directly into **Aave V3 lending markets**, accumulat
 
 ### Optimised — Dynamic Multi-Protocol Allocation
 
-The account dynamically allocates capital across multiple verified protocols based on live yield spreads, orchestrated entirely on-chain via Chainlink Automation modules. The rebalancing logic is authorized by the user and executed without off-chain intervention.
+The account dynamically allocates capital across multiple verified protocols based on live yield spreads. The rebalancing itself is fully authorized by the user in advance — no signature or judgment call from any off-chain party is required at execution time. A keeper simply calls a pre-authorized rebalancing function on the user's own account, on schedule or when spread conditions are met — the same permissionless trigger-not-authority pattern used everywhere else in the protocol: the caller has no say over what the logic does, only whether it runs.
 
 - Risk profile: moderate — additional complexity from multi-protocol exposure
 - Liquidity: depends on allocation mix
@@ -69,7 +69,7 @@ The `AeternumRecoveryManager` either routes through the Curve stETH/ETH pool for
 
 The `AeternumRecoveryManager` invokes **Aave Pool's `withdraw()` function** directly from the user's account context to redeem the underlying WETH plus all accrued interest. It then unwraps the WETH to native ETH and completes the recovery transfer.
 
-If an Aave pool hits 100% utilisation and temporarily restricts withdrawals, the system falls back to the `MAX_RECOVERY_ATTEMPTS` retry loop — gracefully retrying on subsequent Chainlink cycles rather than failing permanently.
+If an Aave pool hits 100% utilisation and temporarily restricts withdrawals, the system falls back to the `MAX_RECOVERY_ATTEMPTS` retry loop — gracefully retrying on the keeper network's subsequent cycles rather than failing permanently.
 
 ---
 
@@ -83,7 +83,7 @@ Consider a user who holds 50 ETH in their Aeternum wallet. They choose to:
 - Configure a disbursement rule: send 0.1 ETH to their children's wallets on the first of every month
 - Set a recovery trigger: if inactive for 365 days, send everything to their designated beneficiary
 
-Chainlink Automation executes all of it. The monthly disbursements run on the same infrastructure as the recovery monitoring. The inheritance trigger and the disbursement triggers share the same underlying primitives — a monitored wallet with programmable execution rules.
+The keeper network executes all of it. The monthly disbursements run on the same permissionless scan-validate-execute pipeline that drives recovery monitoring — the same keepers (the Aeternum Labs bot, Gelato, and Chainlink CRE) simply call the pre-authorized disbursement logic on schedule, exactly the way they call recovery for a wallet that's become due. The inheritance trigger and the disbursement triggers share the same underlying primitive: a monitored wallet with programmable execution rules, and callers who can only ask the contract to check its own conditions — never decide the outcome themselves.
 
 ---
 
@@ -97,7 +97,7 @@ Use cases being designed:
 
 **DAO grant distribution.** A DAO configures automated grant payments with built-in inheritance fallback. If the DAO's governance becomes inactive, assets can route to a community-controlled multisig.
 
-**Custody tools.** Builders can integrate the recovery engine and disbursement infrastructure without developing their own Chainlink Automation registry, cursor-based wallet monitoring system, or upkeep funding infrastructure.
+**Custody tools.** Builders can integrate the recovery engine and disbursement infrastructure without developing their own off-chain indexing pipeline, on-chain validation logic, or keeper infrastructure from scratch.
 
 **Compliance and estate planning.** Institutional users can configure auditable recovery flows that satisfy legal requirements for digital asset succession.
 
@@ -111,9 +111,13 @@ Phase 4 builds on the complete Phase 3 stack. Every multichain capability carrie
 unchanged:
 
 - **Independent per-chain deployments** — each supported network continues to run
-  its own `AeternumRecoveryManager` with fully independent Chainlink Automation
-  monitoring, cursor-based registry traversal, and forwarder access control. Phase 4
-  introduces no cross-chain dependencies between these deployments.
+  its own `AeternumRecoveryManager`, monitored independently by the same off-chain
+  discovery / on-chain validation keeper pipeline described in
+  [Keeper Network](/docs/architecture/keeper-network). No chain gates recovery or
+  disbursement execution behind a designated caller — every keeper on every chain is
+  permissionless, exactly as on Ethereum mainnet. Phase 4 introduces no cross-chain
+  dependencies between these deployments, consistent with the multi-chain orchestration
+  model established in Phase 3.
 - **Multi-asset recovery with yield position unwinding** — ETH and all registered
   ERC-20 balances remain recoverable on every chain. Phase 4 extends this by adding
   programmatic unwinding of yield-bearing positions (stETH, aWETH) at recovery time,
@@ -125,27 +129,10 @@ unchanged:
 - **Per-chain beneficiary configuration** — backup addresses and inactivity periods
   remain independently configurable per chain.
 
-### Chainlink Automation — The Natural Transition Point
+### Scaling for Phase 4 Volume
 
-Phase 4 marks the scaling inflection point where the rolling cursor model transitions
-from partitioned upkeep jobs to [Off-Chain Computation with On-Chain Verification](/docs/architecture/rolling-cursor#10m-to-50m-users-off-chain-computation-with-on-chain-verification).
+Unlike the scaling story earlier revisions of this document described, the keeper network's discovery layer doesn't need a future "transition" to off-chain scanning at some volume threshold — that's been the architecture since Phase 1. Every deployment's registry is discovered via a keeper's own off-chain indexed database, not by paging through on-chain state, so growing registry size from institutional TVL and enterprise adoption doesn't introduce a new class of bottleneck the way it would under an on-chain scanning model. See [Keeper Network](/docs/architecture/keeper-network) for the full scan-validate-execute pipeline as it operates from Phase 1 onward.
 
-By Phase 3, each chain runs its own independent cursor, distributing the total
-monitoring load across networks. Phase 4's growth drivers — institutional TVL through
-yield routing, enterprise API adoption, and multi-chain retail users — are likely to
-push individual chain registries into the range where the off-chain computation model
-becomes the most efficient production architecture.
+What Phase 4's volume does stress is throughput on the execution side: more due wallets, plus — new at this phase — disbursement calls competing for the same submission pipeline. The scaling path for that is the one Keeper Network already describes as the planned direction: horizontal signers. A single keeper submits batches sequentially from one private key today; running multiple independent signing keys lets multiple batches be in flight at once, with throughput scaling roughly linearly per signer added, and no change required to the contract itself. Phase 4's combined recovery-and-disbursement load, across every supported chain, is a plausible point where that stops being a documented direction and becomes an operational necessity.
 
-In this model, the `aeternum-indexer` — already running in production as an activity
-history service — transitions into the primary wallet discovery layer: maintaining a
-real-time sorted list of all registered wallets ordered by their recovery deadline. A
-decentralized keeper layer, via Gelato or Chainlink Functions, queries the indexer and
-submits due wallets directly to `performUpkeep`. The on-chain contract re-validates
-every submitted wallet independently before executing any recovery — the trust model
-is preserved. The worst-case outcome of a compromised keeper layer is a delayed
-recovery, never an incorrect one.
-
-Partitioned upkeep jobs remain functional at this scale and do not need to be retired.
-The off-chain model is adopted where it produces meaningful efficiency gains — primarily
-on chains where the registry has grown large enough that linear cursor traversal
-generates significant idle `performUpkeep` calls.
+None of this requires a contract change. Every keeper — the Aeternum Labs bot, Gelato, Chainlink CRE, and any additional signer or operator brought on to handle Phase 4 volume — remains just another permissionless caller of the protocol's entry points, with no more leverage over the outcome than any keeper has ever had.
