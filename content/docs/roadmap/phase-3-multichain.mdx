@@ -20,16 +20,14 @@ Phase 3 closes that gap by expanding the Aeternum hybrid wallet and `AeternumRec
 
 ## Independent Per-Chain Deployments
 
-Phase 3 does **not** use cross-chain messaging or bridge infrastructure. Every supported network gets its own fully independent deployment:
+Phase 3 uses **no cross-chain messaging and no bridge infrastructure of any kind.** Every supported network gets its own fully independent deployment:
 
-- Its own `AeternumRecoveryManager` contract
+- Its own `AeternumRecoveryManager` contract.
 - Its own registry of registered wallets, monitored the same way as every other Aeternum deployment — an off-chain indexed database drives discovery, and every candidate is re-validated on-chain immediately before recovery executes. There is no on-chain scan position of any kind to track, on this chain or any other. See [Keeper Network](/docs/architecture/keeper-network) for the full mechanics of that pipeline.
-- Its own keeper coverage. The Aeternum Labs bot and Gelato — both already active as of Phase 2 — extend their scan-validate-execute pipelines to include each new chain. Chainlink CRE joins the keeper network specifically at this phase for cross-chain coordination.
+- Its own keeper coverage, from three independent operators. The Aeternum Labs bot and Gelato — both already active as of Phase 2 — extend their scan-validate-execute pipelines to include each new chain. Chainlink CRE joins at this phase as a **multi-chain orchestrator**: a single off-chain service running one independent workflow per chain, each watching that chain's own registry and submitting `triggerRecovery` transactions to that chain's own contract. What CRE centralizes is the *operation* of those workflows — running them all from one piece of infrastructure — not their *execution*. No workflow's transaction ever depends on data, state, or a message from another chain. On each chain, CRE calls that chain's recovery entry point exactly like the Aeternum Labs bot and Gelato do on that same chain: permissionlessly, with the result re-validated entirely from that chain's own on-chain state.
 - No designated caller, no access gate of any kind. Recovery execution on every chain is permissionless, exactly as it is on Ethereum mainnet — any address may call it once a wallet is due, and the contract's own on-chain validation is what makes that safe.
 
-**A note on what "coordination" means here.** Chainlink CRE's role is easy to misread as cross-chain messaging between deployments — it isn't. CRE runs as a single off-chain service capable of watching and submitting transactions to several independent chains at once, the same way one company might run separate monitoring jobs against each chain but manage them from one place. On each chain, CRE calls that chain's recovery entry point independently — exactly like the Aeternum Labs bot and Gelato do on that same chain. No chain's recovery execution ever depends on a transaction, a message, or state from another chain. "Coordination" describes how CRE's own off-chain infrastructure is organized across chains, not a new on-chain capability the contracts gain.
-
-This design is intentional. Cross-chain recovery — where a trigger on Ethereum causes a transfer on Arbitrum — introduces bridge dependency risk, oracle latency, and message-passing attack surfaces. By running independently per chain, each deployment inherits the same trust properties as the Phase 2 `AeternumRecoveryManager` — no cross-chain message can interfere with recovery execution, and a failure on one chain does not affect any other.
+This design is intentional. A trigger-on-one-chain, transfer-on-another model would introduce bridge dependency risk, oracle latency, and message-passing attack surfaces — exactly the category of failure this protocol is built to protect people from, not add to. By running independently per chain, each deployment inherits the same trust properties as the Phase 2 `AeternumRecoveryManager`: nothing happening on any other chain can interfere with recovery execution here, and a failure on one chain has zero effect on any other.
 
 Assets on each chain recover independently to the designated backup address **on that same chain**.
 
@@ -67,7 +65,7 @@ Users protecting assets across multiple chains register separately on each chain
 
 ## Activity Synchronisation
 
-In Phase 2, opening the Aeternum app resets the timer on the connected chain. In Phase 3, The app submits a separate, gas-sponsored activity ping to each chain's `AeternumRecoveryManager` independently. No cross-chain message passing occurs — each ping is a fully independent on-chain interaction on its respective network, coordinated by the app layer rather than any bridging infrastructure.
+In Phase 2, opening the Aeternum app resets the timer on the connected chain. In Phase 3, the app submits a separate, gas-sponsored activity ping to each chain's `AeternumRecoveryManager` independently. No cross-chain message passing occurs — each ping is a fully independent on-chain interaction on its respective network, sequenced by the app layer rather than any bridging infrastructure.
 
 This means a user who opens their Aeternum app on any device automatically extends their inactivity deadline across every protected chain — without needing to manually interact on each network individually.
 
