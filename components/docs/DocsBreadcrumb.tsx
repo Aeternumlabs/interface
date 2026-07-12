@@ -4,7 +4,7 @@
  * Breadcrumb trail rendered above the page heading on every doc page.
  *
  * Output:
- * Architecture  ›  Rolling Cursor
+ * Architecture  ›  Keeper Network
  * User Guide    ›  Testnet Walkthrough
  * FAQ           ›  Frequently Asked Questions
  *
