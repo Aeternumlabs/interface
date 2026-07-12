@@ -76,7 +76,7 @@ export const docsNavSections: DocsNavSection[] = [
         label: 'What is Aeternum',
         slug: 'introduction/what-is-aeternum',
         description:
-          'Protocol overview, core value proposition, and how Aeternum differs from existing wallet recovery solutions.',
+          'A non-custodial, automated inheritance protocol for Ethereum assets — built for people who want self-custody without the risk of permanent loss.',
       },
       {
         label: 'Quick Start',
@@ -96,7 +96,7 @@ export const docsNavSections: DocsNavSection[] = [
         label: 'The Vault',
         slug: 'how-it-works/the-vault',
         description:
-          'How your ETH is stored, how vault isolation works, and what operations you can perform.',
+          'How your ETH is stored, how vault isolation works, and what you can do with your vault.',
       },
       {
         label: 'Inactivity Timer',
@@ -114,7 +114,7 @@ export const docsNavSections: DocsNavSection[] = [
         label: 'Key Actors',
         slug: 'how-it-works/key-actors',
         description:
-          'The roles of the vault owner, backup address, Chainlink Automation network, and the Chainlink forwarder.',
+          'The roles of the vault owner, the backup address, and the permissionless keeper network that executes recovery.',
       },
     ],
   },
@@ -140,7 +140,7 @@ export const docsNavSections: DocsNavSection[] = [
         label: 'Security Design',
         slug: 'architecture/security',
         description:
-          'Reentrancy protection, forwarder access control, CEI pattern, and the immutable contract guarantee.',
+          'Reentrancy protection, permissionless execution safety, the CEI pattern, and the immutable contract guarantee.',
       },
     ],
   },
@@ -172,7 +172,7 @@ export const docsNavSections: DocsNavSection[] = [
         label: 'Testnet Walkthrough',
         slug: 'user-guide/testnet-walkthrough',
         description:
-          'End-to-end Sepolia test: connect, register with a 5-minute timer, fund your vault, and watch automatic recovery execute.',
+          'End-to-end Sepolia test — connect, register with a 5-minute timer, fund your vault, and watch automatic recovery execute.',
         badge: 'new',
       },
     ],
@@ -205,7 +205,7 @@ export const docsNavSections: DocsNavSection[] = [
         label: 'Immutable Limits',
         slug: 'contract-reference/immutable-limits',
         description:
-          'Protocol constants — minimum and maximum inactivity periods, scan window size, execution batch cap, and retry limit.',
+          'Protocol constants — minimum and maximum inactivity periods, and the recovery retry limit.',
       },
     ],
   },
@@ -262,7 +262,7 @@ export const docsNavSections: DocsNavSection[] = [
         label: 'Frequently Asked Questions',
         slug: 'faq',
         description:
-          'Common questions about custody guarantees, fees, Chainlink reliability, upgradeability, and the forwarder.',
+          'Common questions about custody guarantees, fees, keeper reliability, upgradeability, and permissionless execution.',
       },
     ],
   },
