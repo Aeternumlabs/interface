@@ -1,6 +1,6 @@
 ---
 title: Frequently Asked Questions
-description: Common questions about custody guarantees, fees, Chainlink reliability, upgradeability, and the forwarder.
+description: Common questions about custody guarantees, fees, keeper reliability, upgradeability, and permissionless execution.
 ---
 
 ## Custody and Control
@@ -15,7 +15,7 @@ Your ETH can only move in two ways: on your direct instruction — through withd
 
 No. The team that built AeternumVault has no privileged role in the deployed contract. There is no `onlyOwner` modifier on any fund-handling function, and no address known to Aeternum Labs has any special capability over your vault.
 
-The only entity with elevated permissions is the Chainlink Automation forwarder, which is locked to a specific address by `setForwarder()`. Even that address cannot move funds arbitrarily — it can only call `performUpkeep()`, which re-validates every condition before any ETH moves.
+There is no entity with elevated permissions of any kind — not Aeternum Labs, not a designated caller, not anyone. Recovery execution (`triggerRecovery()`) is permissionless: literally any address can call it, but the caller supplies only a wallet address and has zero influence over the outcome. Every condition — whether recovery executes, how much moves, and where it goes — is re-validated from your own on-chain configuration at the moment of the call. The caller is a trigger, not an authority. See [Key Actors](/docs/architecture/key-actors) for the full explanation of why no access gate is needed.
 
 ### Is the contract upgradeable?
 
@@ -39,13 +39,13 @@ AeternumVault v1 is completely free. There are no subscription fees, no tiers, a
 
 The only costs are:
 - **Standard Ethereum gas fees** for transactions you initiate (register, deposit, send, etc.)
-- **Nothing for monitoring** — the Chainlink Automation upkeep that watches your vault and executes recovery is funded by Aeternum Labs at the protocol level, not passed on to individual users
+- **Nothing for monitoring** — the Aeternum Labs keeper bot that watches your vault and submits recovery transactions pays the ETH gas itself as an operating cost, not passed on to individual users
 
 This is a deliberate policy. Foundational wallet safety should be accessible to everyone without friction. The core v1 protocol is, and will always remain, completely free to use.
 
-### Why is it free if Chainlink costs real LINK?
+### Why is it free if someone has to pay gas to execute recovery?
 
-Aeternum Labs funds the Chainlink Automation upkeep from its own resources as part of running the protocol. The `performUpkeep` transactions that execute recovery cost LINK, but those costs are absorbed at the infrastructure level rather than billed to users.
+Aeternum Labs runs the keeper bot that watches vaults and submits `triggerRecovery` transactions, and absorbs the ETH gas cost as an operating expense rather than billing it to users. Because `triggerRecovery()` is permissionless, this isn't a service you're structurally dependent on paying for either — anyone, including you or your backup address, could call it directly at no cost beyond gas.
 
 Future value-added services (In-app financial services, Yield routing revenue share, Enterprise and developer APIs, institutional tools) will generate revenue to sustain this model without monetizing the core recovery mechanism.
 
@@ -67,9 +67,9 @@ If you are active in DeFi but not touching your Aeternum vault directly, you sti
 
 ### Can I interact with my vault after the timer expires but before recovery fires?
 
-Yes. There is always a window between when your vault becomes eligible for recovery and when Chainlink actually executes `performUpkeep`. Chainlink runs `checkUpkeep` every 12 seconds, so this window is typically short — but it exists.
+Yes. There is always a window between when your vault becomes eligible for recovery and when a keeper actually submits `triggerRecovery()` on-chain — typically seconds, occasionally longer if the keeper's cycle has a lot to process. The Aeternum Labs keeper bot cycles roughly every 12 seconds, so this window is usually short — but it exists.
 
-If you ping or deposit in that window, your timer resets and recovery is canceled. The `performUpkeep` transaction re-validates every wallet before moving ETH. If your vault is no longer eligible (timer was reset), it is silently skipped and no ETH moves.
+If you ping or deposit in that window, your timer resets and recovery is no longer eligible. `triggerRecovery()` re-validates every condition from scratch at the moment it executes, regardless of what any off-chain keeper believed was true when it decided to submit the call. If your vault is no longer eligible, the call silently returns and no ETH moves. See [Automatic Recovery](/docs/how-it-works/automatic-recovery) for the full mechanics.
 
 ### What if I want a shorter inactivity period on mainnet?
 
@@ -106,7 +106,7 @@ The contract:
 3. Re-adds your vault to monitoring for retry
 4. Emits a `RecoveryFailed` event
 
-Chainlink will retry up to three times. After three consecutive failures, the vault
+The keeper network will retry up to three times. After three consecutive failures, the vault
 is permanently abandoned — your balance remains accessible via `withdrawAll()`, but
 automatic monitoring stops and that backup address is permanently blocked from future
 use. See [Automatic Recovery](/docs/how-it-works/automatic-recovery) for the full
@@ -141,17 +141,19 @@ of which primary wallet is attempting it.
 
 Each Ethereum address can register one vault. If you want to protect multiple wallets, each wallet registers its own vault independently with potentially different backup addresses and inactivity periods.
 
-### What is the Chainlink forwarder and why does it matter?
+### Why can anyone call triggerRecovery() — isn't that a security risk?
 
-When you register an upkeep with Chainlink Automation, Chainlink deploys a unique forwarder contract specifically for that upkeep. After `setForwarder()` is called on AeternumVault, only that forwarder address is permitted to call `performUpkeep()`.
+It isn't, and the reason is worth understanding because it used to work differently. Earlier versions of this contract gated recovery execution behind a one-time-set forwarder address — only Chainlink Automation's registered forwarder was permitted to call the execution function. That model has been removed entirely.
 
-Without the forwarder check, anyone could craft a malicious `performData` payload and call `performUpkeep` directly, potentially attempting to manipulate which vaults get processed in a given batch. The forwarder lock eliminates this attack surface entirely — `performUpkeep` becomes a function that only Chainlink's infrastructure can trigger.
+`triggerRecovery(wallet)` now carries no caller restriction at all — any address can call it. This is safe because the function gives the caller no leverage to begin with: the caller supplies only a wallet address, and every subsequent decision — whether recovery executes, how much moves, and where it goes — is made exclusively from storage the vault owner wrote. The caller cannot redirect funds, force an early recovery, or influence the outcome in any way.
 
-### What if Chainlink Automation goes down?
+Removing the single designated caller doesn't weaken this safety property — it removes a dependency on any one party, such as a single automation provider, remaining available to submit the transaction. See [Key Actors](/docs/architecture/key-actors) for the full explanation.
 
-Chainlink Automation is a decentralized network with thousands of independent nodes distributed globally. A complete outage would require the vast majority of those nodes to fail simultaneously — an extremely unlikely scenario.
+### What if the keeper bot goes down?
 
-If the network were somehow unavailable, your ETH would remain safely in your vault until service resumes. Recovery would be delayed, not lost. The worst-case outcome is that your backup plan fires later than expected, not that it fails to fire at all.
+If the Aeternum Labs keeper bot were ever unavailable, your ETH would simply remain in your vault, unrecovered, until service resumed — or until someone else calls `triggerRecovery()` on your behalf, since the function has no access restriction. Gelato Network is planned as an independent backup keeper (Phase 2). Chainlink CRE joins in Phase 3 as a multi-chain orchestrator — additional, independently-operated callers of the same permissionless function.
+
+The worst-case outcome of any keeper outage is a delay in recovery, not loss of funds. See [Keeper Network](/docs/architecture/keeper-network) for the full architecture.
 
 ### Does AeternumVault accept ETH sent directly to the contract address?
 
