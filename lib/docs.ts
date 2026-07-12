@@ -170,7 +170,7 @@ function walkMdxFiles(dir: string, base: string): string[] {
  * @example
  *   const doc = await getDocContent('architecture/keeper-network')
  *   if (!doc) notFound()
- *   // doc.frontmatter.title  → 'Rolling Cursor'
+ *   // doc.frontmatter.title  → 'Keeper Network'
  *   // doc.content            → raw MDX string ready for MDXRemote
  */
 export async function getDocContent(slug: string): Promise<DocsContent | null> {
