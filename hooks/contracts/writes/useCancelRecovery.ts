@@ -6,7 +6,7 @@
  * cancelRecovery() is the nuclear exit function. It does two things
  * atomically in a single transaction:
  *   1. Transfers the entire vault balance back to the caller's wallet
- *   2. Permanently removes the vault from Chainlink's monitoring registry
+ *   2. Permanently removes the vault from monitoring registry
  *
  * This is fundamentally different from withdrawAll() which only moves funds
  * but keeps the vault registered and active. After cancelRecovery(), the
