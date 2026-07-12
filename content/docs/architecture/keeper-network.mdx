@@ -173,7 +173,7 @@ If a wallet no longer qualifies, the call returns without moving any funds — n
 
 ## Race Safety — Competing Keepers
 
-Because `triggerRecovery()` is permissionless, more than one caller can legitimately try to recover the same wallet — the Aeternum Labs bot and Gelato racing each other once Phase 2 is live, for instance, or all three keepers racing once Chainlink CRE joins in Phase 3. This resolves safely without any coordination between them.
+Because `triggerRecovery()` is permissionless, more than one caller can legitimately try to recover the same wallet — the Aeternum Labs bot and Gelato racing each other once Phase 2 is live, for instance, or all three keepers racing once Chainlink CRE joins in Phase 3. This resolves safely, and neither keeper needs to know the other exists, let alone communicate with it.
 
 The first call to actually land executes recovery normally. Any subsequent call — whether it arrives in a separate transaction or happens to be bundled in the same Multicall3 batch — finds `isActive == false` and `balance == 0`, and silently returns without reverting or double-transferring funds.
 
@@ -242,6 +242,6 @@ Multi-signer submission isn't built yet — this is the direction, not a shipped
 
 ### More keepers over time — the phase rollout
 
-Separately from any single keeper's own throughput, resilience grows by adding entirely independent keepers over time, in step with the product roadmap. **Phase 2** (Hybrid Account) brings Gelato online as a second, independently-operated keeper alongside the Aeternum Labs bot. **Phase 3** (Multichain — independent deployments across Base, Arbitrum One, Optimism, BNB Chain, Polygon, and zkSync) adds Chainlink CRE to coordinate recovery across all of those chains, running alongside both existing keepers on each one.
+Separately from any single keeper's own throughput, resilience grows by adding entirely independent keepers over time, in step with the product roadmap. **Phase 2** (Hybrid Account) brings Gelato online as a second, independently-operated keeper alongside the Aeternum Labs bot. **Phase 3** (Multichain — independent deployments across Base, Arbitrum One, Optimism, BNB Chain, Polygon, and zkSync) adds Chainlink CRE as a **multi-chain orchestrator:** a single off-chain service running one independent workflow per chain, each scanning and submitting triggerRecovery transactions to that chain's own deployment — with no messaging or dependency of any kind between chains. It runs alongside the Aeternum Labs bot and Gelato on every chain, exactly as both already do today on Ethereum mainnet.
 
 None of this requires any change to `triggerRecovery()`. Every keeper added at every phase is just another permissionless caller of the same function described throughout this page, not a new privileged role — the contract doesn't know or care whether a given call came from the Aeternum Labs bot, Gelato, Chainlink CRE, or an individual, and it doesn't need to.
