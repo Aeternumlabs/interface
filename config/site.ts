@@ -144,9 +144,7 @@ export const sidebarNavGroups: NavGroup[] = [
  */
 export const externalLinks = {
   github: 'https://github.com/Aeternumlabs/aeternum-core',
-  docs: '/docs/Aeternum-core_technical_doc.pdf',
-  audit: '/audits/2026-05-04_Aeternum-core_audit.pdf',
-  chainlinkAutomation: 'https://automation.chain.link',
+  audit: 'https://github.com/Aeternumlabs/aeternum-core/blob/main/audits/2026-07-07_Aeternum-core_audit_rev3.pdf',
   sepoliaFaucet: 'https://faucets.chain.link',
   coingecko: 'https://www.coingecko.com/en/coins/ethereum',
 } as const
