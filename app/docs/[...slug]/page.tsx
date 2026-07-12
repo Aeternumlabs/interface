@@ -83,7 +83,6 @@ export async function generateStaticParams() {
 // --- Metadata ---
 // Returns page-level title and description.
 // The layout template in app/docs/layout.tsx composes the full title string:
-//   meta.title = 'Rolling Cursor'  →  <title>Rolling Cursor — Aeternum Docs</title>
 export async function generateMetadata(
   { params }: PageProps,
 ): Promise<Metadata> {
@@ -121,7 +120,7 @@ export default async function DocsPage({ params }: PageProps) {
     <article className="mx-auto w-full max-w-3xl px-6 pb-20 pt-10 md:px-10 md:pt-12">
 
       {/* Breadcrumb */}
-      {/* e.g. "Architecture  /  Rolling Cursor"                   */}
+      {/* e.g. "Architecture  /  Keeper Network"                   */}
       <DocsBreadcrumb slug={slug} />
 
       {/* Page header */}
