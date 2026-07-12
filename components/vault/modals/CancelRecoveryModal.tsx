@@ -5,7 +5,7 @@
  *
  * Opened from "Cancel recovery" in the sidebar.
  * cancelRecovery() is irreversible — it withdraws all funds AND removes
- * the vault from Chainlink monitoring entirely. The user must register again.
+ * the vault from monitoring entirely. The user must register again.
  *
  * Uses ConfirmDialog with isDestructive=true and a strong warning block
  * rendered as children so the user fully understands the consequences.
