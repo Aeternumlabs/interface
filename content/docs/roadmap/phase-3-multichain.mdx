@@ -23,9 +23,11 @@ Phase 3 closes that gap by expanding the Aeternum hybrid wallet and `AeternumRec
 Phase 3 does **not** use cross-chain messaging or bridge infrastructure. Every supported network gets its own fully independent deployment:
 
 - Its own `AeternumRecoveryManager` contract
-- Its own Chainlink Automation upkeep, funded with LINK tokens on that network
-- Its own rolling cursor registry covering all users on that chain
-- Its own `setForwarder()` call, locking execution to the chain-specific Chainlink forwarder
+- Its own registry of registered wallets, monitored the same way as every other Aeternum deployment — an off-chain indexed database drives discovery, and every candidate is re-validated on-chain immediately before recovery executes. There is no on-chain scan position of any kind to track, on this chain or any other. See [Keeper Network](/docs/architecture/keeper-network) for the full mechanics of that pipeline.
+- Its own keeper coverage. The Aeternum Labs bot and Gelato — both already active as of Phase 2 — extend their scan-validate-execute pipelines to include each new chain. Chainlink CRE joins the keeper network specifically at this phase for cross-chain coordination.
+- No designated caller, no access gate of any kind. Recovery execution on every chain is permissionless, exactly as it is on Ethereum mainnet — any address may call it once a wallet is due, and the contract's own on-chain validation is what makes that safe.
+
+**A note on what "coordination" means here.** Chainlink CRE's role is easy to misread as cross-chain messaging between deployments — it isn't. CRE runs as a single off-chain service capable of watching and submitting transactions to several independent chains at once, the same way one company might run separate monitoring jobs against each chain but manage them from one place. On each chain, CRE calls that chain's recovery entry point independently — exactly like the Aeternum Labs bot and Gelato do on that same chain. No chain's recovery execution ever depends on a transaction, a message, or state from another chain. "Coordination" describes how CRE's own off-chain infrastructure is organized across chains, not a new on-chain capability the contracts gain.
 
 This design is intentional. Cross-chain recovery — where a trigger on Ethereum causes a transfer on Arbitrum — introduces bridge dependency risk, oracle latency, and message-passing attack surfaces. By running independently per chain, each deployment inherits the same trust properties as the Phase 2 `AeternumRecoveryManager` — no cross-chain message can interfere with recovery execution, and a failure on one chain does not affect any other.
 
@@ -45,7 +47,7 @@ Assets on each chain recover independently to the designated backup address **on
 | Polygon | POL |
 | zkSync Era | ETH |
 
-All networks listed have active Chainlink Automation support, which is a hard requirement for Aeternum deployment. Future chains will be added as Chainlink Automation expands its coverage.
+All networks listed are EVM-compatible chains with mature RPC and indexing infrastructure — the baseline requirement for deploying both the `AeternumRecoveryManager` contract and the keeper network's off-chain scanning pipeline on a given chain. Future chains are added as that infrastructure matures elsewhere.
 
 ---
 
@@ -85,7 +87,17 @@ Every Phase 2 capability extends to each Phase 3 deployment unchanged:
   chain where the user has a registered vault, with no manual interaction required
 - **Per-token failure isolation** — individual ERC-20 transfer failures are retried
   independently without blocking recovery of other assets on the same chain
-- **The rolling cursor and `MAX_RECOVERY_ATTEMPTS` abandonment handling** — each
-  chain's deployment runs its own independent cursor with the same three-attempt ceiling
+- **The keeper network's scan-validate-execute model** — each chain's deployment is
+  monitored by its own instance of the same off-chain discovery, on-chain validation,
+  and batched permissionless execution pipeline described in
+  [Keeper Network](/docs/architecture/keeper-network). There is no on-chain scan
+  position on any chain, Phase 3 included.
+- **`MAX_RECOVERY_ATTEMPTS` abandonment handling** — each chain's deployment enforces
+  the same three-attempt ceiling on ETH recovery, with per-token failure tracking for
+  ERC-20s, independently of every other chain's deployment.
+- **Permissionless execution — no access gate** — exactly as on Ethereum mainnet, no
+  chain's deployment gates recovery execution behind a designated caller. Any address,
+  on any chain, may call recovery for a due wallet; the contract's own validation is
+  what makes that safe, not who is asking.
 
 Phase 3 is not about re-engineering the wheel, but rather taking a mature asset-protection engine and expanding its footprint globally across networks.
