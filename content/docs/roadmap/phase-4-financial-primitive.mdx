@@ -55,6 +55,40 @@ The account dynamically allocates capital across multiple verified protocols bas
 
 ---
 
+## Predictable — Fixed-Rate Stablecoin Vaults (Planned)
+
+The three tiers above are all variable-rate: the yield a user actually earns
+moves with market conditions. For a beneficiary who may not be crypto-native,
+"this holds aWETH, whose yield floats with utilization" is a harder thing to
+inherit and understand than "this earns a fixed rate." A fixed-rate tier is
+planned to close that gap, in two stages.
+
+**Near term: pass-through integration.** The Aeternum wallet lets users
+deposit into an externally-operated ERC-4626 vault — an Aave Earn Vault, or a
+comparable fixed-rate product once independently audited — the same way it
+already lets users deposit into Lido or Aave's own lending markets. The
+resulting vault shares sit natively in the user's own smart account, exactly
+like the other three tiers. Aeternum sets no rate, captures no yield spread,
+and bears no risk if the vault's return falls short of anything promised to
+the user — it is purely a routing and discovery layer, identical in kind to
+the existing tiers, not a new trust relationship.
+
+**Long term: Aeternum as vault operator.** Once a fixed-rate vault product
+(such as Aave's Stable Vaults) has cleared independent audit and reached
+production maturity, Aeternum may deploy and operate its own instance —
+setting a fixed rate for users, keeping any yield earned above that rate as
+protocol revenue (feeding the yield-routing revenue share model), and
+absorbing the risk if underlying yield falls short. This is a deliberate
+exception to the "no intermediary" principle stated at the top of this page:
+Aeternum would become the counterparty setting terms, not just a router to a
+third-party protocol, and would need its own risk buffer to honor a fixed-rate
+promise through a down market. This tier will be built and documented
+separately, with an explicit, distinct custody disclosure, once the
+underlying product and Aeternum's own risk framework are both ready — it is
+a direction, not a committed feature.
+
+---
+
 ## Programmable Position Unwinding
 
 Because yield-bearing positions are held natively by the user's own address, they fall completely under Aeternum's recovery architecture. When recovery triggers on a wallet holding stETH or aWETH, the contract does not simply attempt to transfer those tokens — it first unwinds the positions into base ETH, then transfers the proceeds.
