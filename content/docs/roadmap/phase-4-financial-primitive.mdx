@@ -23,25 +23,35 @@ own custody. Activating a yield strategy does not transfer control to any third 
 
 Users who want their capital productive can initialize yield strategies directly from their Aeternum wallet. There is no intermediary routing funds — the user's own wallet executes the on-chain logic to deposit into established, independently audited DeFi protocols. The user holds the resulting yield-bearing positions natively in their own account.
 
+<Callout type="info" title="Protocol names below are illustrative, not committed">
+  Specific protocols named in this section — Lido, Aave, and others — are
+  today's clearest reference points for each strategy type, used here to keep
+  the design concrete. They are not a locked integration list. By the time
+  Phase 4 is implemented, the actual protocols selected will be whichever are
+  the best-audited, most battle-tested options available at that point —
+  which, given how quickly this space moves, may or may not be the same
+  names used below.
+</Callout>
+
 Three strategy tiers are planned:
 
-### Conservative — Lido Liquid Staking
+### Conservative
 
-The account programmatically mints **stETH** via Lido's liquid staking contracts, earning native Ethereum staking rewards. stETH rebases daily — the user's balance grows automatically without any additional transactions.
+The account programmatically mints a liquid-staking receipt token, earning native Ethereum staking rewards — Lido's stETH is the clearest example available today. Liquid staking tokens like this typically rebase or accrue automatically, so the user's balance grows without any additional transactions.
 
-- Risk profile: low — stETH is backed 1:1 by ETH staked with Lido's node operators
-- Liquidity: high — stETH trades at near-parity with ETH on Curve and major DEXes
-- Expected yield: ~4–5% APY (tracks Ethereum validator rewards)
+- Risk profile: low — backed close to 1:1 by ETH staked with the protocol's node operators
+- Liquidity: high for established liquid-staking tokens, which trade at near-parity with ETH on major DEXes
+- Expected yield: tracks Ethereum validator rewards, historically in the ~4–5% APY range
 
-### Balanced — Aave Lending Markets
+### Balanced
 
-The account deposits assets directly into **Aave V3 lending markets**, accumulating variable lending yields in aWETH (the interest-bearing receipt token). Yield fluctuates with market borrow demand.
+The account deposits assets directly into an established on-chain lending market, accumulating variable lending yield in an interest-bearing receipt token — Aave V3 is the clearest example available today. Yield fluctuates with market borrow demand.
 
 - Risk profile: moderate — smart contract risk plus utilisation rate variability
 - Liquidity: high when pool utilisation is below 100%
-- Expected yield: 2–8% APY depending on market conditions
+- Expected yield: typically 2–8% APY depending on market conditions
 
-### Optimised — Dynamic Multi-Protocol Allocation
+### Optimised
 
 The account dynamically allocates capital across multiple verified protocols based on live yield spreads. The rebalancing itself is fully authorized by the user in advance — no signature or judgment call from any off-chain party is required at execution time. A keeper simply calls a pre-authorized rebalancing function on the user's own account, on schedule or when spread conditions are met — the same permissionless trigger-not-authority pattern used everywhere else in the protocol: the caller has no say over what the logic does, only whether it runs.
 
@@ -55,51 +65,25 @@ The account dynamically allocates capital across multiple verified protocols bas
 
 ---
 
-## Predictable — Fixed-Rate Stablecoin Vaults (Planned)
+## Predictable — Fixed-Rate Stablecoin Vaults
 
-The three tiers above are all variable-rate: the yield a user actually earns
-moves with market conditions. For a beneficiary who may not be crypto-native,
-"this holds aWETH, whose yield floats with utilization" is a harder thing to
-inherit and understand than "this earns a fixed rate." A fixed-rate tier is
-planned to close that gap, in two stages.
+The three tiers above are all variable-rate — the yield a user actually earns moves with market conditions. A beneficiary who isn't crypto-native will find "this earns a fixed rate" far easier to understand than "this holds a receipt token whose yield floats with utilization." A fourth, fixed-rate option is planned to close that gap.
 
-**Near term: pass-through integration.** The Aeternum wallet lets users
-deposit into an externally-operated ERC-4626 vault — an Aave Earn Vault, or a
-comparable fixed-rate product once independently audited — the same way it
-already lets users deposit into Lido or Aave's own lending markets. The
-resulting vault shares sit natively in the user's own smart account, exactly
-like the other three tiers. Aeternum sets no rate, captures no yield spread,
-and bears no risk if the vault's return falls short of anything promised to
-the user — it is purely a routing and discovery layer, identical in kind to
-the existing tiers, not a new trust relationship.
-
-**Long term: Aeternum as vault operator.** Once a fixed-rate vault product
-(such as Aave's Stable Vaults) has cleared independent audit and reached
-production maturity, Aeternum may deploy and operate its own instance —
-setting a fixed rate for users, keeping any yield earned above that rate as
-protocol revenue (feeding the yield-routing revenue share model), and
-absorbing the risk if underlying yield falls short. This is a deliberate
-exception to the "no intermediary" principle stated at the top of this page:
-Aeternum would become the counterparty setting terms, not just a router to a
-third-party protocol, and would need its own risk buffer to honor a fixed-rate
-promise through a down market. This tier will be built and documented
-separately, with an explicit, distinct custody disclosure, once the
-underlying product and Aeternum's own risk framework are both ready — it is
-a direction, not a committed feature.
+The Aeternum wallet will let users deposit into an externally-operated, independently audited fixed-rate vault built to the ERC-4626 standard — emerging products like Aave's Stable Vaults are the clearest reference point today, though the actual protocol integrated will depend on audit completion and market conditions at implementation time, per the note above. The resulting vault shares sit natively in the user's own smart account, exactly like the other three tiers: Aeternum sets no rate, captures no yield spread, and bears no risk if the vault's return falls short of anything promised to the user. This is a routing and discovery layer, not a new trust relationship — fully consistent with the "no intermediary" principle stated at the top of this page.
 
 ---
 
 ## Programmable Position Unwinding
 
-Because yield-bearing positions are held natively by the user's own address, they fall completely under Aeternum's recovery architecture. When recovery triggers on a wallet holding stETH or aWETH, the contract does not simply attempt to transfer those tokens — it first unwinds the positions into base ETH, then transfers the proceeds.
+Because yield-bearing positions are held natively by the user's own address, they fall completely under Aeternum's recovery architecture. When recovery triggers on a wallet holding a yield-bearing position, the contract does not simply attempt to transfer that token — it first unwinds the position into base ETH, then transfers the proceeds.
 
-This is necessary because yield-bearing and rebasing tokens have unique transfer mechanics that do not map cleanly to a simple "send to backup address" flow.
+This is necessary because yield-bearing and rebasing tokens have unique transfer mechanics that do not map cleanly to a simple "send to backup address" flow. The two examples below use today's reference protocols to illustrate the pattern the recovery manager follows — the same unwind-then-transfer approach applies to whichever protocols are actually integrated at launch.
 
-### stETH Unwinding
+### Example: Unwinding a Liquid Staking Position (stETH)
 
 The `AeternumRecoveryManager` either routes through the Curve stETH/ETH pool for immediate settlement or initiates a Lido native withdrawal — the execution path is determined at recovery time based on liquidity conditions and speed requirements.
 
-### aWETH Unwinding
+### Example: Unwinding a Lending Position (aWETH)
 
 The `AeternumRecoveryManager` invokes **Aave Pool's `withdraw()` function** directly from the user's account context to redeem the underlying WETH plus all accrued interest. It then unwraps the WETH to native ETH and completes the recovery transfer.
 
@@ -113,7 +97,7 @@ This is where Aeternum's recovery infrastructure becomes a general-purpose progr
 
 Consider a user who holds 50 ETH in their Aeternum wallet. They choose to:
 - Keep 30 ETH in recovery-only mode, earning no yield
-- Route 20 ETH to Aave for yield
+- Route 20 ETH to a lending market for yield
 - Configure a disbursement rule: send 0.1 ETH to their children's wallets on the first of every month
 - Set a recovery trigger: if inactive for 365 days, send everything to their designated beneficiary
 
@@ -154,9 +138,9 @@ unchanged:
   model established in Phase 3.
 - **Multi-asset recovery with yield position unwinding** — ETH and all registered
   ERC-20 balances remain recoverable on every chain. Phase 4 extends this by adding
-  programmatic unwinding of yield-bearing positions (stETH, aWETH) at recovery time,
-  so beneficiaries receive settled assets rather than positions they may not know how
-  to manage.
+  programmatic unwinding of yield-bearing positions — illustrated earlier using stETH
+  and aWETH as worked examples of the pattern — at recovery time, so beneficiaries
+  receive settled assets rather than positions they may not know how to manage.
 - **Activity synchronisation across chains** — opening the Aeternum app continues to
   reset the inactivity timer across all registered vaults via the independent
   per-chain background signature flow established in Phase 3.
