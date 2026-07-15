@@ -18,10 +18,6 @@
  *     Mainnet minimum is 180 days.
  *   </Callout>
  *
- *   <Callout type="danger">
- *     setForwarder() can only be called once and cannot be reversed.
- *   </Callout>
- *
  * Server component — purely presentational, no client state needed.
  */
 
