@@ -4,9 +4,9 @@
  * Wraps the ping() contract call.
  *
  * ping() resets the inactivity timer without moving any funds.
- * It is the cheapest proof-of-liveness operation — around 6400–31,000 gas,
- * costing a fraction of a cent. Used when the user wants to keep their
- * vault active without depositing, sending, or withdrawing.
+ * It is the cheapest proof-of-liveness operation — around 6400–31,000 gas.
+ * Used when the user wants to keep their vault active without depositing, 
+ * sending, or withdrawing.
  *
  * Unlike every other write hook, ping() is called directly from PingButton
  * without a modal — the button itself IS the entire interaction surface.
