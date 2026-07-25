@@ -35,7 +35,7 @@ Every on-chain interaction with the AeternumVault contract updates `lastActivity
 Notice that **reading** your vault state does not reset the timer. Read-only calls (`getRecoveryConfig`, `isRecoveryDue`, etc.) are view functions that do not write to the blockchain and therefore have no effect on `lastActivity`. Only transactions — state-changing calls that cost gas — reset the timer.
 
 <Callout type="tip">
-  If you want to periodically confirm your vault is live without the overhead of a full transaction, use `ping()`. It is the cheapest possible interaction — approximately 6,000 gas, less than a tenth of a cent on mainnet — and it resets your timer completely.
+  If you want to periodically confirm your vault is live without the overhead of a full transaction, use `ping()`. It is the cheapest possible interaction — approximately 6400–31,000 gas — and it resets your timer completely.
 </Callout>
 
 ## The Ping Function

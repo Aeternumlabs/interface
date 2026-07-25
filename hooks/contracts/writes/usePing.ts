@@ -4,7 +4,7 @@
  * Wraps the ping() contract call.
  *
  * ping() resets the inactivity timer without moving any funds.
- * It is the cheapest proof-of-liveness operation — around 6,000 gas,
+ * It is the cheapest proof-of-liveness operation — around 6400–31,000 gas,
  * costing a fraction of a cent. Used when the user wants to keep their
  * vault active without depositing, sending, or withdrawing.
  *

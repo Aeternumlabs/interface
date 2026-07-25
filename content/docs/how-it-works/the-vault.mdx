@@ -49,7 +49,7 @@ Your vault supports the full set of operations you would expect from a standard 
 Every function that touches the contract resets your inactivity timer — because any on-chain interaction is proof that you are alive and in control of your wallet. The only exception is `cancelRecovery()`, which closes your vault entirely.
 
 <Callout type="tip" title="Use ping() when you're not moving funds">
-  If you plan to hold ETH for an extended period without transacting, call `ping()` before your inactivity period elapses. It costs roughly 6,000 gas — a fraction of a cent on mainnet — and resets your countdown completely.
+  If you plan to hold ETH for an extended period without transacting, call `ping()` before your inactivity period elapses. It costs roughly 6400–31,000 gas and resets your countdown completely.
 </Callout>
 
 ## Sending ETH From Your Vault
