@@ -76,7 +76,7 @@ export const docsNavSections: DocsNavSection[] = [
         label: 'What is Aeternum',
         slug: 'introduction/what-is-aeternum',
         description:
-          'A trustless, non-custodial inheritance protocol for Ethereum assets — built for people who want self-custody without the risk of permanent loss.',
+          'A trustless, non-custodial inheritance and asset recovery protocol on Ethereum — built for people who want self-custody without the risk of permanent loss.',
       },
       {
         label: 'Quick Start',
