@@ -14,7 +14,7 @@ export const siteConfig = {
   name: 'Aeternum',
   tagline: 'Ethereum recovery vault.',
   description:
-    'A trustless, non-custodial inheritance protocol for Ethereum assets. ' +
+    'A trustless, non-custodial inheritance and asset recovery protocol on Ethereum. ' +
     'Store and transact safely, like a normal wallet, and set up an inactivity-based backup plan ' +
     'that protects your funds if you ever go dark.',
   url: 'https://www.aeternumvault.xyz',
