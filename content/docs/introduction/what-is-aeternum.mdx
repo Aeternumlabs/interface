@@ -23,6 +23,9 @@ AeternumVault is a trustless, non-custodial smart contract vault deployed on Eth
 
 **An automatic backup plan.** You designate a backup address — a beneficiary, trusted family member, or heir, or a separate wallet you control as your own safety net — and set an inactivity timer. If you stay inactive for the full period, your ETH transfers to that address without any action from you. If you stay active, nothing happens. How recovery is executed, and why no one party can gatekeep it, is covered in [The Core Mechanism](/docs/introduction/what-is-aeternum#the-core-mechanism) below.
 
+<Callout type="info" title="No privileged roles">
+AeternumVault has no owner function, no pause mechanism, and no upgrade key. The contract is immutable, so its rules can't be changed after deployment, including by Aeternum Labs.
+
 ## The Core Mechanism
 
 The system rests on one idea: **an on-chain inactivity timer.** Every time you interact with your vault — a deposit, a send, a withdrawal, or a call to the `ping()` function — the timer resets and the full countdown restarts from your configured period.
