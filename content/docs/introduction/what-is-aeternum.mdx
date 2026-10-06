@@ -13,49 +13,37 @@ Traditional finance has established mechanisms for account recovery, beneficiary
 
 In the Ethereum ecosystem, existing approaches either rely on trusted parties (guardians, custodians, legal trusts), which self-custody was built to avoid, or change how keys are secured (MPC). Designs built on guardians or co-signers, such as social recovery and multisig, also depend on people who must notice what happened and choose to act, and who are exposed to the same loss and mortality risks they are meant to cover.
 
-Aeternum takes a different approach:
-- Users set a backup address and an inactivity period.
-- Once the period passes with no on-chain activity, any address can trigger recovery. Today a keeper bot run by Aeternum Labs does this automatically.
-- An immutable smart contract, not the caller, decides whether recovery is valid and transfers the funds to the backup address.
-- No guardian, custodian, legal intermediary, or company, including Aeternum Labs, has authority over the funds, and because any address can trigger recovery, the mechanism doesn't depend on Aeternum Labs staying online.
-
-Because the trigger is inactivity alone, the same mechanism covers lost access, incapacity, and death.
+Aeternum takes a different approach: you set a backup address and an inactivity period, and if the period passes without any interaction with your vault, an immutable smart contract transfers your funds to that address. Because the trigger is inactivity alone, the same mechanism covers lost access, incapacity, and death.
 
 ## What Aeternum Does
 
-AeternumVault is a trustless, non-custodial smart wallet vault deployed on Ethereum. It gives you two things simultaneously:
+AeternumVault is a trustless, non-custodial smart contract vault deployed on Ethereum. It gives you two things at once:
 
-**A normal wallet experience.** You can deposit ETH, send it anywhere, withdraw it at will, and interact with it exactly like a standard Ethereum address. Your funds sit in the contract mapped to your address — no pooling, no lending, no exposure to anyone else's actions.
+**A normal wallet experience.** You can deposit ETH, send it anywhere, and withdraw it at will. Your funds are held in the contract and mapped to your address: your balance is accounted for separately from every other user's, it is never lent out, and no other user can move it.
 
-**An automatic backup plan.** You designate a backup address — a beneficiary, trusted family member, or heir — or a separate wallet you control as your own safety net — and set an inactivity timer. If you go completely silent for that entire period — no transactions, no pings, nothing — your ETH moves to that backup address on its own. No approval, action, or presence is required from you, your beneficiary, or any single operator for that to happen — the mechanics of exactly how, and why no one party can gatekeep it, are covered in [The Core Mechanism](/docs/introduction/what-is-aeternum#the-core-mechanism) below.
-
-If you are active, nothing ever happens. You just have a safer wallet.
-
-<Callout type="info" title="Trustless by design">
-There is no privileged role in AeternumVault — no owner function, no pause mechanism, no upgrade key. The contract is immutable — once deployed, its rules cannot change. You decide where your own funds go — send them anywhere, anytime. The only address that can ever receive them without your direct action is the backup address you chose, and only after your inactivity period has fully elapsed.
-</Callout>
+**An automatic backup plan.** You designate a backup address — a beneficiary, trusted family member, or heir, or a separate wallet you control as your own safety net — and set an inactivity timer. If you stay inactive for the full period, your ETH transfers to that address without any action from you. If you stay active, nothing happens. How recovery is executed, and why no one party can gatekeep it, is covered in [The Core Mechanism](/docs/introduction/what-is-aeternum#the-core-mechanism) below.
 
 ## The Core Mechanism
 
-The entire system rests on a single idea: **an on-chain inactivity timer**. Every time you interact with your vault — deposit, send, withdraw, or even just call the `ping()` function — the elapsed counter resets, and the full countdown restarts from the configured period.
+The system rests on one idea: **an on-chain inactivity timer.** Every time you interact with your vault — a deposit, a send, a withdrawal, or a call to the `ping()` function — the timer resets and the full countdown restarts from your configured period.
 
-If your timer reaches zero — meaning you have been completely inactive for your chosen period — the transfer to your backup address becomes available to execute. Someone still has to submit that transaction; in practice, that's almost always the Aeternum Labs [keeper bot](/docs/architecture/keeper-network), which watches for eligible wallets via its own indexed database, then re-confirms each one directly against the contract before acting — rather than polling the chain for its initial scan. But `triggerRecovery()`, the function that actually executes the transfer, is permissionless: it carries no access restriction at all, so any address can call it — Aeternum Labs' own keeper bot, an independent third-party keeper, your backup address itself, or you. Recovery doesn't depend on any one company's infrastructure staying online.
+If the timer reaches zero, the transfer to your backup address becomes executable. Someone still has to submit that transaction. In practice that is almost always the Aeternum Labs [keeper bot](/docs/architecture/keeper-network), but `triggerRecovery()`, the function that executes the transfer, has no access restriction: any address can call it, including an independent keeper, your backup address, or you. Recovery doesn't depend on any one company's infrastructure staying online.
 
-What matters is that whoever calls it has no say in the outcome. The contract — not the caller — decides whether the transfer is valid, how much moves, and where it goes, based entirely on your current vault configuration, which you can update at any time. The caller can't redirect funds, force an early recovery, or influence anything beyond *whether the transaction gets submitted at all*.
+The caller can only submit the transaction. The contract, not the caller, decides whether the transfer is valid, how much moves, and where it goes, based entirely on your current vault configuration, which you can update at any time. The only address that can receive your funds without your direct action is the backup address you chose, and only after your inactivity period has fully elapsed.
 
 <HowItWorksDiagram />
 
-*The diagram above shows the actors and flow of interactions. The dashed arrow represents on-chain events emitted by the vault, picked up by an off-chain indexer and fed into the keeper's own database — this is data flowing outward from the vault, not a live call to it. Before acting on that data, the keeper separately re-checks each candidate directly against the contract to rule out anything the database missed — a read, not shown as its own arrow here, since the diagram focuses on state-changing interactions. The `triggerRecovery()` call is solid because it's the only actual on-chain transaction between the keeper network and the vault — often batching several wallets into a single transaction for gas efficiency — paid for in ETH gas by whichever address submits it, keeper or otherwise.*
+*The diagram shows the actors and flow of interactions. The dashed arrow is on-chain events emitted by the vault, picked up by an off-chain indexer and fed into the keeper's database; it is data flowing out of the vault, not a live call to it. The keeper re-checks each candidate directly against the contract before acting (a read, so not drawn as an arrow). The solid arrow, `triggerRecovery()`, is the only on-chain transaction between the keeper network and the vault. It often batches several wallets into one transaction for gas efficiency, and gas is paid in ETH by whichever address submits it.*
 
 ## Key Properties
 
 | Property | Detail |
 | --- | --- |
-| Custody | Non-custodial — the protocol holds funds on your behalf but cannot redirect them |
+| Custody | Non-custodial — funds sit in an immutable contract that no one, including Aeternum Labs, can redirect |
 | Admins | None — no owner key, no pause function, no upgrade mechanism |
-| Cost | AeternumVault v1 is free — no subscription fees, no tiers, identical protection for every user. Source-available under [BUSL-1.1](https://github.com/Aeternumlabs/aeternum-core/blob/main/LICENSE.md) |
+| Cost | No protocol fee — no subscription, no tiers, identical protection for every user; you pay only ETH gas. Source-available under [BUSL-1.1](https://github.com/Aeternumlabs/aeternum-core/blob/main/LICENSE.md) |
 | Network | Ethereum Sepolia (testnet) — mainnet pending external audit |
-| Recovery trigger | Purely time-based — only fires after your inactivity period fully elapses (and vault holds a non-zero balance) |
+| Recovery trigger | Time-based only — becomes executable after your inactivity period fully elapses, and only if the vault holds a non-zero balance |
 | Minimum timer | 180 days (mainnet) · 5 minutes (Sepolia testnet) |
 | Maximum timer | 3,650 days (~10 years) |
 
@@ -67,9 +55,9 @@ Aeternum is **not a yield product**. Your ETH does not earn interest in v1. It s
 
 Aeternum is **not a multisig**. Your designated beneficiary cannot access your vault while you are active. Funds only move to that address if recovery triggers.
 
-Aeternum is **not a social recovery system**. There are no guardians, no votes, and no separate approval window after recovery conditions are met — the inactivity period itself is the only waiting period, and you set its length. Once it elapses, recovery executes as configured.
+Aeternum is **not a social recovery system**. There are no guardians, no votes, and no approval window after the inactivity period ends. The period itself, which you set, is the only wait.
 
-Aeternum is **not custodial**. The team that built this contract cannot access your funds. There is no mechanism of any kind for that.
+Aeternum is **not custodial**. The contract has no owner function, pause, or upgrade path, so Aeternum Labs cannot access your funds.
 
 ## Ready to Get Started?
 
