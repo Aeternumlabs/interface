@@ -18,6 +18,7 @@ Aeternum takes a different approach:
 - Once the period passes with no on-chain activity, any address can trigger recovery. Today a keeper bot run by Aeternum Labs does this automatically.
 - An immutable smart contract, not the caller, decides whether recovery is valid and transfers the funds to the backup address.
 - No guardian, custodian, legal intermediary, or company, including Aeternum Labs, has authority over the funds, and because any address can trigger recovery, the mechanism doesn't depend on Aeternum Labs staying online.
+Because the trigger is inactivity alone, the same mechanism covers lost access, incapacity, and death.
 
 ## What Aeternum Does
 
