@@ -14,10 +14,10 @@ Traditional finance has established mechanisms for account recovery, beneficiary
 In the Ethereum ecosystem, existing approaches either rely on trusted parties (guardians, custodians, legal trusts), which self-custody was built to avoid, or change how keys are secured (MPC). Designs built on guardians or co-signers, such as social recovery and multisig, also depend on people who must notice what happened and choose to act, and who are exposed to the same loss and mortality risks they are meant to cover.
 
 Aeternum takes a different approach:
-Users set a backup address and an inactivity period.
-Once the period passes with no on-chain activity, any address can trigger recovery. Today a keeper bot run by Aeternum Labs does this automatically.
-An immutable smart contract, not the caller, decides whether recovery is valid and transfers the funds to the backup address.
-No guardian, custodian, legal intermediary, or company, including Aeternum Labs, has authority over the funds, and because any address can trigger recovery, the mechanism doesn't depend on Aeternum Labs staying online.
+- Users set a backup address and an inactivity period.
+- Once the period passes with no on-chain activity, any address can trigger recovery. Today a keeper bot run by Aeternum Labs does this automatically.
+- An immutable smart contract, not the caller, decides whether recovery is valid and transfers the funds to the backup address.
+- No guardian, custodian, legal intermediary, or company, including Aeternum Labs, has authority over the funds, and because any address can trigger recovery, the mechanism doesn't depend on Aeternum Labs staying online.
 
 ## What Aeternum Does
 
