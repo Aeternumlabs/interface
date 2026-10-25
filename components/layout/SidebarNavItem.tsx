@@ -68,6 +68,7 @@ const itemActive  = 'text-foreground bg-accent/70'
 
 interface SidebarNavItemProps {
   item:          NavItem
+  isMobile?:     boolean
   /** The currently open modal — used to highlight active modal items. */
   activeModal?:  ActiveModal
   onOpenModal?:  (modal: NonNullable<ActiveModal>) => void
@@ -79,6 +80,7 @@ interface SidebarNavItemProps {
 
 export function SidebarNavItem({
   item,
+  isMobile = false,
   activeModal,
   onOpenModal,
   onNavigate,
@@ -134,7 +136,7 @@ export function SidebarNavItem({
   // --- External link item
   return (
     <a
-      href={item.href}
+      href={isMobile ? item.href : item.desktopHref ?? item.href}
       target="_blank"
       rel="noopener noreferrer"
       onClick={onNavigate}
