@@ -22,6 +22,7 @@ import type { ActiveModal } from '@/types'
 
 interface SidebarNavGroupProps {
   group:          NavGroup
+  isMobile?:      boolean
   activeModal?:   ActiveModal
   onOpenModal?:   (modal: NonNullable<ActiveModal>) => void
   /** Forwarded to every SidebarNavItem — used by MobileDrawer to close itself. */
@@ -32,6 +33,7 @@ interface SidebarNavGroupProps {
 
 export function SidebarNavGroup({
   group,
+  isMobile,
   activeModal,
   onOpenModal,
   onNavigate,
@@ -50,6 +52,7 @@ export function SidebarNavGroup({
         <SidebarNavItem
           key={item.label}
           item={item}
+          isMobile={isMobile}
           activeModal={activeModal}
           onOpenModal={onOpenModal}
           onNavigate={onNavigate}
