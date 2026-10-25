@@ -74,7 +74,7 @@ export interface NavGroup {
  *
  * Group 1 (unlabelled):    Vault, Activity
  * Group 2 ("explore"):     Update config, Withdraw balance, Cancel recovery
- * Group 3 ("Insight"):     Protocol, Documentation
+ * Group 3 ("Insight"):     Protocol, Documentation, Talk to the team
  */
 export const sidebarNavGroups: NavGroup[] = [
   {
@@ -131,6 +131,12 @@ export const sidebarNavGroups: NavGroup[] = [
         label: 'Documentation',
         href: '/docs',
         icon: 'fileText',
+      },
+      {
+        kind: 'external',
+        label: 'Talk to the team',
+        href: 'mailto:hello@aeternumvault.xyz',
+        icon: 'mail',
       },
     ],
   },

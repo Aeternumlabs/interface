@@ -27,6 +27,7 @@ import { usePathname }  from 'next/navigation'
 import {
   Home, Activity, Settings,
   ArrowUpFromLine, X, Globe, FileText,
+  Mail,
   type LucideIcon,
 }                       from 'lucide-react'
 import { cn }           from '@/lib/utils'
@@ -46,6 +47,7 @@ const ICON_MAP: Record<string, LucideIcon> = {
   x:               X,
   globe:            Globe,
   fileText:         FileText,
+  mail:             Mail,
 }
 
 // --- Shared item classes ---
