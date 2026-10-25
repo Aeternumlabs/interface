@@ -51,6 +51,7 @@ export interface NavItemExternal {
   kind: 'external'
   label: string
   href: string
+  desktopHref?: string
   icon: string
 }
 
@@ -136,6 +137,7 @@ export const sidebarNavGroups: NavGroup[] = [
         kind: 'external',
         label: 'Talk to the team',
         href: 'mailto:hello@aeternumvault.xyz',
+        desktopHref: 'https://mail.google.com/mail/?view=cm&fs=1&to=hello%40aeternumvault.xyz',
         icon: 'mail',
       },
     ],
