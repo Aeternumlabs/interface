@@ -19,6 +19,7 @@
 
 # production
 /build
+.kilo
 
 # misc
 .DS_Store
