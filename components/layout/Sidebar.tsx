@@ -12,7 +12,7 @@
  * Groups rendered (in order):
  *   1. Unlabelled  — Vault, Activity
  *   2. "explore"   — Update config, Withdraw balance, Cancel recovery
- *   3. "Insight"   — Protocol, Documentation
+ *   3. "Insight"   — Protocol, Documentation, Talk to the team
  *
  * Props:
  *   activeModal   — currently open modal (highlights the matching sidebar item)
