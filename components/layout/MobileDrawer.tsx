@@ -149,6 +149,7 @@ export function MobileDrawer({
 
               <SidebarNavGroup
                 group={group}
+                isMobile
                 activeModal={activeModal}
                 onOpenModal={(modal) => {
                   onOpenModal?.(modal)
