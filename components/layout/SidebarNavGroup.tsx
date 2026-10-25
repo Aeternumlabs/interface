@@ -11,7 +11,7 @@
  * Groups from config/site.ts:
  *   1. label=""        → Vault, Activity
  *   2. label="explore" → Update config, Withdraw balance, Cancel recovery
- *   3. label="Insight" → Protocol, Documentation
+ *   3. label="Insight" → Protocol, Documentation, Talk to the team
  */
 
 import { SidebarNavItem }  from './SidebarNavItem'
